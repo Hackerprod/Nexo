@@ -5,11 +5,11 @@ Deriva SOLO del ADR (docs/adr/F0-0002-second-slice.md 4.1, 4.1.1, 4.1.2 clausula
 docs/adr/F0-0002-lagunas.md). No importa, lee ni ejecuta el verificador. Solo biblioteca estandar.
 
 Uso:
-  python -B scripts/i07c_s5c_oraculo.py FUENTE.n            JSON por programa (diagnosticos esperados)
-  python -B scripts/i07c_s5c_oraculo.py --source 'fn Main(){...}'
-  python -B scripts/i07c_s5c_oraculo.py --batch FUENTES.json  {id: fuente} o [{id, source}] -> {id: resultado}'
-  python -B scripts/i07c_s5c_oraculo.py --matrix [--md RUTA]  tabla de las filas de la matriz (fuentes recuperadas)
-  python -B scripts/i07c_s5c_oraculo.py --self-test         ejemplos literales del ADR
+  python -B scripts/i07c_rd_oracle.py FUENTE.n            JSON por programa (diagnosticos esperados)
+  python -B scripts/i07c_rd_oracle.py --source 'fn Main(){...}'
+  python -B scripts/i07c_rd_oracle.py --batch FUENTES.json  {id: fuente} o [{id, source}] -> {id: resultado}
+  python -B scripts/i07c_rd_oracle.py --matrix [--md RUTA]  compara r8-matrix45.json
+  python -B scripts/i07c_rd_oracle.py --self-test          ejemplos literales del ADR
 
 Modelo (cada regla cita su clausula; "L" = addendum de lagunas):
  * Tipos: nodos con union-find; igualdad ATOMICA (cl.1: sin unificaciones parciales al fallar) y occurs-check
@@ -909,180 +909,25 @@ def self_test():
 ROOT = str(Path(__file__).resolve().parents[1])
 
 
-def load_sources():
-    S = {}
-    rec = json.load(open(os.path.join(ROOT, "docs/validation/i07c-s5c/fuentes-recuperadas.json"), encoding="utf-8"))
-    S.update(rec)
-    base = os.path.join(ROOT, "docs/validation/i07c-s5a")
-    for n in ["R1", "R1twin", "R2", "R2b", "R3", "R3b", "R3c", "R4", "R5"]:
-        S[n] = open(os.path.join(base, "d-repros", n + ".n"), encoding="utf-8").read()
-    for n in ["P1", "P2", "P3", "P4", "P4pos", "c3", "w1", "w3", "generated1411", "generated1681"]:
-        S[n] = open(os.path.join(base, "limites", n + ".n"), encoding="utf-8").read()
-    for c in json.load(open(os.path.join(ROOT, "docs/validation/i07c-twin/casos.json"), encoding="utf-8")):
-        if c["id"] in ("O01", "O03", "O07", "O08"):
-            S[c["id"]] = c["reduced"]
-    return S
-
-
-ROWS = ["R1", "R1twin", "R3c", "R2", "R2b", "R3", "R3b", "R4", "X_R1na", "X_R1ord", "X_flat3", "Y_pend_if",
-        "Y_pend_if2", "X_mix3", "X_R4asg_r", "X_R1inc", "X_R1pre", "X_R2na", "X_R4na", "X_nest_first", "Y_conc_if",
-        "Y_pend_if_asg", "W0nounion", "W0", "A", "A_reord", "A_ctrl", "A_noasg", "B_qr", "B_rq", "F06", "M2", "O01",
-        "O03", "O07", "O08", "M2_noasg", "M2_ctrl", "DREF_valid", "P1", "c3", "w1", "P2", "P3", "w3"]
-NO_DERIVABLE = ["R5", "P4", "P4pos", "generated1411", "generated1681"]
-PF = "fn Main(){let p=true;let ar=[1];"
-# filas nuevas del plan I07c-S5c-plan.md 5 (esperados transcritos del plan: primario, relacion y cardinalidad)
-PLAN_ROWS = {
-    "X_join_local": (PF + "var q=[];let a0=(if p then q else (if p then 1 else (if p then true else 3)));q=[[ar]];}",
-                     [("NX-E1303", (77, 78), (59, 60))]),
-    "X_compat_then_absorbed": (PF + "var q=[];let a0=(if p then q else (if p then 1 else (if p then q else 3)));q=[[ar]];}",
-                               [("NX-E1303", (77, 78), (59, 60))]),
-    "X_pend_second_leaf": (PF + "var r=[];let a0=(if p then r else (if p then (if p then r else 1) else true));r=[2];}",
-                           [("NX-E1303", (95, 96), (59, 60))]),
-    "X_two_unions": (PF + "var q=[];var r=[];let a0=(if p then q else (if p then 1 else 2));"
-                     "let a1=(if p then r else (if p then true else 3));q=[[ar]];r=[[ar]];}",
-                     [("NX-E1303", (86, 87), (68, 69)), ("NX-E1303", (133, 137), (115, 116))]),
-    "obs_8bis": (PF + "var q=[];let a0=(if p then q else (if p then q else (if p then 1 else 3)));q=[[ar]];}",
-                 [("NX-E1303", None, None)]),
-}
-
-
 def matrix(md_path):
-    S = load_sources()
-    E = json.load(open(os.path.join(ROOT, "docs/validation/i07c-s5c/oraculo/matriz-esperados.json"), encoding="utf-8"))
-    lines, ok_n, res = [], 0, {}
-    for n in ROWS:
-        r = derive(S[n])
-        got = [fmt(d) for d in r["diagnostics"]]
-        exp = E[n]
-        eq = sorted(got) == sorted(exp)
-        # orden estricto (13.9): la matriz lista sus esperados ordenados como cadena; el oraculo, por (start, end, code)
-        res[n] = dict(match=eq, got=got, exp=exp, unmodeled=r["unmodeled"], error=r.get("error"),
-                      no_fijado=r.get("no_fijado", []), d_optional=[fmt(d) for d in r.get("d_optional", [])])
-        ok_n += eq
-        lines.append("%-14s %s" % (n, "COINCIDE" if eq else "DISCREPA"))
-    print(chr(10).join(lines))
-    print("coinciden %d/%d" % (ok_n, len(ROWS)))
-    for n, (src, exp) in PLAN_ROWS.items():
-        r = derive(src)
-        pl = [(d["code"], tuple(d["primary"]), tuple(d["rel_expected"]) if d["rel_expected"] else None)
-              for d in r["diagnostics"]]
-        if n == "obs_8bis":
-            ok = len(pl) == 1 and pl[0][1] == (95, 96)
-        else:
-            ok = pl == [tuple(x) for x in exp]
-        res[n] = dict(got=[fmt(d) for d in r["diagnostics"]], plan=exp, match=ok, unmodeled=r["unmodeled"])
-    for n in NO_DERIVABLE:
-        r = derive(S[n])
-        res[n] = dict(got=[fmt(d) for d in r["diagnostics"]], unmodeled=r["unmodeled"], error=r.get("error"))
+    fixture = Path(ROOT) / "docs/validation/i07c-rediseno/r8-matrix45.json"
+    rows = json.loads(fixture.read_text(encoding="utf-8"))["rows"]
+    res = {}
+    for row in rows:
+        actual = derive(row["source"])
+        equal = actual["diagnostics"] == row["expected"]
+        res[row["id"]] = {"match": equal, "expected": row["expected"], "actual": actual}
+        print("%-14s %s" % (row["id"], "COINCIDE" if equal else "DISCREPA"))
+    passed = sum(value["match"] for value in res.values())
+    print("coinciden %d/%d" % (passed, len(rows)))
     if md_path:
-        write_md(md_path, S, res)
+        Path(md_path).write_text("# Matriz R6\n\n" + "\n".join(
+            "- `%s`: %s" % (name, "COINCIDE" if value["match"] else "DISCREPA")
+            for name, value in res.items()) + "\n", encoding="utf-8")
     out = os.environ.get("ORACULO_JSON")
     if out:
-        json.dump(res, open(out, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+        Path(out).write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
     return res
-
-
-DISCREPANCIAS = """## Discrepancias (3 filas) y quien tiene razon
-
-Criterio: el ADR manda; no se fuerza ninguna fila. Los tres casos se verificaron contando bytes de la fuente y comprobando
-la coherencia interna de los tipos de la propia fila de la matriz.
-
-### W0 (relacion de la E1303: matriz `[60,64)`, oraculo `[59,63)`) - tiene razon el oraculo (error aritmetico de la matriz)
-
-`fn Main(){let ar=[1];var r=[];var q=[];let a=(if true then true else q);...`: el prefijo `fn Main(){` ocupa 10 bytes,
-`let ar=[1];` 11, `var r=[];` 9 y `var q=[];` 9, es decir 39; `let a=(` ocupa `[39,46)`, la condicion `true` `[49,53)`, la primera
-continuacion `true` `[59,63)` y `q` `[69,70)`. La relacion `expected_type` es el operando de la primera continuacion
-(ADR 4.1.2 clausula 6 / l.371: «para una union, el operando de la primera continuacion que la establece»), esto es `[59,63)`.
-La matriz copio `[60,64)` de P1/c3/w1, que llevan un parentesis extra delante (`let a=((if ...`). Los binarios
-`main` y V6 tambien imprimen `[59,63)`; el resto de la fila (E1303 `[69,70)` `Bool`/`Array<Array<Bool>>`, sin E0103) coincide.
-Accion: corregir la columna esperada de W0 a `exp=[59,63)`.
-
-### P2 y w3 (E1303 y E0102 sobre `r=[r]`) - tiene razon el oraculo; la matriz es internamente contradictoria
-
-Fuente P2: `let a=(if p then [r,q] else (if (x<1) then r else [true]));q=[[3]];q=ar;r=[r];`. Derivacion:
-1. `[r,q]` (primera continuacion): referencia = `r` (primer elemento con evidencia valida, 4.1.2 cl.4); la igualdad de `q` con ella se
-   acumula (`alfa_r = alfa_q`); tipo del literal `Array<Array<alfa>>`. Ancla de la union = `[r,q]` `[75,80)`.
-2. Aplanado en orden fuente: hoja `r` (`[101,102)`), luego `[true]` (`[108,114)`).
-3. Con `q=[[3]]` (RHS completo fija `alfa_q := Array<I64>`) el tipo de `r` es `Array<Array<I64>>` y el ancla `Array<Array<Array<I64>>>`
-   (la columna esperada de la matriz usa esas mismas cifras, `A^3`). La hoja `r` es incompatible con el ancla (`A^2` frente a `A^3`;
-   ademas, antes de conocer `alfa`, `Array<alfa>` frente a `Array<Array<alfa>>` exige `alfa = Array<alfa>`: igualdad recursiva sin solucion
-   finita, incompatible por 4.1.2 cl.2 y el addendum «no autoriza la igualdad recursiva»). Es la **primera** hoja posterior incompatible:
-   la unica E1303 va sobre `r` `[101,102)` (4.1.2 cl.4, 4.7), con `expected_type=Array<Array<Array<I64>>>`, `found_type=Array<Array<I64>>`
-   (tipo completo de la expresion senalada, 13.17/cl.6) y relacion `[75,80)`. `[true]` queda absorbida: no es sitio independiente ni D (cl.4).
-4. `q=ar`: E0102 `[127,129)` esperado `Array<Array<I64>>` encontrado `Array<I64>`, relacion = RHS de `q=[[3]]` `[119,124)` (coincide con la matriz).
-5. `r=[r]`: el elemento hoja `r` `[133,134)` recibe el tipo de elemento de `r`, `Array<I64>`, y su tipo es `Array<Array<I64>>`:
-   E0102 `expected_type=Array<I64>`, `found_type=Array<Array<I64>>`; el origen de ese esperado es la igualdad posterior `q=[[3]]`
-   (`[119,124)`), no el ancla.
-
-La matriz (y `main`/V6, de cuya salida se copio; comprobado ejecutando `check` solo para este informe) dice E1303 sobre `[true]` `[108,114)` y
-E0102 `[133,134)` con `Array<Array<I64>>`/`Array<Array<Array<I64>>>` y relacion `[75,80)`. Contradiccion interna comprobable sin el ADR: la E1303 de
-la propia fila fija el ancla `A^3 = Array<tipo de r>`, es decir `tipo(r) = A^2`; la E0102 de la propia fila exige `found_type = A^3` para la
-expresion `r`, es decir `tipo(r) = A^3`. Ambas no pueden valer. Ademas, si `r` fuese compatible con el ancla (`A^2 = A^3`) no habria
-solucion finita. w3 es la misma estructura (cambia `q=[[x+1]]`). Cardinalidad (3 diagnosticos) y la E0102 de `q=ar` coinciden; difieren el
-primario de la E1303 (`r` frente a `[true]`) y los tipos/relacion de la E0102 de `r=[r]`.
-Accion: P2/w3 dejan de ser referencia de N para esos dos diagnosticos; se necesita adjudicacion de B (si B conviene con esta derivacion,
-`main` y V6 tienen un defecto previo de nucleo: E1303 sobre una hoja distinta de la primera incompatible). No decidido aqui.
-"""
-
-NO_MODELADO = """## Lo que el oraculo no modela
-
-- Filas NO DERIVABLES de la matriz (R5, P4, P4pos, generated1411, generated1681): R5 usa `while`; P4/P4pos usan `if[]then[]else` sin
-  espacios y `if()then` (el parser del subconjunto las rechaza con error de sintaxis fuera del subconjunto). generated1411/1681 se
-  procesan (seccion final) pero **no se validan** contra la matriz (la matriz las declara sin derivacion cerrada).
-- Fuera del subconjunto: asignacion indexada `r[i]=e` y anotaciones `Array<T>`; `AssertEq`; `Drop`; bucles; varias funciones con
-  llamadas; cierres; `Never` salvo el literal `{return;}`; dominio `copyable_data` de `==` (se supone satisfecho) y dominio de `<` con
-  operandos no I64; el cierre de dominio indeciso de 4.1.2.3 salvo lo que usan `Len` y `<`; relaciones condicionales de proyeccion con
-  base que se vuelve escalar mas tarde (solo `not_indexable` inmediato). V (derivados) no se emiten; D (hojas adicionales de una misma
-  restriccion) se listan en `d_optional` pero no se comparan (presencia D/V es I, 4.1.2 I(a)).
-- Cuotas de solver, pilas y `NX-E0003`: fuera de alcance (andamiaje).
-"""
-
-
-def write_md(path, S, res):
-    L = ["# I07c-S5c - oraculo independiente frente a la matriz (E, Flujo B)", ""]
-    ok = sum(1 for n in ROWS if res[n]["match"])
-    nplan = sum(1 for n in PLAN_ROWS if res[n]["match"])
-    L += ["Oraculo: `scripts/i07c_s5c_oraculo.py` (derivado solo del ADR; no lee ni importa el verificador). Fuentes: "
-          "`docs/validation/i07c-s5c/fuentes-recuperadas.json`, `docs/validation/i07c-s5a/{d-repros,limites}/`, `docs/validation/i07c-twin/casos.json`. "
-          "Esperados de la matriz: columna «Esperado» de `docs/correcciones/I07c-S5c-diseno-ancla.md` (copiados de `rec_all.py` a "
-          "`docs/validation/i07c-s5c/oraculo/matriz-esperados.json` por `extraer_esperados.py`, sin ejecutar binarios). "
-          "Comparacion: cadena exacta por diagnostico (codigo, subcausa, primario por bytes, `expected_type`/`found_type`, relacion `expected_type`), "
-          "como multiconjunto (la matriz lista sus diagnosticos por orden de cadena, no por 13.9; el oraculo emite siempre por 13.9: "
-          "inicio, fin, codigo, subcausa).", "",
-          "**Resultado: %d/%d filas coinciden; %d discrepan (W0, P2, w3).** Filas nuevas del plan 5 y observacion de 8 bis: %d/%d coinciden en primario y relacion." %
-          (ok, len(ROWS), len(ROWS) - ok, nplan, len(PLAN_ROWS)), ""]
-    L += [DISCREPANCIAS, "", "## Tabla fila a fila (45 filas)", "",
-          "Formato de cada diagnostico: `codigo[/subcausa] [inicio,fin) esperado|encontrado exp=[relacion)`; `A<..>` abrevia `Array<..>`.", "",
-          "| # | Fila | Esperado de la matriz | Oraculo | Coincide | Notas |", "|---|---|---|---|---|---|"]
-    for i, n in enumerate(ROWS, 1):
-        r = res[n]
-        notes = []
-        if r["no_fijado"]:
-            notes.append("decision no fijada " + ", ".join(x.split()[0] for x in r["no_fijado"]) + " (ver `orden-no-fijado.md`)")
-        if r["d_optional"]:
-            notes.append("D opcional: " + "; ".join(r["d_optional"]))
-        if not r["match"]:
-            notes.append("**DISCREPA**: ver seccion de discrepancias")
-        cell = lambda xs: "<br>".join("`%s`" % x for x in xs) if xs else "(sin diagnosticos)"
-        L.append("| %d | %s | %s | %s | %s | %s |" % (i, n, cell(sorted(r["exp"])), cell(r["got"]),
-                                                      "si" if r["match"] else "**no**", " ".join(notes)))
-    L += ["", "## Filas nuevas del plan 5 y observacion de 8 bis", "",
-          "Esperado transcrito del plan (primario y relacion; los tipos los deriva el oraculo).", "",
-          "| Fila | Esperado del plan | Oraculo | Coincide |", "|---|---|---|---|"]
-    for n, (src, exp) in PLAN_ROWS.items():
-        r = res[n]
-        if n == "obs_8bis":
-            e = "1 E1303 en la hoja `1` (`[95,96)`)"
-        else:
-            e = "; ".join("E1303 [%d,%d) rel [%d,%d)" % (x[1] + x[2]) for x in exp)
-        L.append("| %s | %s | %s | %s |" % (n, e, "<br>".join("`%s`" % x for x in r["got"]), "si" if r["match"] else "**no**"))
-    L += ["", NO_MODELADO, "", "## Filas fuera de la matriz (salida del oraculo, sin validar)", ""]
-    for n in NO_DERIVABLE:
-        r = res[n]
-        L.append("- %s: %s" % (n, ("error de sintaxis del subconjunto: " + r["error"]) if r.get("error") else
-                               "; ".join("`%s`" % x for x in r["got"])))
-    L.append("")
-    open(path, "w", encoding="utf-8", newline="\n").write("\n".join(L))
 
 
 def main(argv):

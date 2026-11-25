@@ -179,10 +179,11 @@
         "assert_eq!(evidence.domains, vec![(inside, \"I64\")]);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "mismo diagnóstico del operando anidado y conservación de las causas independientes tras completar el padre; código, subcausa, primario, data y relaciones idénticos",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_009",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "mismo diagnóstico del operando anidado y conservación de las causas independientes tras completar el padre; código, subcausa, primario, data y relaciones idénticos"
     },
     {
       "source_test": "solver_states_and_representatives_keep_their_distinct_rules",
@@ -209,10 +210,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Estados de solver distintos conservan aceptación y diagnóstico al completar restricciones; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_010",
-      "fixture_family": "G: `suspended_68` y `planned`; mismo resultado tras ordenar restricciones"
+      "fixture_family": "G: `suspended_68` y `planned`; mismo resultado tras ordenar restricciones",
+      "private_invariant_destination": "Estados de solver distintos conservan aceptación y diagnóstico al completar restricciones"
     },
     {
       "source_test": "right_hand_bottom_and_taint_keep_their_algebraic_states",
@@ -230,10 +232,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_011",
-      "fixture_family": "J: `RS1_condition_contaminated` y `RS2_independent_child_errors`"
+      "fixture_family": "J: `RS1_condition_contaminated` y `RS2_independent_child_errors`",
+      "private_invariant_destination": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente"
     },
     {
       "source_test": "concrete_deferred_branch_join_reports_branch_mismatch",
@@ -256,10 +259,11 @@
         "code",
         "primary_span"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "La unión diferida completa y acusa la rama escrita incompatible; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_012",
-      "fixture_family": "J: `W1_atomic_compound`, código y primario de la rama"
+      "fixture_family": "J: `W1_atomic_compound`, código y primario de la rama",
+      "private_invariant_destination": "La unión diferida completa y acusa la rama escrita incompatible"
     },
     {
       "source_test": "union_retains_earliest_concrete_origin_and_copyable_domain",
@@ -285,7 +289,7 @@
         "data"
       ],
       "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "destination_assertions": "misma aceptación, dominio Copyable y relación del primer EqualityId compatible en ambos órdenes de unión; mismo JSON observable",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_013",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -315,10 +319,11 @@
         "primary_span",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Un alias diferido denuncia el operando escrito y cobra su contraste; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_014",
-      "fixture_family": "Q: `suspended_68` con cuota y primario del RHS"
+      "fixture_family": "Q: `suspended_68` con cuota y primario del RHS",
+      "private_invariant_destination": "Un alias diferido denuncia el operando escrito y cobra su contraste"
     },
     {
       "source_test": "overlapping_type_origins_choose_the_earlier_start",
@@ -342,7 +347,7 @@
         "data"
       ],
       "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "destination_assertions": "mismo JSON de conflicto con spans solapados; relación elegida por EqualityId, sin ordenar por Span.start",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_015",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -397,10 +402,11 @@
         "found_type",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "el primer elemento rechazado no fija al posterior; mismos diagnósticos por elemento y mismo tipo final de las hojas compatibles",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_017",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "el primer elemento rechazado no fija al posterior; mismos diagnósticos por elemento y mismo tipo final de las hojas compatibles"
     },
     {
       "source_test": "contextual_all_divergent_if_retains_expected_type_and_divergence",
@@ -465,7 +471,7 @@
         "data"
       ],
       "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "destination_assertions": "mismo E1303, tipos completos y relaciones al primer EqualityId compatible; ningún origen del intento rechazado",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_020",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -491,10 +497,11 @@
       "asserted_fields": [
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnóstico de límite; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_021",
-      "fixture_family": "C: generador de arrays 127/128/129 del test por CLI"
+      "fixture_family": "C: generador de arrays 127/128/129 del test por CLI",
+      "private_invariant_destination": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnóstico de límite"
     },
     {
       "source_test": "inferred_array_root_retains_depth_origin_after_later_constraint",
@@ -517,10 +524,11 @@
       "asserted_fields": [
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Una restricción posterior conserva el origen de profundidad del primer constructor; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_022",
-      "fixture_family": "F: `later_completion`, relación esperada original"
+      "fixture_family": "F: `later_completion`, relación esperada original",
+      "private_invariant_destination": "Una restricción posterior conserva el origen de profundidad del primer constructor"
     },
     {
       "source_test": "deferred_visible_conversion_and_constructor_walk_stop_at_their_boundaries",
@@ -542,10 +550,11 @@
         "assert!(checker.concrete(root).is_none());"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_023",
-      "fixture_family": "C: `completion_unresolved` y `completion_conflict`"
+      "fixture_family": "C: `completion_unresolved` y `completion_conflict`",
+      "private_invariant_destination": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno"
     },
     {
       "source_test": "constructor_walk_keeps_exact_depth_boundaries",
@@ -565,10 +574,11 @@
         "assert_eq!(checker.concrete(root).is_some(), length <= 128);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Recorrido de constructor respeta 127/128/129 sin desbordar; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_024",
-      "fixture_family": "C: generador de arrays 127/128/129 del test por CLI"
+      "fixture_family": "C: generador de arrays 127/128/129 del test por CLI",
+      "private_invariant_destination": "Recorrido de constructor respeta 127/128/129 sin desbordar"
     },
     {
       "source_test": "partial_type_table_preserves_never_and_taint_states",
@@ -612,10 +622,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Diagnósticos serializados no muestran variables ni estados internos; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_026",
-      "fixture_family": "G: 74 dirigidas; inspección JSON sin variables libres"
+      "fixture_family": "G: 74 dirigidas; inspección JSON sin variables libres",
+      "private_invariant_destination": "Diagnósticos serializados no muestran variables ni estados internos"
     },
     {
       "source_test": "deferred_result_components_and_structural_array_elements_resolve_separately",
@@ -640,10 +651,11 @@
         "found_type",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "Ok y Err completan sus payloads por separado; el elemento Array conserva su E0103 o tipo final según su propia evidencia",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_027",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "Ok y Err completan sus payloads por separado; el elemento Array conserva su E0103 o tipo final según su propia evidencia"
     },
     {
       "source_test": "concrete_arrays_record_divergence_only_from_never_elements",
@@ -661,10 +673,11 @@
       "asserted_fields": [
         "quota_error"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "solo el elemento Never contribuye divergencia; el Array con valor normal conserva tipo y no crea E1303/E0103 espurio",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_028",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "solo el elemento Never contribuye divergencia; el Array con valor normal conserva tipo y no crea E1303/E0103 espurio"
     },
     {
       "source_test": "solver_bind_dispatch_applies_each_fact_boundary",
@@ -701,10 +714,11 @@
         "assert_eq!(inherited[0].child_owner, Some((1, 2)));"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Cada enlace de tipo se aplica en su sitio causal y no al padre; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_029",
-      "fixture_family": "G: `planned` y `W1_atomic_compound`, primarios por hijo"
+      "fixture_family": "G: `planned` y `W1_atomic_compound`, primarios por hijo",
+      "private_invariant_destination": "Cada enlace de tipo se aplica en su sitio causal y no al padre"
     },
     {
       "source_test": "s3_solver_unify_depth_child",
@@ -725,10 +739,11 @@
       "asserted_fields": [
         "outcome"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "La unificación profunda alcanza el hijo correcto sin pánico; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_030",
-      "fixture_family": "C: arrays anidados del test por CLI, límite 128"
+      "fixture_family": "C: arrays anidados del test por CLI, límite 128",
+      "private_invariant_destination": "La unificación profunda alcanza el hijo correcto sin pánico"
     },
     {
       "source_test": "drive_facts_close_after_successive_visits",
@@ -752,10 +767,11 @@
         "assert_eq!(checker.graph.active_count(), 0);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "dos visitas sucesivas conservan los valores exteriores y cierran sus hechos; mismo resultado y diagnósticos de programa",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_031",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "dos visitas sucesivas conservan los valores exteriores y cierran sus hechos; mismo resultado y diagnósticos de programa"
     },
     {
       "source_test": "boundary_context_owner_closes_constructor_before_comparison",
@@ -785,10 +801,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "El constructor se cierra antes de contrastar el contexto del padre; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_032",
-      "fixture_family": "C: fuente CLI ya incluida en el test, mismo código/primario"
+      "fixture_family": "C: fuente CLI ya incluida en el test, mismo código/primario",
+      "private_invariant_destination": "El constructor se cierra antes de contrastar el contexto del padre"
     },
     {
       "source_test": "boundary_binary_context_closes_after_prepared_comparison",
@@ -804,10 +821,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "la comparación preparada cierra su contexto antes del consumidor siguiente; mismo código, primario y tipo final",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_033",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "la comparación preparada cierra su contexto antes del consumidor siguiente; mismo código, primario y tipo final"
     },
     {
       "source_test": "boundary_binary_left_quota_keeps_operator_until_context_close",
@@ -949,10 +967,11 @@
         "assert!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Visita anidada preserva valor exterior; ID cerrado no altera diagnóstico; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_040",
-      "fixture_family": "G: `W1_atomic_compound` y `planned`, mismo diagnóstico exterior"
+      "fixture_family": "G: `W1_atomic_compound` y `planned`, mismo diagnóstico exterior",
+      "private_invariant_destination": "Visita anidada preserva valor exterior; ID cerrado no altera diagnóstico"
     },
     {
       "source_test": "deferred_selector_reentry_keeps_outer_facts_for_array_and_scalar_bindings",
@@ -1051,10 +1070,11 @@
         "primary_span",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "La profundidad del constructor Array prevalece sobre la del valor; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_044",
-      "fixture_family": "C: `recursive_69` y caso profundo del test"
+      "fixture_family": "C: `recursive_69` y caso profundo del test",
+      "private_invariant_destination": "La profundidad del constructor Array prevalece sobre la del valor"
     },
     {
       "source_test": "contextual_array_charges_each_leaf_once_at_the_reduced_boundary",
@@ -1117,10 +1137,11 @@
       "asserted_fields": [
         "expected_type"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "la expectativa pendiente espera y el grupo transmite el sitio de su hoja; mismos código, primario y relaciones al cerrar",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_047",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "la expectativa pendiente espera y el grupo transmite el sitio de su hoja; mismos código, primario y relaciones al cerrar"
     },
     {
       "source_test": "non_result_try_is_rejected_at_the_expression_boundary",
@@ -1175,10 +1196,11 @@
         "found_type",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "El orden de representantes no cambia el conflicto Array de unión; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_049",
-      "fixture_family": "J: `W1_atomic_compound` en dos órdenes de binding"
+      "fixture_family": "J: `W1_atomic_compound` en dos órdenes de binding",
+      "private_invariant_destination": "El orden de representantes no cambia el conflicto Array de unión"
     },
     {
       "source_test": "union_selects_earlier_origin_by_start_even_when_spans_overlap",
@@ -1202,7 +1224,7 @@
         "data"
       ],
       "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "destination_assertions": "mismo JSON de unión y relación, ahora decidido por EqualityId de las dos obligaciones solapadas",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_050",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -1260,10 +1282,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "El hijo completado reactiva el contraste pendiente entre constructores; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_052",
-      "fixture_family": "C: `completion_conflict` y `completion_unresolved`"
+      "fixture_family": "C: `completion_conflict` y `completion_unresolved`",
+      "private_invariant_destination": "El hijo completado reactiva el contraste pendiente entre constructores"
     },
     {
       "source_test": "cached_arrays_charge_every_logical_pair_at_the_reduced_limit",
@@ -1316,8 +1339,8 @@
         "code",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "para cada límite inferior al coste medido: solo E0003 con observed=limit+1; el ocurre-check completo conserva el diagnóstico sin límite",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_054",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -1341,8 +1364,8 @@
         "code",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "barrido 0..coste−1 con un E0003 y observed=limit+1; sin cifra de frontera no enunciada por ADR",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_055",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -1365,10 +1388,11 @@
         "assert!(checker.graph.type_nodes[&root].bottom_only);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "`Never` en cualquier lado no inventa tipo ni conflicto exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_056",
-      "fixture_family": "J: `RS1_condition_contaminated` y retorno en rama"
+      "fixture_family": "J: `RS1_condition_contaminated` y retorno en rama",
+      "private_invariant_destination": "`Never` en cualquier lado no inventa tipo ni conflicto exterior"
     },
     {
       "source_test": "adr_gap_shape_walk_charge_per_constructor_link",
@@ -1393,8 +1417,8 @@
         "code",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "cada constructor visitado causa progreso/cargo real y no se acepta con límite insuficiente; observed=limit+1",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_057",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -1784,10 +1808,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Permutar restricciones compatibles conserva tipo y aceptación; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_073",
-      "fixture_family": "G: dos órdenes de `q=r;q=[1];r=[1]` por CLI"
+      "fixture_family": "G: dos órdenes de `q=r;q=[1];r=[1]` por CLI",
+      "private_invariant_destination": "Permutar restricciones compatibles conserva tipo y aceptación"
     },
     {
       "source_test": "generated_constraint_orders_have_the_same_acceptance",
@@ -1807,10 +1832,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "dos órdenes de igualdades conservan aceptación y tipos finales, y los conflictos mantienen código/primario/relaciones causales",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_074",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "dos órdenes de igualdades conservan aceptación y tipos finales, y los conflictos mantienen código/primario/relaciones causales"
     },
     {
       "source_test": "i07c_survivor_refuted_binary_and_guarded_results",
@@ -1859,7 +1885,7 @@
       ],
       "asserted_fields": [],
       "action": "sustituir_mecanismo_por_cli",
-      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "destination_assertions": "la restricción Array alcanza la hoja correcta; positivo tipado y negativo con primario de hoja; límite insuficiente emite E0003 sin ocultarlo",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_077",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -1901,10 +1927,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Nominal pendiente solo se activa con dominio vivo y acreditado; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_079",
-      "fixture_family": "G: `waiting_projection_valid`/`waiting_projection_refuted`"
+      "fixture_family": "G: `waiting_projection_valid`/`waiting_projection_refuted`",
+      "private_invariant_destination": "Nominal pendiente solo se activa con dominio vivo y acreditado"
     },
     {
       "source_test": "i07c_survivor2_solver_preserves_constructor_identity",
@@ -1929,10 +1956,11 @@
         "assert!(checker.concrete(scalar).is_none());"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "El constructor inicial conserva su sitio tras unificación; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_080",
-      "fixture_family": "C: `recursive_69` y `CD1_independent_constructor`"
+      "fixture_family": "C: `recursive_69` y `CD1_independent_constructor`",
+      "private_invariant_destination": "El constructor inicial conserva su sitio tras unificación"
     },
     {
       "source_test": "i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf",
@@ -2000,10 +2028,11 @@
         "assert!(checker.graph.type_nodes[&unresolved].concrete.is_none());"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Resultado concreto del closure no fija retorno pendiente de otro contexto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_083",
-      "fixture_family": "L: fuente CLI del test; comparar aceptación y diagnóstico del retorno"
+      "fixture_family": "L: fuente CLI del test; comparar aceptación y diagnóstico del retorno",
+      "private_invariant_destination": "Resultado concreto del closure no fija retorno pendiente de otro contexto"
     },
     {
       "source_test": "i07c_survivor2_pending_selector_keeps_independent_taint",
@@ -2020,10 +2049,11 @@
         "assert_eq!(flag, Some((true, true)));"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "el selector pendiente no borra E0103/E0102 de un hijo independiente; mismo orden y primarios tras completar base",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_084",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "el selector pendiente no borra E0103/E0102 de un hijo independiente; mismo orden y primarios tras completar base"
     },
     {
       "source_test": "i07c_survivor2_selection_depth_keeps_the_current_type",
@@ -2062,10 +2092,11 @@
         "assert!(checker.resolved_join_side(side) == Some(Type::option(Arc::new(Type::I64))));"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Una unión completada conserva payload `Option` correcto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_086",
-      "fixture_family": "R: programa `match Option` con brazos compatibles y contraparte incompatible"
+      "fixture_family": "R: programa `match Option` con brazos compatibles y contraparte incompatible",
+      "private_invariant_destination": "Una unión completada conserva payload `Option` correcto"
     },
     {
       "source_test": "i07c_survivor2_expression_dependencies_cover_branch_children",
@@ -2139,10 +2170,11 @@
         "assert!(!checker.result_shape_conflict(root, &Type::I64, 129));"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Conflicto Result no cambia identidad del payload previo; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_089",
-      "fixture_family": "R: `Result<Array<I64>,I64>` con RHS incompatible y uso posterior"
+      "fixture_family": "R: `Result<Array<I64>,I64>` con RHS incompatible y uso posterior",
+      "private_invariant_destination": "Conflicto Result no cambia identidad del payload previo"
     },
     {
       "source_test": "i07c_survivor2_shape_conflicts_continue_past_irrelevant_children",
@@ -2173,10 +2205,11 @@
         "primary_span",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Un hijo irrelevante no oculta conflicto de otro hijo; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_090",
-      "fixture_family": "C: array con tres hijos, segundo compatible y tercero incompatible"
+      "fixture_family": "C: array con tres hijos, segundo compatible y tercero incompatible",
+      "private_invariant_destination": "Un hijo irrelevante no oculta conflicto de otro hijo"
     },
     {
       "source_test": "i07c_survivor2_pattern_shape_chooses_first_conflicting_child",
@@ -2199,10 +2232,11 @@
         "related_spans",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Patrón compuesto señala el primer hijo incompatible; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_091",
-      "fixture_family": "R: `match Option`/`Result` con patrón inválido y primario del primer hijo"
+      "fixture_family": "R: `match Option`/`Result` con patrón inválido y primario del primer hijo",
+      "private_invariant_destination": "Patrón compuesto señala el primer hijo incompatible"
     },
     {
       "source_test": "i07c_survivor3_shape_walk_checks_later_result_payload",
@@ -2229,10 +2263,11 @@
         "subcause",
         "related_spans"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "El recorrido Result comprueba el payload posterior al primero; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_092",
-      "fixture_family": "R: Result con Ok compatible y Err incompatible"
+      "fixture_family": "R: Result con Ok compatible y Err incompatible",
+      "private_invariant_destination": "El recorrido Result comprueba el payload posterior al primero"
     },
     {
       "source_test": "i07c_survivor3_require_union_moves_concrete_payloads_to_children",
@@ -2257,10 +2292,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "La restricción de Result/Option distribuye el tipo concreto a los payloads; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_093",
-      "fixture_family": "R: `Ok`/`Err` y `Some` anotados, luego RHS incompatible"
+      "fixture_family": "R: `Ok`/`Err` y `Some` anotados, luego RHS incompatible",
+      "private_invariant_destination": "La restricción de Result/Option distribuye el tipo concreto a los payloads"
     },
     {
       "source_test": "i07c_survivor3_union_transfers_single_sided_shape_and_origin",
@@ -2286,10 +2322,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Un solo lado estructurado transfiere forma y primer origen; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_094",
-      "fixture_family": "F: `omitted_relation`, relación del primer operando"
+      "fixture_family": "F: `omitted_relation`, relación del primer operando",
+      "private_invariant_destination": "Un solo lado estructurado transfiere forma y primer origen"
     },
     {
       "source_test": "i07c_survivor3_failed_union_restores_both_constructor_roots",
@@ -2318,10 +2355,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Unión rechazada deja intactos ambos constructores para usos posteriores; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_095",
-      "fixture_family": "J: `W1_atomic_compound` y `planned`"
+      "fixture_family": "J: `W1_atomic_compound` y `planned`",
+      "private_invariant_destination": "Unión rechazada deja intactos ambos constructores para usos posteriores"
     },
     {
       "source_test": "i07c_survivor3_unify_concrete_union_kinds_and_payloads",
@@ -2351,10 +2389,11 @@
         "found_type",
         "data"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Option/Result incompatibles rechazan tipo de variante y payload correctos; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_096",
-      "fixture_family": "R: `Some(1)` frente a `Ok(1)` y payload tipado"
+      "fixture_family": "R: `Some(1)` frente a `Ok(1)` y payload tipado",
+      "private_invariant_destination": "Option/Result incompatibles rechazan tipo de variante y payload correctos"
     },
     {
       "source_test": "i07c_survivor3_shape_requirements_reject_incompatible_roots",
@@ -2374,10 +2413,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "Array/Option/Result incompatibles rechazan la igualdad completa en ambos órdenes; mismos diagnósticos y uso posterior intacto",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_097",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "Array/Option/Result incompatibles rechazan la igualdad completa en ambos órdenes; mismos diagnósticos y uso posterior intacto"
     },
     {
       "source_test": "i07c_survivor3_failed_single_sided_union_keeps_preexisting_shape",
@@ -2404,10 +2444,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Rechazo con forma solo a un lado conserva la forma previa; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_098",
-      "fixture_family": "J: `completion_conflict` y `W1_atomic_compound`"
+      "fixture_family": "J: `completion_conflict` y `W1_atomic_compound`",
+      "private_invariant_destination": "Rechazo con forma solo a un lado conserva la forma previa"
     },
     {
       "source_test": "i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind",
@@ -2435,10 +2476,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Rechazo de Result revierte enlace tentativo de primer payload; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_099",
-      "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
+      "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok",
+      "private_invariant_destination": "Rechazo de Result revierte enlace tentativo de primer payload"
     },
     {
       "source_test": "i07c_survivor3_union_prefers_larger_component_before_id",
@@ -2483,10 +2525,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Payload `Never` deja que otro payload complete Result; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_101",
-      "fixture_family": "R: Result con `return` en un brazo y valor posterior"
+      "fixture_family": "R: Result con `return` en un brazo y valor posterior",
+      "private_invariant_destination": "Payload `Never` deja que otro payload complete Result"
     },
     {
       "source_test": "i07c_survivor3_cached_array_child_rebuilds_outer_shape",
@@ -2505,10 +2548,11 @@
         "assert_eq!(joined, left_outer);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Hijo Array cacheado no pierde forma exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_102",
-      "fixture_family": "C: arrays anidados repetidos y asignación posterior"
+      "fixture_family": "C: arrays anidados repetidos y asignación posterior",
+      "private_invariant_destination": "Hijo Array cacheado no pierde forma exterior"
     },
     {
       "source_test": "i07c_survivor3_failed_atomic_union_preserves_quota_error",
@@ -2557,10 +2601,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Option completado usa el origen del binding inicial; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_104",
-      "fixture_family": "F: ADR Firma/Alias y `later_completion` con Option"
+      "fixture_family": "F: ADR Firma/Alias y `later_completion` con Option",
+      "private_invariant_destination": "Option completado usa el origen del binding inicial"
     },
     {
       "source_test": "i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind",
@@ -2583,10 +2628,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Fallo de payload Result no altera vínculo diferido anterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_105",
-      "fixture_family": "R: Result diferido, segundo payload inválido, uso posterior del primero"
+      "fixture_family": "R: Result diferido, segundo payload inválido, uso posterior del primero",
+      "private_invariant_destination": "Fallo de payload Result no altera vínculo diferido anterior"
     },
     {
       "source_test": "i07c_survivor3_union_rejects_variant_against_array_in_both_orders",
@@ -2608,10 +2654,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "portar_observable_cli_y_privado_libro",
+      "destination_assertions": "Result/Option frente a Array rechazan en ambos órdenes con mismo código, tipos, primario y relaciones; sin enlace parcial",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_106",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_destination": "Result/Option frente a Array rechazan en ambos órdenes con mismo código, tipos, primario y relaciones; sin enlace parcial"
     },
     {
       "source_test": "i07c_survivor3_require_union_quota_propagates_through_bind",
@@ -2629,8 +2676,8 @@
       "asserted_fields": [
         "quota_error"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
-      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "límite menor al coste real da un E0003 observado=limit+1 sin publicar el payload parcial; ejecución sin límite conserva C",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_107",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -2651,10 +2698,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Reenlace de unión conocida conserva primer origen; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_108",
-      "fixture_family": "F: `rejected_assignment` y `later_completion`"
+      "fixture_family": "F: `rejected_assignment` y `later_completion`",
+      "private_invariant_destination": "Reenlace de unión conocida conserva primer origen"
     },
     {
       "source_test": "i07c_survivor3_failed_result_bind_restores_first_payload",
@@ -2677,10 +2725,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Fallo de enlace Result conserva el primer payload; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_109",
-      "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
+      "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok",
+      "private_invariant_destination": "Fallo de enlace Result conserva el primer payload"
     },
     {
       "source_test": "i07c_survivor3_noncopyable_second_payload_restores_first_bind",
@@ -2703,10 +2752,11 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Payload no copiable rechaza la operación sin alterar primer enlace; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_110",
-      "fixture_family": "R: Result con segundo payload de recurso y uso posterior del primero"
+      "fixture_family": "R: Result con segundo payload de recurso y uso posterior del primero",
+      "private_invariant_destination": "Payload no copiable rechaza la operación sin alterar primer enlace"
     },
     {
       "source_test": "i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span",
@@ -2730,10 +2780,11 @@
         "code",
         "related_spans"
       ],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Spans con mismo inicio eligen origen causal izquierdo estable; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_111",
-      "fixture_family": "F: variante de `rejected_assignment` con grupos de igual inicio"
+      "fixture_family": "F: variante de `rejected_assignment` con grupos de igual inicio",
+      "private_invariant_destination": "Spans con mismo inicio eligen origen causal izquierdo estable"
     },
     {
       "source_test": "i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion",
@@ -2759,10 +2810,11 @@
         "assert_eq!(checker.pending_join_count(), 1);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Formas pendientes incompatibles terminan con C, sin recursión infinita; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_112",
-      "fixture_family": "J: `suspended_68` y `recursive_69`, sin timeout"
+      "fixture_family": "J: `suspended_68` y `recursive_69`, sin timeout",
+      "private_invariant_destination": "Formas pendientes incompatibles terminan con C, sin recursión infinita"
     },
     {
       "source_test": "i07c_survivor3_union_child_allocation_propagates_quota_errors",
@@ -2867,7 +2919,7 @@
         "primary_span"
       ],
       "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "destination_assertions": "mismo diagnóstico y relaciones cuando dos orígenes comparten inicio; elegir por EqualityId y ranura, no por Span.start",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_116",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -2890,10 +2942,11 @@
         "assert!(checker.graph.type_nodes[&root].variant_children.is_none());"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Expansión concreta fallida conserva raíz y diagnóstico posterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_117",
-      "fixture_family": "J: `W1_atomic_compound` y caso Result incompatible"
+      "fixture_family": "J: `W1_atomic_compound` y caso Result incompatible",
+      "private_invariant_destination": "Expansión concreta fallida conserva raíz y diagnóstico posterior"
     },
     {
       "source_test": "i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands",
@@ -2919,10 +2972,11 @@
         "assert!(pending.related_expected);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Un enlace diferido relaciona los operandos escritos originales; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_118",
-      "fixture_family": "F: `rejected_assignment`, relación por bytes"
+      "fixture_family": "F: `rejected_assignment`, relación por bytes",
+      "private_invariant_destination": "Un enlace diferido relaciona los operandos escritos originales"
     },
     {
       "source_test": "i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands",
@@ -2948,10 +3002,11 @@
         "assert!(!pending.related_expected);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Unión hija diferida conserva relación con el operando padre correcto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_119",
-      "fixture_family": "J: M1 anidado y 4363, relaciones completas"
+      "fixture_family": "J: M1 anidado y 4363, relaciones completas",
+      "private_invariant_destination": "Unión hija diferida conserva relación con el operando padre correcto"
     },
     {
       "source_test": "i07c_survivor3_partial_result_conflict_defers_join",
@@ -2974,10 +3029,11 @@
         "assert_eq!(checker.pending_join_count(), 1);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Conflicto parcial Result espera evidencia antes de emitir unión; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_120",
-      "fixture_family": "R: Result con payload pendiente y asignación completadora"
+      "fixture_family": "R: Result con payload pendiente y asignación completadora",
+      "private_invariant_destination": "Conflicto parcial Result espera evidencia antes de emitir unión"
     },
     {
       "source_test": "i07c_survivor3_array_join_wraps_pending_operand_shapes",
@@ -3001,10 +3057,11 @@
         "assert_eq!(pending.right, right);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Unión Array con operandos pendientes conserva constructor exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_121",
-      "fixture_family": "C: `completion_unresolved` y `T5_constructor_equivalent`"
+      "fixture_family": "C: `completion_unresolved` y `T5_constructor_equivalent`",
+      "private_invariant_destination": "Unión Array con operandos pendientes conserva constructor exterior"
     },
     {
       "source_test": "i07c_survivor3_nested_partial_result_deferral_keeps_array_shape",
@@ -3025,10 +3082,11 @@
         "assert_eq!(checker.pending_join_count(), 1);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Result parcial anidado conserva Array exterior sin falso C; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_122",
-      "fixture_family": "R: `Result<Array<I64>,I64>` anidado con payload pendiente"
+      "fixture_family": "R: `Result<Array<I64>,I64>` anidado con payload pendiente",
+      "private_invariant_destination": "Result parcial anidado conserva Array exterior sin falso C"
     },
     {
       "source_test": "i07c_survivor4_deferred_bind_keeps_branch_policy",
@@ -3054,10 +3112,11 @@
         "assert!(!pending.related_expected);"
       ],
       "asserted_fields": [],
-      "action": "portar_mismas_aserciones_a_cli",
+      "action": "portar_observable_cli_y_privado_libro",
       "destination_assertions": "Enlace diferido conserva política de denuncia única por rama; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_123",
-      "fixture_family": "J: `W1_atomic_compound` y `M2_partial_witness_chain`"
+      "fixture_family": "J: `W1_atomic_compound` y `M2_partial_witness_chain`",
+      "private_invariant_destination": "Enlace diferido conserva política de denuncia única por rama"
     },
     {
       "source_test": "i07c_survivor4_invalid_control_condition_taints_visit",
