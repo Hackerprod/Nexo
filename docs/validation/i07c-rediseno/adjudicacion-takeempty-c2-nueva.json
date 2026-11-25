@@ -60,7 +60,9 @@
           ]
         ]
       ],
-      "matches_derived": true
+      "matches_derived": true,
+      "reduced_oracle_union": null,
+      "provenance_note": null
     },
     {
       "index": 2797,
@@ -165,7 +167,9 @@
           ]
         ]
       ],
-      "matches_derived": true
+      "matches_derived": true,
+      "reduced_oracle_union": null,
+      "provenance_note": null
     },
     {
       "index": 3174,
@@ -270,7 +274,9 @@
           ]
         ]
       ],
-      "matches_derived": true
+      "matches_derived": true,
+      "reduced_oracle_union": null,
+      "provenance_note": null
     },
     {
       "index": 4069,
@@ -351,7 +357,9 @@
           ]
         ]
       ],
-      "matches_derived": true
+      "matches_derived": true,
+      "reduced_oracle_union": null,
+      "provenance_note": null
     },
     {
       "index": 5560,
@@ -385,8 +393,8 @@
           "I64",
           "Array<I64>",
           [
-            133,
-            135
+            71,
+            74
           ]
         ]
       ],
@@ -486,7 +494,43 @@
           ]
         ]
       ],
-      "matches_derived": false
+      "matches_derived": true,
+      "reduced_oracle_union": [
+        [
+          "NX-E0103",
+          null,
+          128,
+          130,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          189,
+          194,
+          "Array<I64>",
+          "Array<Array<I64>>",
+          [
+            182,
+            183
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          212,
+          215,
+          "I64",
+          "Array<I64>",
+          [
+            133,
+            135
+          ]
+        ]
+      ],
+      "provenance_note": "ADR F0-0002-lagunas, Origen de la relación expected_type, cláusula (5): seguir alias ar hasta [1]"
     },
     {
       "index": 7652,
@@ -555,7 +599,9 @@
           ]
         ]
       ],
-      "matches_derived": true
+      "matches_derived": true,
+      "reduced_oracle_union": null,
+      "provenance_note": null
     },
     {
       "index": 7829,
@@ -624,7 +670,9 @@
           ]
         ]
       ],
-      "matches_derived": true
+      "matches_derived": true,
+      "reduced_oracle_union": null,
+      "provenance_note": null
     }
   ]
 }

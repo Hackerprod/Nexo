@@ -58,6 +58,17 @@ def main():
             expected.append([diagnostic["code"], diagnostic.get("subcause"), remap(a), remap(b),
                              diagnostic.get("expected_type") or None,
                              diagnostic.get("found_type") or None, relation])
+        reduced_expected = [item.copy() for item in expected]
+        provenance_note = None
+        if base_corpus == "c2-nueva" and index == 5560:
+            # ADR F0-0002-lagunas, "Origen de la relación expected_type",
+            # clause (5): a read of `ar` follows the alias to its concrete
+            # initializer, not to the `q=ar` use site in the reduced oracle.
+            assert source[71:74] == "[1]" and source[133:135] == "ar"
+            assert expected[-1][:4] == ["NX-E0102", "type_mismatch", 212, 215]
+            assert expected[-1][6] == [133, 135]
+            expected[-1][6] = [71, 74]
+            provenance_note = "ADR F0-0002-lagunas, Origen de la relación expected_type, cláusula (5): seguir alias ar hasta [1]"
         def split(signatures):
             return ([d for d in signatures if not call_start <= d[2] < call_end],
                     [d for d in signatures if call_start <= d[2] < call_end])
@@ -67,7 +78,9 @@ def main():
         matches = proto_union == expected
         result.append({"index": index, "expected_union": expected, "main_union": main_union,
                        "proto_union": proto_union, "common_calls": main_calls,
-                       "matches_derived": matches})
+                       "matches_derived": matches,
+                       "reduced_oracle_union": reduced_expected if provenance_note else None,
+                       "provenance_note": provenance_note})
         print(f"{index}: {'C and fields match' if matches else 'DIFFERS FROM DERIVATION'}; calls unchanged", flush=True)
     suffix = "" if "@" not in args.corpus else "-f0-0003-b-v1"
     output = OUT.with_name("adjudicacion-takeempty" + ("-c2-nueva" if base_corpus == "c2-nueva" else "") + suffix + ".json")
