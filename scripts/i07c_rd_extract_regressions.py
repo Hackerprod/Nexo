@@ -40,7 +40,8 @@ def main():
                          "source": sweep.source(sources[index]), "oracle": oracle,
                          "main": base[index], "candidate": candidate[index]})
     dest = Path("docs/validation/i07c-rediseno/r5-modeled-regressions.json")
-    dest.write_text(json.dumps({"candidate_sha256": digest, "rows": rows},
+    dest.write_text(json.dumps({"candidate_sha256": digest, "corpora": args.corpus,
+                                "rows": rows},
                                ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"rows": len(rows), "core": sum(r["level"] == "core" for r in rows),
                       "full_only": sum(r["level"] == "full" for r in rows)}))
