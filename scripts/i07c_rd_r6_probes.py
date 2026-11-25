@@ -25,7 +25,7 @@ CASES = {
     "X_06_operand_equiv": ("fn Main(){let a=1+(if true then 1 else (if 0 then true else 3));}", [("NX-E0102", 43, 44), ("NX-E0102", 50, 54)]),
     "X_07_three_levels_equiv": ("fn Main(){let a:I64=(if true then (if true then 1 else 2) else (if 0 then true else 3));}", [("NX-E0102", 67, 68), ("NX-E0102", 74, 78)]),
     "X_08_outer_condition_equiv": ("fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}", [("NX-E0102", 24, 25), ("NX-E0102", 31, 35), ("NX-E0102", 62, 66)]),
-    "SB_equivalent": ("fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}", [("NX-E0102", 72, 74)]),
+    "SB_equivalent": ("fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}", [("NX-E0102", 72, 74), ("NX-E0103", 47, 49)]),
     "T5_constructor_equivalent": ("fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}", [("NX-E0103", 36, 38)]),
     "recursive_69": ("fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}", [("NX-E0103", 60, 63)]),
     "recursive_78_equivalent": ("fn Main(){var q=[];var v=(if true then {return;}else{return;});var a=[v];v=a;}", [("NX-E0103", 16, 18), ("NX-E0103", 69, 72)]),
@@ -38,7 +38,7 @@ CASES = {
     "waiting_projection_candidate_conflict": ("fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}", [("NX-E0102", 73, 74)]),
     "waiting_projection_refuted": ("fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=3;}", [("NX-E0102", 65, 66)]),
     "join_record": ("fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}", [("NX-E1303", 56, 60), ("NX-E1303", 67, 70)]),
-    "ST1_equivalent": ("fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}", None),
+    "ST1_equivalent": ("fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}", [("NX-E1303", 68, 71)]),
     "W1_atomic_compound": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}", [("NX-E0102", 99, 100), ("NX-E1303", 147, 148), ("NX-E1303", 199, 200), ("NX-E1303", 209, 212), ("NX-E0102", 216, 219)]),
     # A's ADR derivation: E0103 [77,79) in place of main's E0102 [85,86).
     # The E1303 in a1 is independent. B has not yet validated this oracle.
@@ -59,8 +59,20 @@ def main():
     binary = args.exe.resolve()
     binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
     rows = []
+    fixture = Path(__file__).resolve().parent.parent / "docs/validation/i07c-rediseno/b3-acceptance.json"
+    acceptance = json.loads(fixture.read_text(encoding="utf-8"))
+    if len(acceptance) != 35:
+        raise ValueError("B round-3 acceptance fixture must have 35 cases")
     with tempfile.TemporaryDirectory(prefix="i07c-r6-", dir="C:/nexo-work/tmp") as directory:
-        for name, (source, expected) in CASES.items():
+        all_cases = dict(CASES)
+        for item in acceptance:
+            if item["bytes"] != len(item["source"].encode("ascii")):
+                raise ValueError((item["id"], "byte length changed"))
+            all_cases["B3_" + item["id"]] = (
+                item["source"],
+                [(d["code"], d["start"], d["end"]) for d in item["expected"]],
+            )
+        for name, (source, expected) in all_cases.items():
             path = Path(directory) / (name + ".n")
             path.write_bytes(source.encode("ascii"))
             completed = subprocess.run(
@@ -83,11 +95,14 @@ def main():
                 error = f"{exc}: {completed.stdout[-200:]} {completed.stderr[-200:]}"
             rows.append({"name": name, "bytes": len(source), "source": source,
                          "expected": expected, "actual": actual, "observed_detail": detail,
-                         "matches": None if expected is None else actual == expected,
+                         "matches": None if expected is None else (
+                             sorted(actual, key=lambda item: (item[1], item[2], item[0]))
+                             == sorted(expected, key=lambda item: (item[1], item[2], item[0]))
+                         ) if actual is not None else False,
                          "exit": completed.returncode,
                          "error": error})
     report = {"binary": str(binary), "binary_sha256": binary_sha256,
-              "profile": args.profile, "flags": args.flags, "rows": rows}
+              "profile": args.profile, "flags": args.flags, "fixture": str(fixture), "rows": rows}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     for row in rows:

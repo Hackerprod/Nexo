@@ -1,0 +1,539 @@
+[
+  {
+    "id": "01",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a:I64=(if true then 1 else (if 0 then true else 3));}",
+    "bytes": 67,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 45,
+        "end": 46
+      },
+      {
+        "code": "NX-E0102",
+        "start": 52,
+        "end": 56
+      }
+    ]
+  },
+  {
+    "id": "02",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a:Array<I64>=(if true then [1] else (if 0 then [true] else [3]));}",
+    "bytes": 80,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 54,
+        "end": 55
+      },
+      {
+        "code": "NX-E0102",
+        "start": 62,
+        "end": 66
+      }
+    ]
+  },
+  {
+    "id": "03",
+    "profile": "f0-0002-b-v2",
+    "source": "fn F(x:view I64){}fn Main(){F((if true then 1 else (if 0 then true else 3)));}",
+    "bytes": 78,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 55,
+        "end": 56
+      },
+      {
+        "code": "NX-E0102",
+        "start": 62,
+        "end": 66
+      }
+    ]
+  },
+  {
+    "id": "04",
+    "profile": "f0-0002-b-v2",
+    "source": "fn F()->I64{return (if true then 1 else (if 0 then true else 3));}fn Main(){F();}",
+    "bytes": 81,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 44,
+        "end": 45
+      },
+      {
+        "code": "NX-E0102",
+        "start": 51,
+        "end": 55
+      }
+    ]
+  },
+  {
+    "id": "05",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a=1+(if true then 1 else (if 0 then true else 3));}",
+    "bytes": 65,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 43,
+        "end": 44
+      },
+      {
+        "code": "NX-E0102",
+        "start": 50,
+        "end": 54
+      }
+    ]
+  },
+  {
+    "id": "06",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a:I64=(if true then (if true then 1 else 2) else (if 0 then true else 3));}",
+    "bytes": 89,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 67,
+        "end": 68
+      },
+      {
+        "code": "NX-E0102",
+        "start": 74,
+        "end": 78
+      }
+    ]
+  },
+  {
+    "id": "07",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}",
+    "bytes": 70,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 24,
+        "end": 25
+      },
+      {
+        "code": "NX-E0102",
+        "start": 31,
+        "end": 35
+      },
+      {
+        "code": "NX-E0102",
+        "start": 62,
+        "end": 66
+      }
+    ]
+  },
+  {
+    "id": "08",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a=(if true then 1 else (if 0 then [1] else [2]));}",
+    "bytes": 64,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 41,
+        "end": 42
+      }
+    ]
+  },
+  {
+    "id": "09",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];let a=(if 0 then q else [1]);}",
+    "bytes": 49,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 29,
+        "end": 30
+      }
+    ]
+  },
+  {
+    "id": "10",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+    "bytes": 69,
+    "expected": [
+      {
+        "code": "NX-E0103",
+        "start": 60,
+        "end": 63
+      }
+    ]
+  },
+  {
+    "id": "11",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+    "bytes": 78,
+    "expected": [
+      {
+        "code": "NX-E0103",
+        "start": 16,
+        "end": 18
+      },
+      {
+        "code": "NX-E0103",
+        "start": 69,
+        "end": 72
+      }
+    ]
+  },
+  {
+    "id": "12",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;var w=(if true then {return;}else{return;});var b=[w];w=b;}",
+    "bytes": 127,
+    "expected": [
+      {
+        "code": "NX-E0103",
+        "start": 60,
+        "end": 63
+      },
+      {
+        "code": "NX-E0103",
+        "start": 118,
+        "end": 121
+      }
+    ]
+  },
+  {
+    "id": "13",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}",
+    "bytes": 78,
+    "expected": [
+      {
+        "code": "NX-E1303",
+        "start": 52,
+        "end": 53
+      }
+    ]
+  },
+  {
+    "id": "14",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];let a=[q,1];q=[true];}",
+    "bytes": 41,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 28,
+        "end": 29
+      }
+    ]
+  },
+  {
+    "id": "15",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];let a=[q,1];}",
+    "bytes": 32,
+    "expected": [
+      {
+        "code": "NX-E0103",
+        "start": 16,
+        "end": 18
+      }
+    ]
+  },
+  {
+    "id": "16",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];var r=[];(if true then q else r);q=[1];r=[true];}",
+    "bytes": 68,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 61,
+        "end": 65
+      }
+    ]
+  },
+  {
+    "id": "17",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[true];}",
+    "bytes": 80,
+    "expected": []
+  },
+  {
+    "id": "18",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}",
+    "bytes": 77,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 73,
+        "end": 74
+      }
+    ]
+  },
+  {
+    "id": "19",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=3;}",
+    "bytes": 75,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 65,
+        "end": 66
+      }
+    ]
+  },
+  {
+    "id": "20",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}",
+    "bytes": 73,
+    "expected": [
+      {
+        "code": "NX-E1303",
+        "start": 56,
+        "end": 60
+      },
+      {
+        "code": "NX-E1303",
+        "start": 67,
+        "end": 70
+      }
+    ]
+  },
+  {
+    "id": "21",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+    "bytes": 221,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 99,
+        "end": 100
+      },
+      {
+        "code": "NX-E1303",
+        "start": 147,
+        "end": 148
+      },
+      {
+        "code": "NX-E1303",
+        "start": 199,
+        "end": 200
+      },
+      {
+        "code": "NX-E1303",
+        "start": 209,
+        "end": 212
+      },
+      {
+        "code": "NX-E0102",
+        "start": 216,
+        "end": 219
+      }
+    ]
+  },
+  {
+    "id": "22",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}",
+    "bytes": 169,
+    "expected": [
+      {
+        "code": "NX-E0103",
+        "start": 77,
+        "end": 79
+      },
+      {
+        "code": "NX-E1303",
+        "start": 140,
+        "end": 145
+      }
+    ]
+  },
+  {
+    "id": "23",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];var r=[];let b=q[0];(if true then [q] else (if true then [1] else q));r=q;q=[1];}",
+    "bytes": 100,
+    "expected": [
+      {
+        "code": "NX-E1303",
+        "start": 76,
+        "end": 79
+      }
+    ]
+  },
+  {
+    "id": "24",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];var r=[];let z=r[0];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}",
+    "bytes": 108,
+    "expected": [
+      {
+        "code": "NX-E0103",
+        "start": 16,
+        "end": 18
+      }
+    ]
+  },
+  {
+    "id": "25",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let x=1;var q=[];var s=[];let a=[s[x],(if 0 then true else q),(if x then q else s)];q=[true];s=[[true]];}",
+    "bytes": 115,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 52,
+        "end": 53
+      },
+      {
+        "code": "NX-E1303",
+        "start": 69,
+        "end": 70
+      },
+      {
+        "code": "NX-E0102",
+        "start": 76,
+        "end": 77
+      },
+      {
+        "code": "NX-E0102",
+        "start": 106,
+        "end": 112
+      }
+    ]
+  },
+  {
+    "id": "26",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}",
+    "bytes": 100,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 72,
+        "end": 74
+      },
+      {
+        "code": "NX-E0103",
+        "start": 47,
+        "end": 49
+      }
+    ]
+  },
+  {
+    "id": "27",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}",
+    "bytes": 96,
+    "expected": [
+      {
+        "code": "NX-E0103",
+        "start": 36,
+        "end": 38
+      }
+    ]
+  },
+  {
+    "id": "28",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}",
+    "bytes": 89,
+    "expected": [
+      {
+        "code": "NX-E1303",
+        "start": 68,
+        "end": 71
+      }
+    ]
+  },
+  {
+    "id": "29",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a:I64=(if true then 1 else {return;});}",
+    "bytes": 53,
+    "expected": []
+  },
+  {
+    "id": "30",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);s=[true];}",
+    "bytes": 109,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 72,
+        "end": 74
+      }
+    ]
+  },
+  {
+    "id": "31",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if p then r else ar) else s);s=[true];}",
+    "bytes": 108,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 101,
+        "end": 105
+      }
+    ]
+  },
+  {
+    "id": "32",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then s else (if ar then r else ar));s=[true];}",
+    "bytes": 109,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 79,
+        "end": 81
+      }
+    ]
+  },
+  {
+    "id": "33",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let a:Result<I64,Bool>=Ok(true);}",
+    "bytes": 43,
+    "expected": [
+      {
+        "code": "NX-E0102",
+        "start": 36,
+        "end": 40
+      }
+    ]
+  },
+  {
+    "id": "34",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){let q=Ok(1);}",
+    "bytes": 23,
+    "expected": [
+      {
+        "code": "NX-E0113",
+        "start": 16,
+        "end": 21
+      }
+    ]
+  },
+  {
+    "id": "35",
+    "profile": "f0-0002-b-v2",
+    "source": "fn Main(){var q=Ok(1);q=Err(true);}",
+    "bytes": 35,
+    "expected": []
+  }
+]
