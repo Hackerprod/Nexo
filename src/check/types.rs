@@ -14439,6 +14439,16 @@ impl Checker<'_> {
                         progress.r1_condition_tainted =
                             condition_tainted || condition_result.is_err();
                     }
+                    if xv("r5t5") && progress.r1_condition_tainted {
+                        // A failed condition invalidates the value offered to
+                        // the parent. Its branches still have independent
+                        // constraints, but cannot inherit the parent's
+                        // expected type or union anchor through that value.
+                        progress.branch_context.expected = None;
+                        progress.branch_context.expected_span = None;
+                        progress.branch_context.anchor = None;
+                        progress.branch_context.related_expected = false;
+                    }
                     self.graph.merge_child(progress.parent_fact, *visit, false);
                     *visit = progress.parent_fact;
                     self.graph.fact_mut(*visit).tainted |=
