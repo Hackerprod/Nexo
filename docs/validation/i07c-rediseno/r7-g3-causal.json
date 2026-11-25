@@ -1,0 +1,521 @@
+{
+  "schema": "i07c-r7-g3-causal-v1",
+  "prototype_commit": "3fdba77f93758c55bf76f23e38b2b352a927385b",
+  "main_binary_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "prototype_debug_binary_sha256": "385b601b6cb1e82b654e6e7e63a4830863ffbe5c709b7f05d9a1aa1e2d2e1405",
+  "minimal_source": "fn Main(){var q=[];var r=[];(if true then q else r[0]);r=q;q=[3];}",
+  "minimal_source_sha256": "4b1eeabfd278d10b70daa101fed856c5297e494b093f2445858247111fde103f",
+  "minimal_length_bytes": 66,
+  "minimal_results": {
+    "main": {
+      "exit": 1,
+      "outcome": {
+        "kind": "rejected"
+      },
+      "diagnostics": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            57,
+            58
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            [
+              "expected_type",
+              42,
+              43
+            ],
+            [
+              "found_type",
+              57,
+              58
+            ]
+          ]
+        }
+      ]
+    },
+    "prototype_default": {
+      "exit": 1,
+      "outcome": {
+        "kind": "rejected"
+      },
+      "diagnostics": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            57,
+            58
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            [
+              "expected_type",
+              42,
+              43
+            ],
+            [
+              "found_type",
+              57,
+              58
+            ]
+          ]
+        }
+      ]
+    },
+    "prototype_r6": {
+      "exit": 1,
+      "outcome": {
+        "kind": "rejected"
+      },
+      "diagnostics": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            57,
+            58
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            [
+              "expected_type",
+              55,
+              56
+            ],
+            [
+              "found_type",
+              57,
+              58
+            ]
+          ]
+        }
+      ]
+    },
+    "prototype_r6_without_r5prefix_noshape": {
+      "exit": 1,
+      "outcome": {
+        "kind": "rejected"
+      },
+      "diagnostics": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            57,
+            58
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            [
+              "expected_type",
+              42,
+              43
+            ],
+            [
+              "found_type",
+              57,
+              58
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "r6_flags": [
+    "pendfa",
+    "retfa",
+    "nojoin",
+    "atomic0",
+    "e0103rule",
+    "retfail",
+    "nojoinr",
+    "skipv3",
+    "r5prefix",
+    "r1t5",
+    "r5t5",
+    "noshape",
+    "r6witness",
+    "rmm3b"
+  ],
+  "f2_flag_sweep": [
+    {
+      "removed_flags": [],
+      "correct_count": 1,
+      "cases": [
+        {
+          "id": "rejected_assignment",
+          "expected": [
+            [
+              57,
+              58
+            ]
+          ],
+          "observed": [
+            [
+              70,
+              71
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "omitted_relation",
+          "expected": [
+            [
+              57,
+              60
+            ]
+          ],
+          "observed": [
+            null
+          ],
+          "correct": false
+        },
+        {
+          "id": "later_completion",
+          "expected": [
+            [
+              58,
+              78
+            ]
+          ],
+          "observed": [
+            [
+              90,
+              96
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "unrelated_operand",
+          "expected": [
+            [
+              183,
+              184
+            ],
+            [
+              183,
+              184
+            ]
+          ],
+          "observed": [
+            [
+              102,
+              103
+            ],
+            [
+              102,
+              103
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "concrete_rhs_oracle_correction",
+          "expected": [
+            [
+              85,
+              90
+            ]
+          ],
+          "observed": [
+            [
+              85,
+              90
+            ]
+          ],
+          "correct": true
+        }
+      ]
+    },
+    {
+      "removed_flags": [
+        "r5prefix"
+      ],
+      "correct_count": 2,
+      "cases": [
+        {
+          "id": "rejected_assignment",
+          "expected": [
+            [
+              57,
+              58
+            ]
+          ],
+          "observed": [
+            [
+              70,
+              71
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "omitted_relation",
+          "expected": [
+            [
+              57,
+              60
+            ]
+          ],
+          "observed": [
+            null
+          ],
+          "correct": false
+        },
+        {
+          "id": "later_completion",
+          "expected": [
+            [
+              58,
+              78
+            ]
+          ],
+          "observed": [
+            [
+              90,
+              96
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "unrelated_operand",
+          "expected": [
+            [
+              183,
+              184
+            ],
+            [
+              183,
+              184
+            ]
+          ],
+          "observed": [
+            [
+              183,
+              184
+            ],
+            [
+              183,
+              184
+            ]
+          ],
+          "correct": true
+        },
+        {
+          "id": "concrete_rhs_oracle_correction",
+          "expected": [
+            [
+              85,
+              90
+            ]
+          ],
+          "observed": [
+            [
+              85,
+              90
+            ]
+          ],
+          "correct": true
+        }
+      ]
+    },
+    {
+      "removed_flags": [
+        "noshape"
+      ],
+      "correct_count": 1,
+      "cases": [
+        {
+          "id": "rejected_assignment",
+          "expected": [
+            [
+              57,
+              58
+            ]
+          ],
+          "observed": [
+            null
+          ],
+          "correct": false
+        },
+        {
+          "id": "omitted_relation",
+          "expected": [
+            [
+              57,
+              60
+            ]
+          ],
+          "observed": [
+            [
+              57,
+              60
+            ]
+          ],
+          "correct": true
+        },
+        {
+          "id": "later_completion",
+          "expected": [
+            [
+              58,
+              78
+            ]
+          ],
+          "observed": [
+            [
+              90,
+              96
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "unrelated_operand",
+          "expected": [
+            [
+              183,
+              184
+            ],
+            [
+              183,
+              184
+            ]
+          ],
+          "observed": [
+            [
+              102,
+              103
+            ],
+            [
+              102,
+              103
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "concrete_rhs_oracle_correction",
+          "expected": [
+            [
+              85,
+              90
+            ]
+          ],
+          "observed": [
+            null
+          ],
+          "correct": false
+        }
+      ]
+    },
+    {
+      "removed_flags": [
+        "r5prefix",
+        "noshape"
+      ],
+      "correct_count": 3,
+      "cases": [
+        {
+          "id": "rejected_assignment",
+          "expected": [
+            [
+              57,
+              58
+            ]
+          ],
+          "observed": [
+            [
+              57,
+              58
+            ]
+          ],
+          "correct": true
+        },
+        {
+          "id": "omitted_relation",
+          "expected": [
+            [
+              57,
+              60
+            ]
+          ],
+          "observed": [
+            [
+              57,
+              60
+            ]
+          ],
+          "correct": true
+        },
+        {
+          "id": "later_completion",
+          "expected": [
+            [
+              58,
+              78
+            ]
+          ],
+          "observed": [
+            [
+              90,
+              96
+            ]
+          ],
+          "correct": false
+        },
+        {
+          "id": "unrelated_operand",
+          "expected": [
+            [
+              183,
+              184
+            ],
+            [
+              183,
+              184
+            ]
+          ],
+          "observed": [
+            [
+              183,
+              184
+            ],
+            [
+              183,
+              184
+            ]
+          ],
+          "correct": true
+        },
+        {
+          "id": "concrete_rhs_oracle_correction",
+          "expected": [
+            [
+              85,
+              90
+            ]
+          ],
+          "observed": [
+            null
+          ],
+          "correct": false
+        }
+      ]
+    }
+  ],
+  "g3_targeted_debug": {
+    "command": "cargo nextest run --profile default -E three G3 tests --no-fail-fast",
+    "summary": "3 tests run: 3 passed, 2285 skipped"
+  }
+}
