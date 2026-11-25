@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r8-f2-ajeno4-v1",
+  "schema": "i07c-r9-f2-ajeno4-v2",
   "rows": [
     {
       "id": "c1-13262",
@@ -30,12 +30,23 @@
           "I64",
           "Array<Array<I64>>",
           [
-            142,
-            143
+            90,
+            93
           ]
         ]
       ],
-      "expected_authority": "F2 primer fijador; conservacion main de los cuatro casos adjudicados"
+      "expected_authority": "F0-0002-lagunas.md, Origen de expected_type, primer EqualityId compatible: r=[3] [90,93); diferencia de procedencia I frente a main",
+      "declared_difference_from_main": {
+        "field": "relations.expected_type",
+        "main": [
+          142,
+          143
+        ],
+        "normative": [
+          90,
+          93
+        ]
+      }
     },
     {
       "id": "c1-14315",
