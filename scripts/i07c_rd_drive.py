@@ -5,6 +5,7 @@ from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
@@ -58,7 +59,11 @@ def memory_ready():
     deadline = time.monotonic() + 20 * 60
     while True:
         free_gb = free_virtual_kb() / 1048576
-        print(f"free_virtual_gb={free_gb:.2f}", flush=True)
+        free_disk_gb = shutil.disk_usage("C:/").free / 1024**3
+        print(f"free_virtual_gb={free_gb:.2f} free_disk_gb={free_disk_gb:.2f}", flush=True)
+        if free_disk_gb < 12:
+            print("INCONCLUSIVE: less than 12 GB free on C:", flush=True)
+            return False
         if free_gb > 25:
             return True
         if time.monotonic() >= deadline:

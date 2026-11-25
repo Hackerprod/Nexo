@@ -14436,9 +14436,15 @@ impl Checker<'_> {
                             condition_tainted || condition_result.is_err();
                     }
                     if xv("r5t5") && progress.r1_condition_tainted {
-                        // The branch checks retain their distributed type,
-                        // but a failed condition cannot turn the enclosing
+                        // A failed condition cannot turn the enclosing
                         // union's anchor into a witness for this result.
+                        // If that anchor supplied an expected type, remove
+                        // the dependent expectation as one context unit.
+                        if progress.branch_context.anchor.is_some() {
+                            progress.branch_context.expected = None;
+                            progress.branch_context.expected_span = None;
+                            progress.branch_context.related_expected = false;
+                        }
                         progress.branch_context.anchor = None;
                     }
                     self.graph.merge_child(progress.parent_fact, *visit, false);
