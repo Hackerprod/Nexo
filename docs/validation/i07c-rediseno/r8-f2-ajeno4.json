@@ -1,0 +1,243 @@
+{
+  "schema": "i07c-r8-f2-ajeno4-v1",
+  "rows": [
+    {
+      "id": "c1-13262",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=[3];let a0=(if p then s else (if p then aar else [q,r]));q=[[ar]];}",
+      "source_sha256": "e5036fc49f61b75870a5eeddb0493b76c467d16fe3e0f84d5bba8ca4635d0a89",
+      "expected_main_compact": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          150,
+          154,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            142,
+            143
+          ]
+        ]
+      ],
+      "provenance": "frozen origin/main 31d91db scan; compact tuple code/subcause/start/end/expected/found/expected relation",
+      "expected_code_subcause_primary_types_relation": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          150,
+          154,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            142,
+            143
+          ]
+        ]
+      ],
+      "expected_authority": "F2 primer fijador; conservacion main de los cuatro casos adjudicados"
+    },
+    {
+      "id": "c1-14315",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then (if p then q else r[0]) else 1) else [q,r])==aar;q=ar;r=q;}",
+      "source_sha256": "edc53cded6d175ead9e34efcabf2378690a94a91a03eed09624f32d44715edb9",
+      "expected_main_compact": [
+        [
+          "NX-E1303",
+          null,
+          137,
+          138,
+          "Array<I64>",
+          "I64",
+          [
+            109,
+            130
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          148,
+          149,
+          "Array<I64>",
+          "Array<Array<I64>>",
+          [
+            146,
+            147
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          164,
+          165,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            119,
+            120
+          ]
+        ]
+      ],
+      "provenance": "frozen origin/main 31d91db scan; compact tuple code/subcause/start/end/expected/found/expected relation",
+      "expected_code_subcause_primary_types_relation": [
+        [
+          "NX-E1303",
+          null,
+          137,
+          138,
+          "Array<I64>",
+          "I64",
+          [
+            109,
+            130
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          148,
+          149,
+          "Array<I64>",
+          "Array<Array<I64>>",
+          [
+            146,
+            147
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          164,
+          165,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            119,
+            120
+          ]
+        ]
+      ],
+      "expected_authority": "F2 primer fijador; conservacion main de los cuatro casos adjudicados"
+    },
+    {
+      "id": "b-753",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else ar);q=r;r=ar;}",
+      "source_sha256": "f32494618e1627e3418ee97725d6ce2f5fe2c4a188cf1fcac77f40f7626b2539",
+      "expected_main_compact": [],
+      "provenance": "frozen origin/main 31d91db scan; compact tuple code/subcause/start/end/expected/found/expected relation",
+      "expected_code_subcause_primary_types_relation": [],
+      "expected_authority": "F2 primer fijador; conservacion main de los cuatro casos adjudicados"
+    },
+    {
+      "id": "b-projections-2026112401-1945",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then (if p then 1 else s[0]) else (if p then aar else 1));let a1=(if p then (if p then q[0] else r) else (if p then s[0] else 1));r=s;q=ar;q=r;}",
+      "source_sha256": "9c0b7ee84bfa0747818f0fbaf36d0bda326600e916fe492ef24385ee3f6a5485",
+      "expected_main_compact": [
+        [
+          "NX-E1303",
+          null,
+          131,
+          134,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            92,
+            113
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          202,
+          206,
+          "Array<I64>",
+          "I64",
+          [
+            163,
+            184
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          222,
+          224,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            183,
+            184
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          227,
+          228,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            183,
+            184
+          ]
+        ]
+      ],
+      "provenance": "frozen origin/main 31d91db scan; compact tuple code/subcause/start/end/expected/found/expected relation",
+      "expected_code_subcause_primary_types_relation": [
+        [
+          "NX-E1303",
+          null,
+          131,
+          134,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            92,
+            113
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          202,
+          206,
+          "Array<I64>",
+          "I64",
+          [
+            163,
+            184
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          222,
+          224,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            183,
+            184
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          227,
+          228,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            183,
+            184
+          ]
+        ]
+      ],
+      "expected_authority": "F2 primer fijador; conservacion main de los cuatro casos adjudicados"
+    }
+  ]
+}

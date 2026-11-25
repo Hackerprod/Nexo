@@ -1,0 +1,96 @@
+{
+  "schema": "i07c-r8-m1-v1",
+  "rows": [
+    {
+      "id": "M1-simple",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];let a=match move o{Some(n)=>{value:(if true then 1 else q);},None=>{value:true;}};}",
+      "source_sha256": "489fbd6a397e0b48990d65a38af705fe68270aaa640abc45db6840487741ca17",
+      "expected_main_code_primary": [
+        [
+          "NX-E0103",
+          42,
+          44
+        ]
+      ],
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              42,
+              44
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "M1-nested",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];let a=match move o{Some(n)=>{value:(if true then (if true then 1 else q) else q);},None=>{value:true;}};}",
+      "source_sha256": "e4d5eb47fdbb6896a6776c20aaf1a4e561d67464691d2efb81c3ab907bbe2420",
+      "expected_main_code_primary": [
+        [
+          "NX-E0103",
+          42,
+          44
+        ],
+        [
+          "NX-E1303",
+          141,
+          145
+        ]
+      ],
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              42,
+              44
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              141,
+              145
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  81,
+                  124
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  141,
+                  145
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
+  "base_binary_sha256": "167d38614b24d1ead23d7c39bfadd53636bb47346bebc985b691ffc448e7cb9e"
+}

@@ -1,0 +1,1878 @@
+{
+  "schema": "i07c-r8-matrix45-v1",
+  "provenance": "i07c_rd_oracle.derive, ADR; no candidate output",
+  "rows": [
+    {
+      "id": "R1",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let r=[[[1]]];var q=[];let a0=(if p then q else (if p then 1 else r));q=[[ar]];}",
+      "source_sha256": "f347836e35d7002d14e1cdc7c17e9c3101cf836bf81d9cd44cac450001886883",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            91,
+            92
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            73,
+            74
+          ],
+          "rel_found": [
+            91,
+            92
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "R1twin",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let r=[[[1]]];var q=[[ar]];let a0=(if p then q else (if p then 1 else r));}",
+      "source_sha256": "560e7c61d72dd4adbc006b74feb4ec6b35ee99a0632200a6cad2e4a2ab96eabf",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            95,
+            96
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            77,
+            78
+          ],
+          "rel_found": [
+            95,
+            96
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "R3c",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let q=[[[1]]];let a0=(if p then q else (if p then 1 else 2));}",
+      "source_sha256": "0d100dc704ac2c87d737b12202f90ca9c675798359da6e736064ae80462fb5fe",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            82,
+            83
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            64,
+            65
+          ],
+          "rel_found": [
+            82,
+            83
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(89, 90)"
+        ]
+      ]
+    },
+    {
+      "id": "R2",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var q=[];let a0=(if p then q else (if p then r else 1));q=[[ar]];}",
+      "source_sha256": "d3c39abc82f2a2e8b3050d3703106bb23e708740452c93b390857432753c08f2",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            93,
+            94
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            68,
+            69
+          ],
+          "rel_found": [
+            93,
+            94
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "R2b",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let r=[[[1]]];var q=[];let a0=(if p then q else (if p then r else 1));q=[[ar]];}",
+      "source_sha256": "687d2a9d8c3fd0ec4f91eea8c699fa8f09d2adc972f8ace7c531889f514c7e43",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            98,
+            99
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            73,
+            74
+          ],
+          "rel_found": [
+            98,
+            99
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "R3",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var r=[];var q=[];let a=(if p then 1 else (if p then [q,r] else ar));q=[aar];}",
+      "source_sha256": "a76ce68314a3e5257fee70eb38bc238235482f92818d8af0de1290d5e2994512",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            99,
+            104
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<Array<Array<Array<I64>>>>",
+          "rel_expected": [
+            81,
+            82
+          ],
+          "rel_found": [
+            99,
+            104
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(110, 112)"
+        ]
+      ]
+    },
+    {
+      "id": "R3b",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var q=[];let a0=(if p then q else (if p then 1 else 2));q=[[ar]];}",
+      "source_sha256": "336b44ab758a925fdaf41d8663e281b0dee1a381bc608581f53f3fde5454639d",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            77,
+            78
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            59,
+            60
+          ],
+          "rel_found": [
+            77,
+            78
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(84, 85)"
+        ]
+      ]
+    },
+    {
+      "id": "R4",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];var r=[];var q=[];let a0=(if p then q else (if p then 1 else r));q=[[ar]];}",
+      "source_sha256": "7e3f82f48cb2a6da75fd911cf4cc94725da45709c1fbbd811fb9a86c9b8d7492",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            94,
+            95
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            76,
+            77
+          ],
+          "rel_found": [
+            94,
+            95
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "X_R1na",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let r=[[[1]]];var q=[];let a0=(if p then q else (if p then 1 else r));}",
+      "source_sha256": "6c8ef044facedbb9e520f203e34d763aca4b8a52a72e60ae7d48f88275639dfb",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            91,
+            92
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            73,
+            74
+          ],
+          "rel_found": [
+            91,
+            92
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "X_R1ord",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let r=[[[1]]];var q=[];let a0=(if p then q else (if p then r else 1));}",
+      "source_sha256": "e339a0fb152d5f32e14f749c1ae1e23c8eb6deb8b2974d9cd290fae6f8283f77",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            98,
+            99
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            73,
+            74
+          ],
+          "rel_found": [
+            98,
+            99
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "X_flat3",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var q=[];let a0=(if p then q else (if p then 1 else (if p then 2 else 3)));q=[[ar]];}",
+      "source_sha256": "5f6b0c26bc1669ac93ad789f7a7c823d7c7ac5a7efb8ad3cfd38a5fe2d8e7b0d",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            77,
+            78
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            59,
+            60
+          ],
+          "rel_found": [
+            77,
+            78
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(95, 96)"
+        ],
+        [
+          "absorbida",
+          "(102, 103)"
+        ]
+      ]
+    },
+    {
+      "id": "Y_pend_if",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];let a0=(if p then r else (if p then 1 else true));}",
+      "source_sha256": "b7864757ed50f77da9164835f01214ee4ec0343073f0a1f9333a1922b0b9f329",
+      "expected": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            38,
+            40
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(84, 88)"
+        ],
+        [
+          "omitido-por-pendiente",
+          "(77, 78)",
+          "NX-E1303"
+        ]
+      ]
+    },
+    {
+      "id": "Y_pend_if2",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];let a0=(if p then r else (if p then true else 1));}",
+      "source_sha256": "3b0f5d4222ac12a3e33bf8a2f99869331821d3d8a03840d084d47e70d6024005",
+      "expected": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            38,
+            40
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(87, 88)"
+        ],
+        [
+          "omitido-por-pendiente",
+          "(77, 81)",
+          "NX-E1303"
+        ]
+      ]
+    },
+    {
+      "id": "X_mix3",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var q=[];var r=[];let a0=(if p then q else (if p then r else (if p then 1 else 2)));q=[[ar]];}",
+      "source_sha256": "49eca5006a0273e63e19671623a6b68cfefadadc37a55b208c8c6d379bd989a9",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            104,
+            105
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            68,
+            69
+          ],
+          "rel_found": [
+            104,
+            105
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(111, 112)"
+        ]
+      ]
+    },
+    {
+      "id": "X_R4asg_r",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var q=[];let a0=(if p then q else (if p then 1 else r));q=[[ar]];r=[[ar]];}",
+      "source_sha256": "2f5fc6bbb652cea7b11f532fdbed7ce72bd3081abaa38f0c4a316d92fcd92c62",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            86,
+            87
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            68,
+            69
+          ],
+          "rel_found": [
+            86,
+            87
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "X_R1inc",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let r=[[[1]]];var q=[];let a0=(if p then q else (if p then 1 else r));q=[3];}",
+      "source_sha256": "ca75b685db1505ad1160bd995fdac571395239c2b18c6250314ef5837ba8f7fe",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            91,
+            92
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            73,
+            74
+          ],
+          "rel_found": [
+            91,
+            92
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            105,
+            106
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "rel_expected": [
+            98,
+            99
+          ],
+          "rel_found": [
+            105,
+            106
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "X_R1pre",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let r=[[[1]]];var q=[];q=[[ar]];let a0=(if p then q else (if p then 1 else r));}",
+      "source_sha256": "cf6d7ac06f1bc4d1d628b85aa88ffc0f4280dd92c1f00c82bfca7cbb7134e6ba",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            100,
+            101
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            82,
+            83
+          ],
+          "rel_found": [
+            100,
+            101
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "X_R2na",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var q=[];let a0=(if p then q else (if p then r else 1));}",
+      "source_sha256": "27c2cdb53d3478af4b1bf37d310a37fac440ba7722d0a18fdd9b3cecfbabc312",
+      "expected": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            38,
+            40
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            47,
+            49
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "omitido-por-pendiente",
+          "(93, 94)",
+          "NX-E1303"
+        ]
+      ]
+    },
+    {
+      "id": "X_R4na",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var q=[];let a0=(if p then q else (if p then 1 else r));}",
+      "source_sha256": "3cdc32d9ce07f0c9963081694bbc6c12e56133c9538279968640cd43f4fda094",
+      "expected": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            38,
+            40
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            47,
+            49
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "omitido-por-pendiente",
+          "(86, 87)",
+          "NX-E1303"
+        ]
+      ]
+    },
+    {
+      "id": "X_nest_first",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var q=[];let a0=(if p then (if p then q else 1) else 2);q=[[ar]];}",
+      "source_sha256": "d42f0575571628cc2dea6ad5c3505abacbc526a4c7b39a0612f9122870ee126e",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            77,
+            78
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            70,
+            71
+          ],
+          "rel_found": [
+            77,
+            78
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            85,
+            86
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "rel_expected": [
+            60,
+            78
+          ],
+          "rel_found": [
+            85,
+            86
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "Y_conc_if",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let r=[1];let a0=(if p then r else (if p then 1 else true));}",
+      "source_sha256": "82c54a77e46b27cbb32731219a62481d4019ed4450dd6c35d2834c04cd2c146f",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            67,
+            68
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            49,
+            50
+          ],
+          "rel_found": [
+            67,
+            68
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(74, 78)"
+        ]
+      ]
+    },
+    {
+      "id": "Y_pend_if_asg",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;var r=[];let a0=(if p then r else (if p then 1 else true));r=[2];}",
+      "source_sha256": "e5a755b6ac9e98d4fe80e0b5d96b427ffae09c93305f4aea4539ad81f0961044",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            66,
+            67
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            48,
+            49
+          ],
+          "rel_found": [
+            66,
+            67
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(73, 77)"
+        ]
+      ]
+    },
+    {
+      "id": "W0nounion",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let ar=[1];var r=[];var q=[];let a=1;Print([r,q]);q=[[1<2]];r=[];}",
+      "source_sha256": "f1235e4f6ebc6602fe352a42a4adcfb391596aae7f2755498545e23a18400472",
+      "expected": [],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "W0",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let ar=[1];var r=[];var q=[];let a=(if true then true else q);Print([r,q]);q=[[1<2]];r=[];}",
+      "source_sha256": "439c1ff8b69b563269040692c6eade02d455a01e8720d5ee5d95d20c7b8d3880",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            69,
+            70
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<Bool>>",
+          "rel_expected": [
+            59,
+            63
+          ],
+          "rel_found": [
+            69,
+            70
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "A",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if true then r else (if true then aar else [r]));r=[3];}",
+      "source_sha256": "47389af01ade8953528a2d74e209ade20a568d66c26fbe188c0573f1676668a2",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            83,
+            86
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            53,
+            54
+          ],
+          "rel_found": [
+            83,
+            86
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            92,
+            93
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            74,
+            77
+          ],
+          "rel_found": [
+            92,
+            93
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "A_reord",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if true then r else (if true then [r] else aar));r=[3];}",
+      "source_sha256": "f7cfda4096c90379c37e6bdfea1fe0ee266eecdff863f6d1b679f41da0813366",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            74,
+            77
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            53,
+            54
+          ],
+          "rel_found": [
+            74,
+            77
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            92,
+            93
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            83,
+            86
+          ],
+          "rel_found": [
+            92,
+            93
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "A_ctrl",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if true then r else (if true then aar else [r]));r=[[3]];}",
+      "source_sha256": "0a859ba2a691c56464e679a45139dd8abb8f2b37111facb0301fa727525e7fd3",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            83,
+            86
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            53,
+            54
+          ],
+          "rel_found": [
+            83,
+            86
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "A_noasg",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if true then r else (if true then aar else [r]));}",
+      "source_sha256": "5556ba107cef5089afa73586b68fe3d6e28295f730ec5a611ba5da9648499f74",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            83,
+            86
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            53,
+            54
+          ],
+          "rel_found": [
+            83,
+            86
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "B_qr",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;var r=[];var q=[];let a=(if p then p else q);let c=[q,[r]];q=[3];r=[3];}",
+      "source_sha256": "17abb94df52926e8b7b3ecfd372371400eb9cd51635745b12ee51137717ee928",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            63,
+            64
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            56,
+            57
+          ],
+          "rel_found": [
+            63,
+            64
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            83,
+            84
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            76,
+            77
+          ],
+          "rel_found": [
+            83,
+            84
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "B_rq",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;var r=[];var q=[];let a=(if p then p else q);let c=[q,[r]];r=[3];q=[3];}",
+      "source_sha256": "60bf10b45d935d86140f9d87a22df06dc7b01e4b27063220527fdb8903326a4f",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            63,
+            64
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            56,
+            57
+          ],
+          "rel_found": [
+            63,
+            64
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            89,
+            90
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            76,
+            77
+          ],
+          "rel_found": [
+            89,
+            90
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "F06",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let ar=[1];var r=[];let a0=(if true then r[1] else (if false then r else ar));r=[3];}",
+      "source_sha256": "1209994ef23152621fc52eb528507e0ceaf9571d7006db861746d431bf3746f2",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            76,
+            77
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            51,
+            55
+          ],
+          "rel_found": [
+            76,
+            77
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            91,
+            92
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            83,
+            85
+          ],
+          "rel_found": [
+            91,
+            92
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "M2",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if true then r[0] else (if true then r else aar));r=aar;}",
+      "source_sha256": "849bb6af22cc8193b291f5606922f8fbf744580695c0ebcc1799a990ec04a340",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            77,
+            78
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            53,
+            57
+          ],
+          "rel_found": [
+            77,
+            78
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            92,
+            95
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            84,
+            87
+          ],
+          "rel_found": [
+            92,
+            95
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "O01",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];let br=[true];let aar=[[1]];var r=[];let a0=[(x),(if [r][0] then [2][1] else x)];let a1=[([2][0] + false[x]),(if (x < 0) then r[x] else (if false then r else [[2]]))];r=aar;}",
+      "source_sha256": "190e1f059bed42e0345ad0cdf881c9cd37716d49a9ca8e4537e5d781e3e551ee",
+      "expected": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            93,
+            99
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": null,
+          "rel_found": [
+            93,
+            99
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "not_indexable",
+          "primary": [
+            139,
+            144
+          ],
+          "expected_type": "domain:array",
+          "found_type": "Bool",
+          "rel_expected": null,
+          "rel_found": [
+            139,
+            144
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            191,
+            192
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            166,
+            170
+          ],
+          "rel_found": [
+            191,
+            192
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            209,
+            212
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            198,
+            203
+          ],
+          "rel_found": [
+            209,
+            212
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "O03",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];let br=[true];let aar=[[1]];var r=[];var q=[];let a0=(if (if p then {value: br;} else {value: (if true then {return;} else {return;});})[1] then r else (if p then aar else [r]));let a1=(if (if br[x] then (if p then true else false) else q) then {value: (if (x < x) then q[1] else (x + x));} else {value: (x + 1);});r=[x];q=ar;}",
+      "source_sha256": "ad60309081011c66cd0ac004fd4187b07f61da66bbc4fe8296a01eaa84f246f6",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            212,
+            215
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            185,
+            186
+          ],
+          "rel_found": [
+            212,
+            215
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            277,
+            278
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<I64>",
+          "rel_expected": null,
+          "rel_found": [
+            277,
+            278
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            358,
+            359
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            203,
+            206
+          ],
+          "rel_found": [
+            358,
+            359
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "O07",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];let br=[true];let aar=[[1]];var r=[];let a0:Bool=(Len(aar[0]) < (if false then r else (if true then aar else [r])));r=[3];}",
+      "source_sha256": "b9caeac6ec67f3572edd9bd829a119cf8aa400e802d073daeee6d81568c24c97",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            149,
+            152
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            119,
+            120
+          ],
+          "rel_found": [
+            149,
+            152
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            159,
+            160
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            140,
+            143
+          ],
+          "rel_found": [
+            159,
+            160
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "O08",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];let br=[true];let aar=[[1]];var r=[];let a0=[(if (if r then r else ar) then r[1] else (if 0 then r else aar)),x];r=aar;}",
+      "source_sha256": "5c61658c07c822805b65280cc9a7c49773baa935a1d0bc11c12c62c828032359",
+      "expected": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            93,
+            94
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": null,
+          "rel_found": [
+            93,
+            94
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            100,
+            101
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": null,
+          "rel_found": [
+            100,
+            101
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            107,
+            109
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<I64>",
+          "rel_expected": null,
+          "rel_found": [
+            107,
+            109
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            130,
+            131
+          ],
+          "expected_type": "Bool",
+          "found_type": "I64",
+          "rel_expected": null,
+          "rel_found": [
+            130,
+            131
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "M2_noasg",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if true then r[0] else (if true then r else aar));}",
+      "source_sha256": "15be87298c503ec7d99a8d243bc5d838ac0b28f22891b67d527c3d4f55fe3f81",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            77,
+            78
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            53,
+            57
+          ],
+          "rel_found": [
+            77,
+            78
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "M2_ctrl",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if true then r[0] else (if true then r else aar));r=[[[3]]];}",
+      "source_sha256": "bdccc3de1b394cfdf52170ce6a2c933d2436adeaa274c730f2db6ccf2cdde482",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            77,
+            78
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            53,
+            57
+          ],
+          "rel_found": [
+            77,
+            78
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "DREF_valid",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let aar=[[1]];var r=[];let a=(if false then r[0] else aar);r=[[[3]]];}",
+      "source_sha256": "a57b15559cdc527336eead97d5748ef32fd71498f7874412db95abd9ac1a737b",
+      "expected": [],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "P1",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let ar=[1];var r=[];var q=[];let a=((if true then true else q)==ar);Print([r,q]);q=[[true]];r=[];q=ar;}",
+      "source_sha256": "a543866e6242c06172fd89df37993ee7b4383d6fe5c001accd570ca3000a6d11",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            70,
+            71
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<Bool>>",
+          "rel_expected": [
+            60,
+            64
+          ],
+          "rel_found": [
+            70,
+            71
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            109,
+            111
+          ],
+          "expected_type": "Array<Array<Bool>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            93,
+            101
+          ],
+          "rel_found": [
+            109,
+            111
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "c3",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let ar=[1];var r=[];var q=[];let a=((if true then true else q)==ar);Print([r,q]);q=[[ar]];r=[];q=ar;}",
+      "source_sha256": "a68414b5398fc9827aacd5a54295c3d2cafa108aba728d24334ffbada1838d17",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            70,
+            71
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            60,
+            64
+          ],
+          "rel_found": [
+            70,
+            71
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            107,
+            109
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            93,
+            99
+          ],
+          "rel_found": [
+            107,
+            109
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "w1",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let ar=[1];var r=[];var q=[];let a=((if true then true else q)==ar);Print([r,q]);q=[[1<2]];r=[];q=ar;}",
+      "source_sha256": "d177cbda0ac348758b92009d87a9f18838326de402078b62baab91f39d08bf21",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            70,
+            71
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<Array<Bool>>",
+          "rel_expected": [
+            60,
+            64
+          ],
+          "rel_found": [
+            70,
+            71
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            108,
+            110
+          ],
+          "expected_type": "Array<Array<Bool>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            93,
+            100
+          ],
+          "rel_found": [
+            108,
+            110
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "P2",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];var r=[];var q=[];let a=(if p then [r,q] else (if (x<1) then r else [true]));q=[[3]];q=ar;r=[r];}",
+      "source_sha256": "feadd4729f465b4b8a55e5fa61bc1069aab016be3b7fcaa9c9f008f8612cec31",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            101,
+            102
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            75,
+            80
+          ],
+          "rel_found": [
+            101,
+            102
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            127,
+            129
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            119,
+            124
+          ],
+          "rel_found": [
+            127,
+            129
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            133,
+            134
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            119,
+            124
+          ],
+          "rel_found": [
+            133,
+            134
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(108, 114)"
+        ]
+      ]
+    },
+    {
+      "id": "P3",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var q=[];let a=[q,(if p then r[0] else [r])];q=[[ar]];r=[[3]];}",
+      "source_sha256": "0927c5dfc6882bc8aa073c4fc7f9d132e7b494809bc5ea3e85aaf2a4b02912aa",
+      "expected": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            81,
+            82
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<Array<I64>>>>",
+          "rel_expected": [
+            57,
+            58
+          ],
+          "rel_found": [
+            81,
+            82
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            99,
+            100
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "rel_expected": [
+            88,
+            94
+          ],
+          "rel_found": [
+            99,
+            100
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": []
+    },
+    {
+      "id": "w3",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];var r=[];var q=[];let a=(if p then [r,q] else (if (x<1) then r else [true]));q=[[x+1]];q=ar;r=[r];}",
+      "source_sha256": "41e64a9f48c2c1fb6d12232808696a9c91458b9aa91f5207239b170a02773749",
+      "expected": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            101,
+            102
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            75,
+            80
+          ],
+          "rel_found": [
+            101,
+            102
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            129,
+            131
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            119,
+            126
+          ],
+          "rel_found": [
+            129,
+            131
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            135,
+            136
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            119,
+            126
+          ],
+          "rel_found": [
+            135,
+            136
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "d_optional": [],
+      "notes": [
+        [
+          "absorbida",
+          "(108, 114)"
+        ]
+      ]
+    }
+  ]
+}

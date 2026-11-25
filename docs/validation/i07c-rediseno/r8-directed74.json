@@ -1,0 +1,1262 @@
+{
+  "schema": "i07c-r8-directed74-v1",
+  "rows": [
+    {
+      "id": "B_M1",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];let b=q[0];(if true then [q] else (if true then [1] else q));r=q;q=[1];}",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          76,
+          79
+        ]
+      ]
+    },
+    {
+      "id": "B_M2",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];let z=r[0];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "planned",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;var q=[];var s=[];let a=[s[x],(if 0 then true else q),(if x then q else s)];q=[true];s=[[true]];}",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          52,
+          53
+        ],
+        [
+          "NX-E1303",
+          69,
+          70
+        ],
+        [
+          "NX-E0102",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          106,
+          112
+        ]
+      ]
+    },
+    {
+      "id": "X_02",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:I64=(if true then 1 else (if 0 then true else 3));}",
+      "source_sha256": "5c52c09bb3e86922606992abbee6cdf2d2b880f84aebc3c66bab66b001c92680",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          45,
+          46
+        ],
+        [
+          "NX-E0102",
+          52,
+          56
+        ]
+      ]
+    },
+    {
+      "id": "X_03_array_annotation_equiv",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:Array<I64>=(if true then [1] else (if 0 then [true] else [3]));}",
+      "source_sha256": "9fb8165bb97ad46284451d2d63ca841cafffb8aeef157ebc53ccca42d358fc1a",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          54,
+          55
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "X_04_argument_equiv",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn F(x:view I64){}fn Main(){F((if true then 1 else (if 0 then true else 3)));}",
+      "source_sha256": "f76f95a34da6ad66a3e59b12fd0aeb84d8807f84ee80c1060734cbbbda1c1e4d",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          55,
+          56
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "X_05_return_equiv",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn F()->I64{return (if true then 1 else (if 0 then true else 3));}fn Main(){F();}",
+      "source_sha256": "66e25dc225a59f6c797b67f1cd62c6f00d3b41d6d0a7a6d572f56d53ed1cc39d",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          44,
+          45
+        ],
+        [
+          "NX-E0102",
+          51,
+          55
+        ]
+      ]
+    },
+    {
+      "id": "X_06_operand_equiv",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a=1+(if true then 1 else (if 0 then true else 3));}",
+      "source_sha256": "0050646daea59240cb099108a458cdc2d3a75fd71a2658ab3609e124e2c83858",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          43,
+          44
+        ],
+        [
+          "NX-E0102",
+          50,
+          54
+        ]
+      ]
+    },
+    {
+      "id": "X_07_three_levels_equiv",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:I64=(if true then (if true then 1 else 2) else (if 0 then true else 3));}",
+      "source_sha256": "20c74f1c1c50b3df32ec7657e9769884cedb850ba86bb0e5c09cc5eeed6d7407",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          67,
+          68
+        ],
+        [
+          "NX-E0102",
+          74,
+          78
+        ]
+      ]
+    },
+    {
+      "id": "X_08_outer_condition_equiv",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}",
+      "source_sha256": "64fc2c0e749ca0644438644ae0c0df6648fc417a8b293363697cc107e1d1b1dd",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          24,
+          25
+        ],
+        [
+          "NX-E0102",
+          31,
+          35
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "SB_equivalent",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}",
+      "source_sha256": "74a675a009a9e7fc9591b0c6de6e0a18ddf75d7fac2a44d17e1a03a3f2dd84af",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          72,
+          74
+        ],
+        [
+          "NX-E0103",
+          47,
+          49
+        ]
+      ]
+    },
+    {
+      "id": "T5_constructor_equivalent",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}",
+      "source_sha256": "da9c81faa585f7b715801493243335fed4319f02ac8857dba1c73369dab61678",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          36,
+          38
+        ]
+      ]
+    },
+    {
+      "id": "S_A_independent_constructor_equiv",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let z=true+1;}",
+      "source_sha256": "2ae8236327202b89dad59babd7311a59c87833da0209fbdcbe43102a047596f4",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0102",
+          25,
+          29
+        ]
+      ]
+    },
+    {
+      "id": "recursive_69",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ]
+      ]
+    },
+    {
+      "id": "recursive_78_equivalent",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "source_sha256": "8ddc4379a3661eea14846c25bb406b8873f69948a336caeab6fced22cb3e9eef",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          69,
+          72
+        ]
+      ]
+    },
+    {
+      "id": "recursive_127_equivalent",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;var w=(if true then {return;}else{return;});var b=[w];w=b;}",
+      "source_sha256": "6c62e3bb7c1b00e81a269317a6157eee1037c0b1def49f7b877ddf1fdafa2940",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ],
+        [
+          "NX-E0103",
+          118,
+          121
+        ]
+      ]
+    },
+    {
+      "id": "atomic_78",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          53
+        ]
+      ]
+    },
+    {
+      "id": "completion_conflict",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=[q,1];q=[true];}",
+      "source_sha256": "b03085eda2e31a386387474ac59bebf07310685838991e5f3873faffe1355fab",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          28,
+          29
+        ]
+      ]
+    },
+    {
+      "id": "completion_unresolved",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=[q,1];}",
+      "source_sha256": "2ee21f6ad09677a701b274ff262dbb07b0b11c02326567d7d5266fb36ce1b155",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "suspended_68",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);q=[1];r=[true];}",
+      "source_sha256": "74a68784cc993dce20df1e260c4ac6b8e230bed51869ffa94088f024f68fce61",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          61,
+          65
+        ]
+      ]
+    },
+    {
+      "id": "waiting_projection_valid",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[true];}",
+      "source_sha256": "a704dfa7f6f74bc83f0161b409be1b4259ec5f56b996c7f97f5dbd808935a5e5",
+      "expected_code_primary": []
+    },
+    {
+      "id": "waiting_projection_candidate_conflict",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}",
+      "source_sha256": "b712b8d4073bb4542171857c2b654d3f92b9481ad936aa02ea66c0a33335af7b",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          73,
+          74
+        ]
+      ]
+    },
+    {
+      "id": "waiting_projection_refuted",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=3;}",
+      "source_sha256": "6ac2c72e6a68b9c16e5900c4b12f4da113608014d98067eacc6e2c695982e507",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          65,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "join_record",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}",
+      "source_sha256": "7d3ac793fd6a3c0ae56a0759d0938a581de29dd60d00da9933f9eff6ae301586",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          56,
+          60
+        ],
+        [
+          "NX-E1303",
+          67,
+          70
+        ]
+      ]
+    },
+    {
+      "id": "ST1_equivalent",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}",
+      "source_sha256": "7c7189a366fc11363cb10732cddc6fe4f0429b34538aa866d6a6eec83a49e53e",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          68,
+          71
+        ]
+      ]
+    },
+    {
+      "id": "W1_atomic_compound",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+      "source_sha256": "f047fb6dda3f49a187818428f18203ddd2f888c2ecaf122d83adb265b258d900",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ]
+    },
+    {
+      "id": "W1a_without_later_assignment",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);}",
+      "source_sha256": "cfde3b87cb290f372468389476e786f5a0e46a0e1fa45f9103eddcdc373133da",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ]
+      ]
+    },
+    {
+      "id": "M2_partial_witness_chain",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];(if p then (if p then (if p then (if 1 then true else false) else (if p then q[0] else q)) else [[true]]) else aar);}",
+      "source_sha256": "49b5ec47e8219f59703376fde934eb92a9fbc9c1cc74344459697dbe6d48d280",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          81,
+          82
+        ],
+        [
+          "NX-E1303",
+          131,
+          132
+        ],
+        [
+          "NX-E1303",
+          155,
+          158
+        ]
+      ]
+    },
+    {
+      "id": "RC1_read_context_variable",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then 1 else true)];s=[1];}",
+      "source_sha256": "638eb888f111ff356adec48f499270f67fa8f177052bcf16c3c7fd072c82e03b",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ]
+    },
+    {
+      "id": "RC2_read_context_committed",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];q=[1];let a=[q[0],(if true then 1 else true)];}",
+      "source_sha256": "dba4d3c51d0aac7b728c72fcf2f97e3c00f9f31d4d63af9e05557c31fad112ec",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ]
+    },
+    {
+      "id": "RC3_read_context_no_retroactive",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then 1 else true)];let b:I64=q[0];}",
+      "source_sha256": "e0c7fc81f5850d900f59a899bd2a5beb5e2900d109c9329af5271b73a093f66f",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ]
+    },
+    {
+      "id": "SU1_suspended_order",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);r=[true];q=[1];}",
+      "source_sha256": "360e0ad7f41ba9558dec6e0f1698fa0c662f9200b25f774039002734476f5e02",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          64,
+          65
+        ]
+      ]
+    },
+    {
+      "id": "SU2_suspended_chain",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];var s=[];(if true then q else r);(if true then r else s);s=[1];q=[true];}",
+      "source_sha256": "4c6f0d26cb29e3a59412bc70417e86602c416443777e29f354c620620b891153",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          94,
+          98
+        ]
+      ]
+    },
+    {
+      "id": "RS1_condition_contaminated",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a=(if true then (if 1 then true else false) else 2);}",
+      "source_sha256": "e9847402a2f744df8da45ec97f900a6a9437354a4e97b8b5332efd86fe695fe2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          34,
+          35
+        ]
+      ]
+    },
+    {
+      "id": "RS2_independent_child_errors",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a=(if true then true+1 else (if true then 1 else true));}",
+      "source_sha256": "7442c940f10d5da66fb7ec6adbe5b426f2368132c73e11543017af4f00bab621",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          30,
+          34
+        ],
+        [
+          "NX-E1303",
+          63,
+          67
+        ]
+      ]
+    },
+    {
+      "id": "RS3_partial_in_array",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a=[(if true then 1 else true),[1]];}",
+      "source_sha256": "0819ae2e95b85e0ec74d9ed06f10bc9c60c24a1f29858ee947b550ce84906fb7",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          38,
+          42
+        ]
+      ]
+    },
+    {
+      "id": "CD1_independent_constructor",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];let a=[q,1];r=[true];}",
+      "source_sha256": "0f1795f8231b6b1fb9245090edbde1a6b884ae1ca6d0f2b1898be19bce2fa2b0",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "CD2_independent_error_and_duties",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);let z=true+1;}",
+      "source_sha256": "43adfe86b3f1c8bb453c0717a4bad75ed0704abe4cdfc4c3f170be46c3e7b73d",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          25,
+          27
+        ],
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ]
+    },
+    {
+      "id": "W2_no_retroactive_context",
+      "provenance": "A r6 directed; ADR/B derivation or documented equivalent",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}",
+      "source_sha256": "9e4249b80a98328151f9f2b4661e8b876042daaaea2f8ff66f9723b4d65d4b28",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          77,
+          79
+        ],
+        [
+          "NX-E1303",
+          140,
+          145
+        ]
+      ]
+    },
+    {
+      "id": "B3_01",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:I64=(if true then 1 else (if 0 then true else 3));}",
+      "source_sha256": "5c52c09bb3e86922606992abbee6cdf2d2b880f84aebc3c66bab66b001c92680",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          45,
+          46
+        ],
+        [
+          "NX-E0102",
+          52,
+          56
+        ]
+      ]
+    },
+    {
+      "id": "B3_02",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:Array<I64>=(if true then [1] else (if 0 then [true] else [3]));}",
+      "source_sha256": "9fb8165bb97ad46284451d2d63ca841cafffb8aeef157ebc53ccca42d358fc1a",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          54,
+          55
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "B3_03",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn F(x:view I64){}fn Main(){F((if true then 1 else (if 0 then true else 3)));}",
+      "source_sha256": "f76f95a34da6ad66a3e59b12fd0aeb84d8807f84ee80c1060734cbbbda1c1e4d",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          55,
+          56
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "B3_04",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn F()->I64{return (if true then 1 else (if 0 then true else 3));}fn Main(){F();}",
+      "source_sha256": "66e25dc225a59f6c797b67f1cd62c6f00d3b41d6d0a7a6d572f56d53ed1cc39d",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          44,
+          45
+        ],
+        [
+          "NX-E0102",
+          51,
+          55
+        ]
+      ]
+    },
+    {
+      "id": "B3_05",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a=1+(if true then 1 else (if 0 then true else 3));}",
+      "source_sha256": "0050646daea59240cb099108a458cdc2d3a75fd71a2658ab3609e124e2c83858",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          43,
+          44
+        ],
+        [
+          "NX-E0102",
+          50,
+          54
+        ]
+      ]
+    },
+    {
+      "id": "B3_06",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:I64=(if true then (if true then 1 else 2) else (if 0 then true else 3));}",
+      "source_sha256": "20c74f1c1c50b3df32ec7657e9769884cedb850ba86bb0e5c09cc5eeed6d7407",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          67,
+          68
+        ],
+        [
+          "NX-E0102",
+          74,
+          78
+        ]
+      ]
+    },
+    {
+      "id": "B3_07",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}",
+      "source_sha256": "64fc2c0e749ca0644438644ae0c0df6648fc417a8b293363697cc107e1d1b1dd",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          24,
+          25
+        ],
+        [
+          "NX-E0102",
+          31,
+          35
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "B3_08",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a=(if true then 1 else (if 0 then [1] else [2]));}",
+      "source_sha256": "0d30bf5293097e37817ebd84c16b5f7e1fae621d0e8a4b959ee587ecfb37d94b",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          41,
+          42
+        ]
+      ]
+    },
+    {
+      "id": "B3_09",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=(if 0 then q else [1]);}",
+      "source_sha256": "f5dbfdbc45961f64fffe18e5ed4187e6943f627d167cd3058b7859d222544cde",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          29,
+          30
+        ]
+      ]
+    },
+    {
+      "id": "B3_10",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ]
+      ]
+    },
+    {
+      "id": "B3_11",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "source_sha256": "8ddc4379a3661eea14846c25bb406b8873f69948a336caeab6fced22cb3e9eef",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          69,
+          72
+        ]
+      ]
+    },
+    {
+      "id": "B3_12",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;var w=(if true then {return;}else{return;});var b=[w];w=b;}",
+      "source_sha256": "6c62e3bb7c1b00e81a269317a6157eee1037c0b1def49f7b877ddf1fdafa2940",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ],
+        [
+          "NX-E0103",
+          118,
+          121
+        ]
+      ]
+    },
+    {
+      "id": "B3_13",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          53
+        ]
+      ]
+    },
+    {
+      "id": "B3_14",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=[q,1];q=[true];}",
+      "source_sha256": "b03085eda2e31a386387474ac59bebf07310685838991e5f3873faffe1355fab",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          28,
+          29
+        ]
+      ]
+    },
+    {
+      "id": "B3_15",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=[q,1];}",
+      "source_sha256": "2ee21f6ad09677a701b274ff262dbb07b0b11c02326567d7d5266fb36ce1b155",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "B3_16",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);q=[1];r=[true];}",
+      "source_sha256": "74a68784cc993dce20df1e260c4ac6b8e230bed51869ffa94088f024f68fce61",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          61,
+          65
+        ]
+      ]
+    },
+    {
+      "id": "B3_17",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[true];}",
+      "source_sha256": "a704dfa7f6f74bc83f0161b409be1b4259ec5f56b996c7f97f5dbd808935a5e5",
+      "expected_code_primary": []
+    },
+    {
+      "id": "B3_18",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}",
+      "source_sha256": "b712b8d4073bb4542171857c2b654d3f92b9481ad936aa02ea66c0a33335af7b",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          73,
+          74
+        ]
+      ]
+    },
+    {
+      "id": "B3_19",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=3;}",
+      "source_sha256": "6ac2c72e6a68b9c16e5900c4b12f4da113608014d98067eacc6e2c695982e507",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          65,
+          66
+        ]
+      ]
+    },
+    {
+      "id": "B3_20",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}",
+      "source_sha256": "7d3ac793fd6a3c0ae56a0759d0938a581de29dd60d00da9933f9eff6ae301586",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          56,
+          60
+        ],
+        [
+          "NX-E1303",
+          67,
+          70
+        ]
+      ]
+    },
+    {
+      "id": "B3_21",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+      "source_sha256": "f047fb6dda3f49a187818428f18203ddd2f888c2ecaf122d83adb265b258d900",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ]
+    },
+    {
+      "id": "B3_22",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}",
+      "source_sha256": "9e4249b80a98328151f9f2b4661e8b876042daaaea2f8ff66f9723b4d65d4b28",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          77,
+          79
+        ],
+        [
+          "NX-E1303",
+          140,
+          145
+        ]
+      ]
+    },
+    {
+      "id": "B3_23",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];let b=q[0];(if true then [q] else (if true then [1] else q));r=q;q=[1];}",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          76,
+          79
+        ]
+      ]
+    },
+    {
+      "id": "B3_24",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];var r=[];let z=r[0];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "B3_25",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let x=1;var q=[];var s=[];let a=[s[x],(if 0 then true else q),(if x then q else s)];q=[true];s=[[true]];}",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          52,
+          53
+        ],
+        [
+          "NX-E1303",
+          69,
+          70
+        ],
+        [
+          "NX-E0102",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          106,
+          112
+        ]
+      ]
+    },
+    {
+      "id": "B3_26",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}",
+      "source_sha256": "74a675a009a9e7fc9591b0c6de6e0a18ddf75d7fac2a44d17e1a03a3f2dd84af",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          72,
+          74
+        ],
+        [
+          "NX-E0103",
+          47,
+          49
+        ]
+      ]
+    },
+    {
+      "id": "B3_27",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}",
+      "source_sha256": "da9c81faa585f7b715801493243335fed4319f02ac8857dba1c73369dab61678",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          36,
+          38
+        ]
+      ]
+    },
+    {
+      "id": "B3_28",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}",
+      "source_sha256": "7c7189a366fc11363cb10732cddc6fe4f0429b34538aa866d6a6eec83a49e53e",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          68,
+          71
+        ]
+      ]
+    },
+    {
+      "id": "B3_29",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:I64=(if true then 1 else {return;});}",
+      "source_sha256": "1026347aaf2ff3ce4328fc473eb437aac38d78c3e9bf85bf191c2a06f3667e1d",
+      "expected_code_primary": []
+    },
+    {
+      "id": "B3_30",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);s=[true];}",
+      "source_sha256": "7bf2d0e6fd1965c82d33db5a5189b69ab36b822e470bf37323743396e4ac20f3",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          72,
+          74
+        ]
+      ]
+    },
+    {
+      "id": "B3_31",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if p then r else ar) else s);s=[true];}",
+      "source_sha256": "41725199dd15f78558c81e10c03bc53c9901f07443dc46996a47cd282b8279c3",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          101,
+          105
+        ]
+      ]
+    },
+    {
+      "id": "B3_32",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then s else (if ar then r else ar));s=[true];}",
+      "source_sha256": "c6344762dc1fc3cfdac6dea7990767467f37e82d8d4153a913fb536bd0cd7eb1",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          79,
+          81
+        ]
+      ]
+    },
+    {
+      "id": "B3_33",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let a:Result<I64,Bool>=Ok(true);}",
+      "source_sha256": "b57a5a79edb68a814c7414f4a1f6d83458bce5f06b3fbfb053fb2c00f4e4b5a9",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          36,
+          40
+        ]
+      ]
+    },
+    {
+      "id": "B3_34",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let q=Ok(1);}",
+      "source_sha256": "d1ea050e3154ff2d2f8061eee17d9a5e1210e681f5532afc4d94230dab3b2554",
+      "expected_code_primary": [
+        [
+          "NX-E0113",
+          16,
+          21
+        ]
+      ]
+    },
+    {
+      "id": "B3_35",
+      "provenance": "B r3 accepted fixture",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){var q=Ok(1);q=Err(true);}",
+      "source_sha256": "5afb7bb22897a5326014de40d7ed11ed53f6fe53464205534b1a0259b088032e",
+      "expected_code_primary": []
+    }
+  ]
+}
