@@ -1,6 +1,6 @@
 # I07c — Rediseño de restauración atómica y ancla de unión
 
-Estado: **exploración reabierta; regla candidata no demostrada, sin PASS ni plan de implementación**. Base: `origin/main` de 2026-11-24. La primera realización no conservó los dos mínimos de núcleo; el resultado motiva nuevas variantes y no autoriza Flujo B. Las cifras propias están en `I07c-rediseno-restauracion-atomica-informe.md`.
+Estado: **parada demostrada de esta realización; regla candidata no demostrada, sin PASS ni plan de implementación**. Base: `origin/main` de 2026-11-24. La familia de marcas reconstruidas no conserva los mínimos de núcleo y produce regresiones estructurales en los corpus nuevos congelados. Quince variantes medidas no autorizaron Flujo B. Las cifras y repros propios están en `I07c-rediseno-restauracion-atomica-informe.md`; la siguiente iteración requiere una representación de la transacción por ocurrencia que separe contexto previo y completación posterior.
 
 ## Regla candidata única: compromiso por ocurrencia
 
