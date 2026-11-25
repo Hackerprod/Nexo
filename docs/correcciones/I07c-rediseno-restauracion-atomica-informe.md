@@ -273,3 +273,17 @@ El fallo dirigido falsó `txmarks` inicial. Los `NO EVALUADO` de esta tabla desc
 | 17 tests de §3.6 y cada fila abierta de la lista de defectos | **NO EVALUADO para `txmarks`**; siguen nominalmente abiertos hasta un nuevo diseño y derivación individual. No se editó ningún test. |
 
 El corpus base sigue limitado a una función `Main`, seis hojas y profundidad tres; el oráculo histórico no modela `match`, `while`, bloques `{}` ni `AssertEq`, y precede a T5. Ni el recuento de muestras ni un positivo dirigido prueban ausencia de regresiones. La exploración continúa y **no se escribe plan de implementación**. Quedan pendientes las lagunas y piezas S5a.2/S5a.3/S5a.5, `match`, los 17 tests y las 50 filas abiertas; no se reclasifican como deuda sin programa.
+
+## Continuación 5: sondas de representación (resultado parcial)
+
+Los resultados reproducibles están en `docs/validation/i07c-rediseno/r45-sondas.json` de la rama desechable y se atan al SHA-256 del binario. La matriz usa el oráculo T5/N; estas filas son **sondas**, no el barrido de los trece conjuntos/perfiles. Ninguna variante de esta tabla autoriza todavía un plan de integración.
+
+| instrumento | sondas /16 | T5/N /45 | contraejemplo y causa inmediata |
+|---|---:|---:|---|
+| R1 obligación activa con T5 | 13 | 45 | `planned`, `planned_full`: la obligación se drena antes de derivar `read_plan`; `incompatible_prefix`: T5 se aplica antes de comparar las ramas internas. |
+| R2 vista de lectura | 10 | 37 | W0 pierde la igualdad monomórfica: la sombra copia el tipo final sin publicar los efectos compatibles de la lectura. |
+| R3 enlace tardío | 10 | 38 | W0 y 97 B: el enlace después de `block()` no reejecuta proyección, unión ni reserva diagnóstica. |
+| R4, proyección por replay de eventos con T5 temprano | 3 | 40 | t3584 mínimo añade `NX-E0102` `[85,86)`; W0 añade `NX-E0103` `[27,29)`. Reconstruir compuertas desde eventos no reejecuta las igualdades. |
+| R5, primer prefijo acotado y T5 tardío | 14 | 44 | 97 B añade `NX-E0103` `[25,27)`; O08 añade `NX-E1303` `[137,138)` y `NX-E0102` `[155,158)`. La proyección del brazo de una unión se confundió con una proyección externa; el resultado contaminado seguía ofreciendo su variable al ancla exterior. |
+
+R4 aquí es un instrumento **incompleto** respecto del replay por ocurrencia diseñado: no cuenta como quinta representación demostrada. Las dos causas de R5 están siendo corregidas por dependencia de ancestro de `if` y por impedir que `Tainted` ofrezca una variable de ancla. El siguiente resultado se publica separado; no se reemplaza esta medición. No se ejecuta barrido completo sobre una variante que falla sondas.
