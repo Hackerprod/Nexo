@@ -1,0 +1,110 @@
+{
+  "schema": "i07c-r7-f2-probes-v1",
+  "rows": [
+    {
+      "id": "rejected_assignment",
+      "source": "fn Main(){let p=true;var q=[];var r=[];let a0=(if p then q else r[0]);r=q;q=[3];}",
+      "source_sha256": "1b77e2abddc90489b076208624650a3d20dfdef7314929b0c53dc4686f59733f",
+      "profile": "f0-0002-b-v2",
+      "expected": [
+        {
+          "primary": [
+            72,
+            73
+          ],
+          "expected_type_relation": [
+            57,
+            58
+          ]
+        }
+      ],
+      "adr_deduction": "F2 steps 3 and 6: q is the first structural supplier; rejected r=q lends none"
+    },
+    {
+      "id": "omitted_relation",
+      "source": "fn Main(){let p=true;var q=[];var r=[];let a0=(if p then [q] else r);r=[true];q=[[1]];}",
+      "source_sha256": "8012d4d68b3142b7dee0fe9573e8bd30c1ad0d8abca1fff44db7cf803695916e",
+      "profile": "f0-0002-b-v2",
+      "expected": [
+        {
+          "primary": [
+            72,
+            76
+          ],
+          "expected_type_relation": [
+            57,
+            60
+          ]
+        }
+      ],
+      "adr_deduction": "F2 step 3: [q] supplies the Array structure to r; not intrinsic"
+    },
+    {
+      "id": "later_completion",
+      "source": "fn Main(){let p=true;var q=[];var r=[];let a0=(if p then (if p then [r] else 1) else q);r=[true];q=[true];}",
+      "source_sha256": "ddae0dce0250422ec93f9e59821eec1b09017ca9cea9deeac0c91bbf3818aa02",
+      "profile": "f0-0002-b-v2",
+      "expected": [
+        {
+          "primary": [
+            100,
+            104
+          ],
+          "expected_type_relation": [
+            58,
+            78
+          ]
+        }
+      ],
+      "adr_deduction": "F2 steps 3 and 6: the earlier continuation owns the parent structure"
+    },
+    {
+      "id": "unrelated_operand",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then (if p then 1 else s[0]) else (if p then aar else 1));let a1=(if p then (if p then q[0] else r) else (if p then s[0] else 1));r=s;q=ar;q=r;}",
+      "source_sha256": "9c0b7ee84bfa0747818f0fbaf36d0bda326600e916fe492ef24385ee3f6a5485",
+      "profile": "f0-0002-b-v2",
+      "expected": [
+        {
+          "primary": [
+            222,
+            224
+          ],
+          "expected_type_relation": [
+            183,
+            184
+          ]
+        },
+        {
+          "primary": [
+            227,
+            228
+          ],
+          "expected_type_relation": [
+            183,
+            184
+          ]
+        }
+      ],
+      "adr_deduction": "F2 steps 3 and 6: r in a1 links q before r=s; 1 in a0 only later completes s"
+    },
+    {
+      "id": "concrete_rhs_oracle_correction",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=q;q=[[3]];let a0=[(if p then q else 1)];q=[[ar]];}",
+      "source_sha256": "e564ac7d11c2525707afe3d73092ec81d5039d7a9ba34cf992225e0ac4bdb618",
+      "profile": "f0-0002-b-v2",
+      "expected": [
+        {
+          "primary": [
+            125,
+            127
+          ],
+          "expected_type_relation": [
+            85,
+            90
+          ]
+        }
+      ],
+      "adr_deduction": "F2 step 4: q=[[3]] is fully concrete and owns the compound operand"
+    }
+  ]
+}
