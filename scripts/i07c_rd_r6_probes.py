@@ -17,6 +17,14 @@ CASES = {
     "B_M2": ("fn Main(){var q=[];var r=[];let z=r[0];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}", [("NX-E0103", 16, 18)]),
     "planned": ("fn Main(){let x=1;var q=[];var s=[];let a=[s[x],(if 0 then true else q),(if x then q else s)];q=[true];s=[[true]];}", [("NX-E0102", 52, 53), ("NX-E1303", 69, 70), ("NX-E0102", 76, 77), ("NX-E0102", 106, 112)]),
     "X_02": ("fn Main(){let a:I64=(if true then 1 else (if 0 then true else 3));}", [("NX-E0102", 45, 46), ("NX-E0102", 52, 56)]),
+    # A's equivalents of B's six external-context shapes. They are not the
+    # missing original X-03..X-08 files from B's deleted temporary directory.
+    "X_03_array_annotation_equiv": ("fn Main(){let a:Array<I64>=(if true then [1] else (if 0 then [true] else [3]));}", [("NX-E0102", 54, 55), ("NX-E0102", 62, 66)]),
+    "X_04_argument_equiv": ("fn F(x:view I64){}fn Main(){F((if true then 1 else (if 0 then true else 3)));}", [("NX-E0102", 55, 56), ("NX-E0102", 62, 66)]),
+    "X_05_return_equiv": ("fn F()->I64{return (if true then 1 else (if 0 then true else 3));}fn Main(){F();}", [("NX-E0102", 44, 45), ("NX-E0102", 51, 55)]),
+    "X_06_operand_equiv": ("fn Main(){let a=1+(if true then 1 else (if 0 then true else 3));}", [("NX-E0102", 43, 44), ("NX-E0102", 50, 54)]),
+    "X_07_three_levels_equiv": ("fn Main(){let a:I64=(if true then (if true then 1 else 2) else (if 0 then true else 3));}", [("NX-E0102", 67, 68), ("NX-E0102", 74, 78)]),
+    "X_08_outer_condition_equiv": ("fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}", [("NX-E0102", 24, 25), ("NX-E0102", 31, 35), ("NX-E0102", 62, 66)]),
     "SB_equivalent": ("fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}", [("NX-E0102", 72, 74)]),
     "T5_constructor_equivalent": ("fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}", [("NX-E0103", 36, 38)]),
     "recursive_69": ("fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}", [("NX-E0103", 60, 63)]),
