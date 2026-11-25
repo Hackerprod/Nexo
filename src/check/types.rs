@@ -19890,6 +19890,19 @@ mod quota_tests {
     }
 
     #[test]
+    fn waiting_projection_candidate_replay_obeys_solver_quota_prefix() {
+        // F0-0002 §11.1: the later Array candidate activates the earlier
+        // projection and is rejected; its replay still consumes solver work.
+        let source = "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}";
+        let ast = crate::frontend::parse::parse("quota.n", source).unwrap();
+        let resolved = names::resolve("quota.n", source, &ast).unwrap();
+        let full = check_with_partial_limit("quota.n", source, &ast, &resolved, 1_000_000);
+        assert_eq!(full.errors.len(), 1, "{:?}", full.errors);
+        assert_eq!(full.errors[0].code, "NX-E0102");
+        assert_solver_quota_prefix(source);
+    }
+
+    #[test]
     fn tainted_array_stops_after_the_first_denied_charge() {
         // F0-0002 §11.1 retains only converged diagnostics at a reduced
         // boundary; swallowing the denied charge can fabricate NX-E0113.

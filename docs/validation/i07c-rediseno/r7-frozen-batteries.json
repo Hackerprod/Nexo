@@ -1,0 +1,826 @@
+{
+  "schema": "i07c-r7-frozen-v1",
+  "probes": [
+    {
+      "id": "RC1_read_context_variable",
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then 1 else true)];s=[1];}",
+      "source_sha256": "638eb888f111ff356adec48f499270f67fa8f177052bcf16c3c7fd072c82e03b",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ]
+    },
+    {
+      "id": "RC2_read_context_committed",
+      "source": "fn Main(){var q=[];q=[1];let a=[q[0],(if true then 1 else true)];}",
+      "source_sha256": "dba4d3c51d0aac7b728c72fcf2f97e3c00f9f31d4d63af9e05557c31fad112ec",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ]
+    },
+    {
+      "id": "RC3_read_context_no_retroactive",
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then 1 else true)];let b:I64=q[0];}",
+      "source_sha256": "e0c7fc81f5850d900f59a899bd2a5beb5e2900d109c9329af5271b73a093f66f",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ]
+    },
+    {
+      "id": "SU1_suspended_order",
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);r=[true];q=[1];}",
+      "source_sha256": "360e0ad7f41ba9558dec6e0f1698fa0c662f9200b25f774039002734476f5e02",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          64,
+          65
+        ]
+      ]
+    },
+    {
+      "id": "SU2_suspended_chain",
+      "source": "fn Main(){var q=[];var r=[];var s=[];(if true then q else r);(if true then r else s);s=[1];q=[true];}",
+      "source_sha256": "4c6f0d26cb29e3a59412bc70417e86602c416443777e29f354c620620b891153",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          94,
+          98
+        ]
+      ]
+    },
+    {
+      "id": "RS1_condition_contaminated",
+      "source": "fn Main(){let a=(if true then (if 1 then true else false) else 2);}",
+      "source_sha256": "e9847402a2f744df8da45ec97f900a6a9437354a4e97b8b5332efd86fe695fe2",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          34,
+          35
+        ]
+      ]
+    },
+    {
+      "id": "RS2_independent_child_errors",
+      "source": "fn Main(){let a=(if true then true+1 else (if true then 1 else true));}",
+      "source_sha256": "7442c940f10d5da66fb7ec6adbe5b426f2368132c73e11543017af4f00bab621",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          30,
+          34
+        ],
+        [
+          "NX-E1303",
+          63,
+          67
+        ]
+      ]
+    },
+    {
+      "id": "RS3_partial_in_array",
+      "source": "fn Main(){let a=[(if true then 1 else true),[1]];}",
+      "source_sha256": "0819ae2e95b85e0ec74d9ed06f10bc9c60c24a1f29858ee947b550ce84906fb7",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          38,
+          42
+        ]
+      ]
+    },
+    {
+      "id": "CD1_independent_constructor",
+      "source": "fn Main(){var q=[];var r=[];let a=[q,1];r=[true];}",
+      "source_sha256": "0f1795f8231b6b1fb9245090edbde1a6b884ae1ca6d0f2b1898be19bce2fa2b0",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "CD2_independent_error_and_duties",
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);let z=true+1;}",
+      "source_sha256": "43adfe86b3f1c8bb453c0717a4bad75ed0704abe4cdfc4c3f170be46c3e7b73d",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          25,
+          27
+        ],
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ]
+    },
+    {
+      "id": "W1_atomic_compound",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+      "source_sha256": "f047fb6dda3f49a187818428f18203ddd2f888c2ecaf122d83adb265b258d900",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ]
+    },
+    {
+      "id": "W1a_without_later_assignment",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);}",
+      "source_sha256": "cfde3b87cb290f372468389476e786f5a0e46a0e1fa45f9103eddcdc373133da",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ]
+      ]
+    },
+    {
+      "id": "M2_partial_witness_chain",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];(if p then (if p then (if p then (if 1 then true else false) else (if p then q[0] else q)) else [[true]]) else aar);}",
+      "source_sha256": "49b5ec47e8219f59703376fde934eb92a9fbc9c1cc74344459697dbe6d48d280",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          81,
+          82
+        ],
+        [
+          "NX-E1303",
+          131,
+          132
+        ],
+        [
+          "NX-E1303",
+          155,
+          158
+        ]
+      ]
+    }
+  ],
+  "ie": [
+    {
+      "id": "c2@f0-0003-b-v1:52",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else q);},None=>{value: r;}};r=ar;q=ar;}",
+      "source_sha256": "455e7900fed6a9e06af8fe853090798daeb4262cc0aec2626a0338ed4720034d",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2@f0-0003-b-v1:12050",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else q);},None=>{value: q;}};q=[ar];}",
+      "source_sha256": "ef5b1398cc3536c5db1b1935d69ab882a90e2948814cfa782d1e25330fd80a00",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2@f0-0003-b-v1:14018",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else q);},None=>{value: r;}};q=[[3]];}",
+      "source_sha256": "02fc23cef26992f31f71d1b06845c96ef1c242d0d2c54dccdfbca0036c1d4393",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2@f0-0003-b-v1:15631",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else (if p then q else r));},None=>{value: s;}};r=[[ar]];}",
+      "source_sha256": "46036770967e3b62a99f735efb1c3347dab80e4c8cc1d58ddceda3268c2895ab",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s7021993:714",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else (if p then q else r));},None=>{value: (if p then q else r);}};q=[[ar]];}",
+      "source_sha256": "ed81676321f653f3389032a942b7c056bbe2e61e4b07b6b9ab78da8338b6adf2",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s7021993:2024",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=q;let a0=match move o{Some(n)=>{value: (if p then s else s);},None=>{value: (if p then q else r);}};r=ar;}",
+      "source_sha256": "7f4110a4de2bc85c6be771041821496a5ca615e0c0688e9b3314960bdfba9007",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s7021993:2575",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else r);},None=>{value: (if p then q else r);}};q=aar;}",
+      "source_sha256": "a0925a21539fbf8d899bb84a260e445bb78bdc9a9a5fc7577729a835fcd65e86",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s7021993:3521",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then [q,r] else [q,r]);},None=>{value: [q,r];}};q=aar;q=r;}",
+      "source_sha256": "5d052d4a5d173ecbfc5e8372e0c10514382871c74d357ccbfcf2e88bf09ff092",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s7021993:3758",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else q);},None=>{value: [r];}};q=aar;}",
+      "source_sha256": "1e94b3523a71d9c4aadd3c31db7e9d0c6762d09bb84f3c8d1730f005a29ea1ea",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s4417061:1561",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else q[0]);},None=>{value: r[0];}};s=[true];}",
+      "source_sha256": "23d9296ba22e85b0199fb3f6e4f9fccc333f450f0e27b8f31dd98e3e5a43b443",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s4417061:2667",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else r);},None=>{value: (if p then q else r);}};q=[[ar]];}",
+      "source_sha256": "369781d5008462d1f66b5e56324743c24461cb1648d4aae2debd4ebb51f78074",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "s9908255:2902",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then q else s);},None=>{value: r;}};q=r;q=ar;}",
+      "source_sha256": "6e53bbe8170d85c12ebbb06ded6c2e4dd865f7fe234b531be5f8a1575b29deea",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva@f0-0003-b-v1:526",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then q else q);},None=>{value: r[0];}};q=[[3]];s=[true];}",
+      "source_sha256": "cd8273d30487cd695274b16c5204ec6cfa6ae7e9720c0fdd7827d65abb8fc4e0",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva@f0-0003-b-v1:3121",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r[0] else q);},None=>{value: q;}};r=[[ar]];}",
+      "source_sha256": "13a6272a8ecd449a1dbd22a1716abfedf54bcf99df5384c8a3f167047b4ef04c",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 1,
+          "kind": "simulator_fault",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": [
+            [
+              "R0102",
+              154,
+              157
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "c2-nueva@f0-0003-b-v1:3436",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else r[0]);},None=>{value: q;}};q=[3];}",
+      "source_sha256": "dbc048a1b9e4d8b0e98570faa1c6fc40b8f2a32d97bed860524ac6d5705ac3d1",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva@f0-0003-b-v1:5211",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else (if p then q else r));},None=>{value: r;}};r=[true];}",
+      "source_sha256": "62717b4d9260e94a56f345aaec13202eabce96af19a2d517aae58677091e041a",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva@f0-0003-b-v1:6313",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then [q] else r);},None=>{value: [q];}};q=[ar];}",
+      "source_sha256": "45d7ff7b5e4058c4a666bdb73c3495ba07a5f78bb7c7dcd2f2576f0eab0b3d95",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva@f0-0003-b-v1:7240",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then [q,r] else s);},None=>{value: s;}};r=[ar];q=r;}",
+      "source_sha256": "f94881761fc1d193da7be9e9c70c12c272e25bd910e9b00d82d0707f92a3846a",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva2@f0-0003-b-v1:795",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else [q]);},None=>{value: [q,r];}};r=q;q=[[ar]];}",
+      "source_sha256": "2b4f47ad7ab18d8748a9ddaa761581b14e1d26a252106a77c68270120ff9a750",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva2@f0-0003-b-v1:1917",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then r else r);},None=>{value: s;}};q=[[ar]];s=[[ar]];}",
+      "source_sha256": "28194efc6bf9e376900e46e95ba77f214e0eba3fc0f6ffdc461fc76cc6412591",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "c2-nueva2@f0-0003-b-v1:7157",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else r) else r);},None=>{value: q;}};q=[[ar]];}",
+      "source_sha256": "175ee2ba3ac24e3a7755733612c4f45b800c85a48c229fbf78b508688bea3024",
+      "profile": "f0-0003-b-v1",
+      "expected_commands": {
+        "check": {
+          "exit": 0,
+          "kind": "checked",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        },
+        "run": {
+          "exit": 0,
+          "kind": "unit",
+          "driver_error": null,
+          "internal_error": null,
+          "diagnostics": []
+        }
+      }
+    }
+  ],
+  "corpora": [
+    {
+      "id": "b-projections-2026112401",
+      "sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "profile": "f0-0002-b-v2",
+      "rows": 3000
+    },
+    {
+      "id": "b-projections-t5-2026112402",
+      "sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "profile": "f0-0002-b-v2",
+      "rows": 3000
+    },
+    {
+      "id": "b-projections-2026112403",
+      "sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "profile": "f0-0002-b-v2",
+      "rows": 3000
+    },
+    {
+      "id": "owner-projections-771412",
+      "sha256": "f6d6fd8b0b3635dc8bbd873c72724a5755df712b36bd84866e95dc992d48a121",
+      "profile": "f0-0002-b-v2",
+      "rows": 60
+    },
+    {
+      "id": "c1",
+      "sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "profile": "f0-0002-b-v2",
+      "rows": 24000
+    },
+    {
+      "id": "c2",
+      "sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "profile": "f0-0002-b-v2",
+      "rows": 16000
+    },
+    {
+      "id": "c2@f0-0003-b-v1",
+      "sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "profile": "f0-0003-b-v1",
+      "rows": 16000
+    },
+    {
+      "id": "b",
+      "sha256": "83f9e726254d55802e275b2b18ba270f567513703b5fa10a091ff5cbe410af1f",
+      "profile": "f0-0002-b-v2",
+      "rows": 4000
+    },
+    {
+      "id": "perm",
+      "sha256": "8997f93905ae1338fab3a1c921dceed8628516ab4ae8e862e24b6e021700cf72",
+      "profile": "f0-0002-b-v2",
+      "rows": 4044
+    },
+    {
+      "id": "t",
+      "sha256": "a1c740bd6aafe417e0a0205fc2759fabd63a6d96507551652b96d971bffce2c5",
+      "profile": "f0-0002-b-v2",
+      "rows": 10584
+    },
+    {
+      "id": "s7021993",
+      "sha256": "611f34e21b71c06ba255a308a3e01f97cd0f3f0c9de7563ddb2f0961962c0f10",
+      "profile": "f0-0003-b-v1",
+      "rows": 4500
+    },
+    {
+      "id": "s4417061",
+      "sha256": "0976fb60d2f494ce5b3beca958da149210c416835c27bcb717e13f26c2cd3c48",
+      "profile": "f0-0003-b-v1",
+      "rows": 4500
+    },
+    {
+      "id": "s9908255",
+      "sha256": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
+      "profile": "f0-0003-b-v1",
+      "rows": 4500
+    },
+    {
+      "id": "dirigido5",
+      "sha256": "684d623488bd2e6ec882036a8bce8162177237ea38a72e4e6d57fb53f2dd5e09",
+      "profile": "f0-0002-b-v2",
+      "rows": 6000
+    },
+    {
+      "id": "c1-nueva",
+      "sha256": "dba4c8fdd45b9651403463c36cd30626f4a31c8951ad43c80a11802a1090332d",
+      "profile": "f0-0002-b-v2",
+      "rows": 8000
+    },
+    {
+      "id": "c2-nueva",
+      "sha256": "ff3de38ed02ca9857d6f073406d1f7c01c3b26dbb6fdadf8d94ff769a7db49e7",
+      "profile": "f0-0002-b-v2",
+      "rows": 8000
+    },
+    {
+      "id": "c2-nueva@f0-0003-b-v1",
+      "sha256": "ff3de38ed02ca9857d6f073406d1f7c01c3b26dbb6fdadf8d94ff769a7db49e7",
+      "profile": "f0-0003-b-v1",
+      "rows": 8000
+    },
+    {
+      "id": "c1-nueva2",
+      "sha256": "52b6f21f934f1fb5d60160ca7864c50fd966d2e1ea2911f9d33ccf42c56aeefa",
+      "profile": "f0-0002-b-v2",
+      "rows": 8000
+    },
+    {
+      "id": "c2-nueva2",
+      "sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "profile": "f0-0002-b-v2",
+      "rows": 8000
+    },
+    {
+      "id": "c2-nueva2@f0-0003-b-v1",
+      "sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "profile": "f0-0003-b-v1",
+      "rows": 8000
+    }
+  ]
+}
