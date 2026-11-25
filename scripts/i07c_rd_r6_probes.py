@@ -29,9 +29,9 @@ CASES = {
     "join_record": ("fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}", [("NX-E1303", 56, 60), ("NX-E1303", 67, 70)]),
     "ST1_equivalent": ("fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}", None),
     "W1_atomic_compound": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}", [("NX-E0102", 99, 100), ("NX-E1303", 147, 148), ("NX-E1303", 199, 200), ("NX-E1303", 209, 212), ("NX-E0102", 216, 219)]),
-    # ADR §4.1.2.2/.4 implies E0103 [77,79) in place of main's E0102
-    # [85,86). B must still adjudicate the complete diagnostic list.
-    "W2_no_retroactive_context": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}", None),
+    # A's ADR derivation: E0103 [77,79) in place of main's E0102 [85,86).
+    # The E1303 in a1 is independent. B has not yet validated this oracle.
+    "W2_no_retroactive_context": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}", [("NX-E0103", 77, 79), ("NX-E1303", 140, 145)]),
 }
 
 
