@@ -108,4 +108,6 @@ Cada familia nueva de `Checker::drive` o `resume_non_match` entra mediante `#[in
 
 ## 5. Secuencia de evidencia antes de C
 
+Estado medido a 2026-11-25: el primer experimento de journal (`docs/validation/i07c-rediseno/R6-r2-prototipo-parcial.md`) está **detenido**: 21 sondas coinciden, `planned`/SB/W2 fallan, ST1 sigue sin oráculo exacto, matriz 45/45. No satisface este contrato y no está listo para C ni para revalidación final de B. El journal de nodos demuestra solo restauración acotada en el contraste que antes usaba `atomic0`; no demuestra ResultStatus, ReadContext, ConsumerId persistente ni emisión causal integral.
+
 Primero ST1, M1/M2, `planned`, X-02..X-08, SB, P3-06/P3-14/S-A, `Completion`, `JoinRecord` y los 45 esperados derivados por B; cada fuente se guarda con bytes, perfil, código/subcausa/primario y relaciones. Solo con todos esos resultados correctos se ejecuta el barrido de los 13 conjuntos, fuzz de B, 103 `match`, aceptación y diferencial `check`/`run` y debug/release, 152 RD, pila, pasadas y coste. Un resultado de C/A/B/D sin oráculo se adjudica por cláusula; no se cuenta como arreglo. Cualquier fallo reproducible se conserva, se corrige la regla o se vuelve a Flujo A antes de implementar en producción. B valida esta especificación y su evidencia; A no declara PASS.
