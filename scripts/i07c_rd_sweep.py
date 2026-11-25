@@ -222,7 +222,7 @@ def expected(name, rows):
     cache = OUT / ("oracle-" + name + ".json")
     evidence = hashlib.sha256()
     evidence.update(Path(__file__).with_name("i07c_rd_oracle.py").read_bytes())
-    if name in ("c2", "c2-nueva"):
+    if name in ("c2", "c2-nueva", "c2-nueva2"):
         evidence.update((EXP / "analyze2d.py").read_bytes())
     evidence.update(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode("utf-8"))
     identity = evidence.hexdigest()
@@ -234,7 +234,7 @@ def expected(name, rows):
         result = [None] * len(rows)
     else:
         model = oracle_module()
-        if name in ("c2", "c2-nueva"):
+        if name in ("c2", "c2-nueva", "c2-nueva2"):
             result = [oracle_wrapped(model, r) for r in rows]
         else:
             result = []
@@ -265,7 +265,7 @@ def table(args):
             result["same_unmodeled" if b == c else "changed_unmodeled"] += 1
             continue
         for level in ("core", "full"):
-            short_full = args.corpus.split("@", 1)[0] in ("c2", "c2-nueva") and isinstance(rows[i], dict) and rows[i].get("form") in (
+            short_full = args.corpus.split("@", 1)[0] in ("c2", "c2-nueva", "c2-nueva2") and isinstance(rows[i], dict) and rows[i].get("form") in (
                 "annot", "arg", "ret", "option", "result", "takeempty", "matchexpr")
             select = (lambda x: [d[:4] for d in x]) if level == "core" else (
                 (lambda x: [d[:6] for d in x]) if short_full else (lambda x: x))
