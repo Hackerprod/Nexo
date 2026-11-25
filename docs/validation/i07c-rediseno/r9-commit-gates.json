@@ -685,14 +685,14 @@
       "match103_main_conservation": true,
       "t5_array5_normative": true,
       "all_modeled_corpus_normative_full": true,
-      "other_fixtures": "Toda fila modelable: oraculo completo exacto; toda divergencia declarada respecto de main pertenece a lista cerrada por corpus_id:index y campo.",
+      "other_fixtures": "A=0 donde main=oraculo; candidato=oraculo en todas las filas modelables; sin oraculo, main exacto; toda diferencia con main exige familia cerrada, clausula ADR, tres ejemplos por bytes y recuento por corpus; 103 match y conservacion D5 iguales a main.",
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": true,
       "match103_full_main": true,
       "match_observations_29_expected_by_authority": true
     }
   },
-  "unowned_corpus_policy": "C0: main exacto. C1-C5: cada fila no propia en {salida completa de main, salida completa del oraculo congelado}; si el commit anterior ya daba oraculo, volver a main es regresion. C6: oraculo exacto para toda fila modelable; ninguna excepcion inferida.",
+  "unowned_corpus_policy": "C0: main exacto. C1-C5: IDs propios con esperado ADR; fila no propia modelable en {main, oraculo} sin retorno de oraculo a main; A=0; 103 match y conservacion D5 iguales a main. C6: A=0 y candidato=oraculo en TODAS las filas modelables; sin oraculo, main exacto sin excepciones; toda diferencia con main solo donde main!=oraculo y clasificada en familia cerrada con clausula, tres ejemplos por bytes y recuento por corpus; 103 match y conservacion D5 iguales a main.",
   "owned_corpus_ids": {
     "C0": {
       "directed74": [],
