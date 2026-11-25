@@ -12,10 +12,10 @@ Ejecutado por un agente Sonnet por **desvio por presupuesto** (fondo de Codex ag
 
 | Corte | Poblacion | Ejecutados | Muertos | No compilan | Supervivientes | Inconclusos en resultados | Inconclusos a repetir (en `-inconclusos`) |
 |---|---|---|---|---|---|---|---|
-| S6-COR | 400 (de 1.313) | 259 | 169 | 44 | 44 | 2 | 2 |
-| S5b.1 | 400 (de 1.048) | 253 | 129 | 51 | 64 | 9 | 13 |
+| S6-COR | 400 (de 1.313) | 279 | 181 | 48 | 47 | 3 | 3 |
+| S5b.1 | 400 (de 1.048) | 273 | 138 | 55 | 70 | 10 | 15 |
 
-**Cobertura incompleta, declarada**: de los 800 mutantes congelados se ejecutaron 512 (259 de S6-COR y 253 de S5b.1) (el orden de ejecucion estaba fijado ANTES de ejecutar por barajado con semilla, campo `order` de cada poblacion: son una muestra aleatoria sin sesgo y ninguna seleccion dependio de resultados). Quedan **288 pendientes**, nominalmente los ids sin fila en las tablas (lista al pie de cada tabla). Motivo: tope de ~6 h y carga de la maquina compartida: otro carril uso el cerrojo pesado de forma casi continua (puertas y validadores), de modo que el ritmo medio fue de unos 6 a 20 mutantes por hora, y cada superviviente cuesta la suite completa en debug y release (~6 min). Se ejecutan con `run_mut.py` sobre las mismas poblaciones (SHA-256 abajo); sin una sesion con maquina dedicada, los 600 restantes necesitan del orden de 30 a 40 h.
+**Cobertura incompleta, declarada**: de los 800 mutantes congelados se ejecutaron 552 (279 de S6-COR y 273 de S5b.1) (el orden de ejecucion estaba fijado ANTES de ejecutar por barajado con semilla, campo `order` de cada poblacion: son una muestra aleatoria sin sesgo y ninguna seleccion dependio de resultados). Quedan **248 pendientes**, nominalmente los ids sin fila en las tablas (lista al pie de cada tabla). Motivo: tope de ~6 h y carga de la maquina compartida: otro carril uso el cerrojo pesado de forma casi continua (puertas y validadores), de modo que el ritmo medio fue de unos 6 a 20 mutantes por hora, y cada superviviente cuesta la suite completa en debug y release (~6 min). Se ejecutan con `run_mut.py` sobre las mismas poblaciones (SHA-256 abajo); sin una sesion con maquina dedicada, los 600 restantes necesitan del orden de 30 a 40 h.
 
 **Hallazgos**: tres defectos de cobertura con programa (M00158, M00156, M00067), cada uno con regresion que falla con el mutante y pasa sin el; un mutante equivalente por argumento de invariante de codigo (S5b.1 M00062); un mutante detectado por no terminacion (S5b.1 M00168); el resto de supervivientes, sin programa tras la caza. Los programas aparecen solo con fuentes dirigidas (error de sintaxis en un brazo con guarda; `break` tras un `match` con guarda; `break` tras un `for` con iterable rechazado): los corpus de diferenciales existentes (S6-COR-2: 5.685 fuentes; S5b.1: 3.000 selectores) no los contienen, lo que muestra su limite para regiones de parser y de control de bucles.
 
@@ -61,7 +61,7 @@ rustc 1.99.1, `CARGO_BUILD_JOBS=4` (2-3 en la caza), targets `C:/nexo-work/targe
 
 ### S6-COR (`1010938..2bc5c8d`; `parse.rs`, `effects.rs`, `names.rs`, `types.rs`)
 
-Población 400 (enumeración completa 1313), ejecutados 259: INCONCLUSO 2, MUERTO 169, NO COMPILA 44, SUPERVIVIENTE 44
+Población 400 (enumeración completa 1313), ejecutados 279: INCONCLUSO 3, MUERTO 181, NO COMPILA 48, SUPERVIVIENTE 47
 
 | id | archivo:línea | operador | SHA ini | SHA mut | veredicto | test que lo mata / nota |
 |---|---|---|---|---|---|---|
@@ -237,7 +237,7 @@ Población 400 (enumeración completa 1313), ejecutados 259: INCONCLUSO 2, MUERT
 
 ### S5b.1 (`4acee20..1010938`; `types.rs`)
 
-Población 400 (enumeración completa 1048), ejecutados 253: INCONCLUSO 9, MUERTO 129, NO COMPILA 51, SUPERVIVIENTE 64
+Población 400 (enumeración completa 1048), ejecutados 273: INCONCLUSO 10, MUERTO 138, NO COMPILA 55, SUPERVIVIENTE 70
 
 | id | archivo:línea | operador | SHA ini | SHA mut | veredicto | test que lo mata / nota |
 |---|---|---|---|---|---|---|
