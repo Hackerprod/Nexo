@@ -35,6 +35,7 @@ CASES = {
     "completion_unresolved": ("fn Main(){var q=[];let a=[q,1];}", [("NX-E0103", 16, 18)]),
     "suspended_68": ("fn Main(){var q=[];var r=[];(if true then q else r);q=[1];r=[true];}", [("NX-E0102", 61, 65)]),
     "waiting_projection_valid": ("fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[true];}", []),
+    "waiting_projection_candidate_conflict": ("fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}", [("NX-E0102", 73, 74)]),
     "waiting_projection_refuted": ("fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=3;}", [("NX-E0102", 65, 66)]),
     "join_record": ("fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}", [("NX-E1303", 56, 60), ("NX-E1303", 67, 70)]),
     "ST1_equivalent": ("fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}", None),
