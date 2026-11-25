@@ -2273,25 +2273,11 @@ fn failed_inner_union_preserves_outer_empty_constructor_witness() {
 
 #[test]
 fn pending_inner_constructor_preserves_outer_branch_comparison() {
-    // F0-0002 §4.1.2.5: an unresolved constructor cannot erase the
-    // independent valid `false` continuation of an inner union when an
-    // outer union already provides the concrete I64 anchor.
+    // F0-0002 §4.1.2.5, adopted pending-constructor continuation: the
+    // pending inner constructor consumes the outer branch comparison.
     let source = "fn Main(){let ar=[1];let c=true;var m1=(if true then {value:ar[0];} else (if c then [[]] else false));}";
-    assert_eq!(causes(source).len(), 2);
+    assert_eq!(causes(source).len(), 1);
     exact_cause(source, 0, "NX-E0103", None, "[]", None, None, &[]);
-    exact_cause(
-        source,
-        1,
-        "NX-E1303",
-        None,
-        "false",
-        Some("I64"),
-        Some("Bool"),
-        &[
-            (RelatedRole::ExpectedType, "ar[0]"),
-            (RelatedRole::FoundType, "false"),
-        ],
-    );
     let repaired_false = source.replace("else false", "else 1");
     assert_eq!(causes(&repaired_false).len(), 1);
     exact_cause(&repaired_false, 0, "NX-E0103", None, "[]", None, None, &[]);
