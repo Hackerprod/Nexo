@@ -72,6 +72,7 @@ def main():
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, required=True)
     parser.add_argument("--mode", choices=("release", "debug"), default="release")
+    parser.add_argument("--series", default="")
     args = parser.parse_args()
     args.base_exe = str(Path(args.base_exe).resolve())
     args.proto_exe = str(Path(args.proto_exe).resolve())
@@ -84,7 +85,8 @@ def main():
         with open(exe, "rb") as stream:
             hashes[role] = hashlib.file_digest(stream, "sha256").hexdigest()
     OUT.mkdir(parents=True, exist_ok=True)
-    destination = OUT / f"{args.corpus}-{args.mode}-{args.start:05d}-{end:05d}.json"
+    prefix = f"{args.series}-" if args.series else ""
+    destination = OUT / f"{prefix}{args.corpus}-{args.mode}-{args.start:05d}-{end:05d}.json"
     if destination.exists():
         old = json.loads(destination.read_text(encoding="utf-8"))
         complete = len(old.get("checks", {})) == len(PROFILES) * 2
