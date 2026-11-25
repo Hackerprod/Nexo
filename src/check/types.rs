@@ -1074,6 +1074,26 @@ struct R1JoinEvidence {
 }
 
 #[derive(Clone)]
+struct R2ReadSite {
+    occurrence: (u64, u64),
+    binding: u64,
+    variable: u64,
+}
+
+#[derive(Clone)]
+struct R2ReadPrefix {
+    variable: u64,
+    nodes: HashMap<u64, TypeNode>,
+}
+
+#[derive(Clone)]
+struct R2ShadowLink {
+    occurrence: (u64, u64),
+    original: u64,
+    shadow: u64,
+}
+
+#[derive(Clone)]
 struct PendingComparisonDomain {
     left: Type,
     operator: Span,
@@ -2191,6 +2211,11 @@ struct InferenceGraph {
     // array-on-left, and branch join (NX-E1303 instead of NX-E0102).
     obligations: Vec<ObligationKind>,
     r1_join_history: Vec<R1JoinEvidence>,
+    r2_reads: Vec<R2ReadSite>,
+    r2_blocked_reads: HashSet<(u64, u64)>,
+    r2_prefix_nodes: HashMap<(u64, u64), R2ReadPrefix>,
+    r2_shadows: HashMap<(u64, u64), u64>,
+    r2_shadow_links: Vec<R2ShadowLink>,
     occurrences: HashMap<(u64, u64), OccurrenceState>,
     // §13.9: an operand/constraint site owns one diagnostic, regardless of
     // whether it is discovered immediately or by a deferred join.
@@ -3198,6 +3223,27 @@ impl Checker<'_> {
 
     fn collect_planned_shapes(&mut self) -> bool {
         let mut changed = false;
+        if xv("r2view") {
+            let mut blocked = HashSet::new();
+            for read in &self.graph.r2_reads {
+                let read_root = self.root_no_compress(read.variable);
+                let same_occurrence = self.graph.r1_join_history.iter().any(|join| {
+                    join.branch
+                        && self.graph.eligible_shapes.contains(&read.binding)
+                        && self.graph.r2_prefix_nodes.contains_key(&read.occurrence)
+                        && join.context_scope.is_some_and(|(start, end)| {
+                            start <= read.occurrence.0 && read.occurrence.1 <= end
+                        })
+                        && read.occurrence.0 <= join.occurrence.0
+                        && self.root_no_compress(join.constructor) == read_root
+                });
+                if same_occurrence {
+                    blocked.insert(read.occurrence);
+                }
+            }
+            changed |= blocked != self.graph.r2_blocked_reads;
+            self.graph.r2_blocked_reads = blocked;
+        }
         let eligible: Vec<_> = self.graph.eligible_shapes.iter().copied().collect();
         // Count unresolved assigned peers once per component. Scanning every
         // eligible binding from every other binding makes independent arrays
@@ -4563,6 +4609,68 @@ impl Checker<'_> {
             root = self.graph.type_nodes[&root].parent;
         }
         root
+    }
+
+    fn r2_shadow_for(&mut self, occurrence: (u64, u64), original: u64) -> u64 {
+        if let Some(shadow) = self.graph.r2_shadows.get(&occurrence) {
+            return *shadow;
+        }
+        let Some(prefix) = self.graph.r2_prefix_nodes.get(&occurrence).cloned() else {
+            return original;
+        };
+        let snapshot = prefix.nodes;
+        let mut root = prefix.variable;
+        while snapshot[&root].parent != root {
+            root = snapshot[&root].parent;
+        }
+        let mut identifiers: Vec<_> = snapshot.keys().copied().collect();
+        identifiers.sort_unstable();
+        let mut translation = HashMap::new();
+        for old in &identifiers {
+            let new = self.graph.next_variable;
+            self.graph.next_variable = new.checked_add(1).expect("r2 shadow id exhausted");
+            translation.insert(*old, new);
+        }
+        for old in identifiers {
+            let mut node = snapshot[&old].clone();
+            node.parent = translation[&node.parent];
+            node.array_child = node.array_child.map(|child| translation[&child]);
+            if let Some(union) = &mut node.variant_children {
+                for variant in &mut union.variants {
+                    variant.payload = variant.payload.map(|child| translation[&child]);
+                }
+            }
+            // Shadow nodes are views of source constructors, not additional
+            // constructor occurrences with their own NX-E0103 duties.
+            node.array_constructed = false;
+            node.variant_constructed = false;
+            node.deferred_join = false;
+            node.branch_join_scopes.clear();
+            self.graph.type_nodes.insert(translation[&old], node);
+        }
+        let shadow = translation[&root];
+        self.graph.r2_shadows.insert(occurrence, shadow);
+        self.graph.r2_shadow_links.push(R2ShadowLink {
+            occurrence,
+            original,
+            shadow,
+        });
+        shadow
+    }
+
+    fn r2_complete_shadow_views(&mut self) {
+        let mut links = self.graph.r2_shadow_links.clone();
+        links.sort_by_key(|link| link.occurrence);
+        for link in links {
+            let Some((ty, origin)) = self.concrete(link.original) else {
+                continue;
+            };
+            let shadow = self.root(link.shadow);
+            let node = self.graph.type_nodes.get_mut(&shadow).unwrap();
+            if node.concrete.is_none() {
+                node.concrete = Some((ty, origin));
+            }
+        }
     }
 
     fn concrete(&mut self, id: u64) -> Option<(Type, Span)> {
@@ -7642,6 +7750,9 @@ impl Checker<'_> {
         // the compilation before another function. Clearing is defensive.
         self.graph.obligations.clear();
         self.graph.r1_join_history.clear();
+        self.graph.r2_reads.clear();
+        self.graph.r2_shadows.clear();
+        self.graph.r2_shadow_links.clear();
         self.graph.emitted_sites.clear();
         // These sets use source offsets, which are unique across function
         // bodies in one file. A later function cannot read an earlier span;
@@ -7687,6 +7798,9 @@ impl Checker<'_> {
         self.block(&f.body)?;
         if self.analysis_exhausted {
             return Ok(());
+        }
+        if xv("r2view") && !self.planning {
+            self.r2_complete_shadow_views();
         }
         self.resolve_pending_projections(true)?;
         self.check_inferred_depth()?;
@@ -12117,6 +12231,38 @@ impl Checker<'_> {
                     }
                     if let Some(known) = self.graph.locals.get(&local.name_span.start).cloned() {
                         if let Some(id) = known.variable {
+                            if xv("r2view") && self.planning {
+                                let occurrence = span_key(span);
+                                if !self.graph.r2_prefix_nodes.contains_key(&occurrence) {
+                                    // The first planning traversal has no
+                                    // later assignment seeds. Keep the exact
+                                    // committed prefix seen by this read.
+                                    let prefix = R2ReadPrefix {
+                                        variable: id,
+                                        nodes: self.graph.type_nodes.clone(),
+                                    };
+                                    self.graph.r2_prefix_nodes.insert(occurrence, prefix);
+                                }
+                                self.graph.r2_reads.push(R2ReadSite {
+                                    occurrence,
+                                    binding: local.name_span.start,
+                                    variable: id,
+                                });
+                            }
+                            if xv("r2view")
+                                && !self.planning
+                                && self.graph.r2_blocked_reads.contains(&span_key(span))
+                            {
+                                let shadow = self.r2_shadow_for(span_key(span), id);
+                                if shadow != id {
+                                    if let Some((ty, _)) = self.concrete(shadow) {
+                                        return Ok(ty);
+                                    }
+                                    self.graph.mark(span_key(span), OccurrenceFlag::Deferred);
+                                    self.graph.expr_vars.insert(span_key(span), shadow);
+                                    return Ok(Type::Deferred(shadow));
+                                }
+                            }
                             if let Some((ty, _)) = self.concrete(id) {
                                 return Ok(ty);
                             }
@@ -14125,11 +14271,6 @@ impl Checker<'_> {
                     if xv("r1t5") {
                         progress.r1_condition_tainted =
                             condition_tainted || condition_result.is_err();
-                        if progress.r1_condition_tainted {
-                            progress.branch_context.expected = None;
-                            progress.branch_context.expected_span = None;
-                            progress.branch_context.anchor = None;
-                        }
                     }
                     self.graph.merge_child(progress.parent_fact, *visit, false);
                     *visit = progress.parent_fact;
@@ -14354,7 +14495,7 @@ impl Checker<'_> {
             Err(error) => Some(error),
             Ok(_) => None,
         };
-        if xv("r1ledger") {
+        if xv("r1ledger") || xv("r2view") {
             let scope = self
                 .active_if_span
                 .as_ref()
@@ -14413,7 +14554,7 @@ impl Checker<'_> {
             return Ok(AnchorOutcome::Compatible);
         }
         if state == Some(true) {
-            if xv("r1ledger") {
+            if xv("r1ledger") || xv("r2view") {
                 self.graph.r1_join_history.truncate(r1_history_before);
             }
             if let Some((nodes, obligations)) = snapshot {
@@ -15958,6 +16099,11 @@ pub(crate) fn check_with_partial_limit(
             next_variable: 0,
             obligations: Vec::new(),
             r1_join_history: Vec::new(),
+            r2_reads: Vec::new(),
+            r2_blocked_reads: HashSet::new(),
+            r2_prefix_nodes: HashMap::new(),
+            r2_shadows: HashMap::new(),
+            r2_shadow_links: Vec::new(),
             occurrences: HashMap::new(),
             emitted_sites: HashSet::new(),
             eligible_shapes: HashSet::new(),
@@ -17578,6 +17724,11 @@ mod quota_tests {
                 next_variable: 0,
                 obligations: Vec::new(),
                 r1_join_history: Vec::new(),
+                r2_reads: Vec::new(),
+                r2_blocked_reads: HashSet::new(),
+                r2_prefix_nodes: HashMap::new(),
+                r2_shadows: HashMap::new(),
+                r2_shadow_links: Vec::new(),
                 occurrences: HashMap::new(),
                 emitted_sites: HashSet::new(),
                 eligible_shapes: HashSet::new(),

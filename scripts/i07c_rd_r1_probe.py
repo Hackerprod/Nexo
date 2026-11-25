@@ -10,6 +10,7 @@ import sys
 BASE = "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3"
 VARIANTS = {
     "obligacion_activa": "r1ledger",
+    "obligacion_activa_t5": "r1ledger,r1t5",
     "historial": "r1ledger,r1history",
     "historial_t5": "r1ledger,r1history,r1t5",
 }
