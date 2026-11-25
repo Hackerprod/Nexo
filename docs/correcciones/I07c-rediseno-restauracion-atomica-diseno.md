@@ -26,6 +26,8 @@ Las propuestas normativas para condición fallida posterior y primario recursivo
 
 Estado: **rediseño de representación en curso; sin PASS ni plan de implementación**. Base: `origin/main` de 2026-11-24. La parada de la continuación 3 solo descarta quince variantes de marcas sobre la representación anterior. Sus cifras y repros están en `I07c-rediseno-restauracion-atomica-informe.md`.
 
+El barrido completo posterior al FAIL de B r1, con las 20 filas de conjuntos/perfiles, 103 `match` y 102 A modelados, está en `I07c-rediseno-restauracion-atomica-barrido-R5-B-r1.md`; reemplaza cualquier extrapolación de las 16 sondas como juicio sobre R5.
+
 ## Representación R1: libro de evidencias por ocurrencia
 
 La unidad semántica es la *igualdad en su ocurrencia fuente*, con un número ordinal estable en el recorrido de §4.1.2.1. El grafo monomórfico conserva identidades de variables y constructores (§4.1.1), pero **no almacena `deferred_join` ni `branch_join_scopes` como propiedades de una raíz**. Son propiedades de una igualdad que puede fallar. Una raíz unificada por otra igualdad no hereda por ello el bloqueo de contexto de la primera. El mismo mecanismo procesa anclas de `if`, homogeneidad de array, asignaciones y proyecciones. Una marca de `match` se obtiene de sus igualdades y de sus brazos conforme a F0-0003 §3.3; no tiene un circuito separado.
