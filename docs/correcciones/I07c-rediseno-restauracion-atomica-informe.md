@@ -24,6 +24,22 @@ Los trece conjuntos/perfiles siguientes quedaron medidos con el binario `txmarks
 
 Los A del corpus nuevo hacen aplicable la parada del brief §5 por causa estructural común. Los detalles por familia y las adjudicaciones `takeempty` siguen abajo. Este barrido no es una prueba de aceptación `run`, debug/release ni PASS.
 
+### Siete variantes adicionales de marca y concreción (binario release `09a4208a95d2…`)
+
+Tras el barrido completo, se compiló bajo `heavy-lock` el prototipo con los interruptores desechables de alcance y concreción. Las siete variantes se midieron con las mismas 16 sondas y 45 filas T5/N; las salidas íntegras por programa y SHA están en `sondas-variantes-marca.json` de `i07c-rediseno-proto`. Ninguna supera ambas puertas dirigidas. Las ocho variantes anteriores ya tenían barrido completo de c1 y análisis de causa en la tabla de c1; estas siete añaden contraste del mecanismo, no sustituyen aquel barrido.
+
+| flags además de `txmarks` sobre candidato 5 | sondas / 16 | matriz / 45 | falsación causal |
+|---|---:|---:|---|
+| `txmarksproj,txmarksprojstatement` | 14 | 44 | La proyección ajena deja de activar la marca; siguen A en c1-1976 y la unión de 97 bytes. |
+| `txmarksproj,txmarksprojbefore` | 14 | 44 | Mismo resultado: posición anterior no identifica la dependencia de la obligación. |
+| `txmarksproj,txmarksallowconcrete` | 14 | 44 | Permitir completar constructores reabre `NX-E0102` `[100,101)` y `[105,106)` en la proyección ajena; falla también la unión de 97 bytes. |
+| `txmarksstatement,txmarksallowconcrete` | 15 | 42 | Recupera W0, pero `incompatible_prefix` pierde su rechazo de cuatro diagnósticos; B_qr y w1 vuelven a fallar. |
+| `txmarksoccurrence,txmarksallowconcrete` | 15 | 42 | Igual pérdida de `incompatible_prefix`, B_qr y w1: ampliar el alcance no separa las dos vistas de evidencia. |
+| `txmarksproj,txmarksprojstatement,txmarksallowconcrete` | 15 | 44 | Sigue el A de 97 bytes: añade `NX-E0103` `[25,27)` junto al único esperado `[16,18)`. |
+| `txmarksproj,txmarksprojbefore,txmarksallowconcrete` | 15 | 44 | Mismo A de 97 bytes; anterioridad temporal no basta para asociar marca y constructor. |
+
+Las siete fallan además O08, cuya derivación T5/N retira dos diagnósticos contaminados y todavía requiere validación independiente. La causa estructural común permanece: `deferred_join` representa simultáneamente disponibilidad de contexto previo y posibilidad de completar un constructor posterior. Filtrar la marca por función, sentencia, posición o forma del operando cambia ambas vistas a la vez; permitir la concreción global cambia las dos en dirección contraria. Ninguna variante de esta familia realiza el compromiso por ocurrencia con dependencias y dos vistas del prefijo que exige la regla candidata.
+
 ## Continuación: mínimo, causa y sondas baratas
 
 Se redujo t3584 a 89 bytes, ASCII sin BOM ni LF final, perfil `f0-0002-b-v2`:
