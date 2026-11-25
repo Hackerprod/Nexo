@@ -151,7 +151,8 @@ La regla principal de F0-0002 §§4.1.1, 4.1.2.1–.5, .7 y 13.9 es una transacc
 |---|---|---|
 | `Valid` | Contrastar su valor en el ordinal del brazo. | `Valid` si el contraste se confirma; si se rechaza, conservar su C en el sitio del brazo. |
 | `Partial` con testigo del prefijo y sin conflicto propio del `JoinRecord` | Contrastar el testigo, aunque un hijo tenga su C independiente; una igualdad `Waiting` no publica forma hasta activarse. | El testigo y su origen conservan el prefijo; otro brazo puede completar una variable sin borrar el primer fijador. |
-| `Partial` cuyo `JoinRecord` propio rechazó su igualdad | Conservar los C internos; no usar ese resultado como testigo nuevo del `match`. | `Contaminated` para la unión exterior, sin borrar testigos previos independientes. |
+| `Partial` cuyo `JoinRecord` propio rechazó una igualdad entre dos continuaciones normales | Conservar los C internos; no usar ese resultado como testigo nuevo del `match`. | `Contaminated` para la unión exterior, sin borrar testigos previos independientes. |
+| `Partial` con segunda continuación sin valor normal y primer testigo vigente | El rechazo del deber de la segunda continuación no revoca el primer testigo; contrastarlo en el brazo exterior. | Mantener el origen de ese primer testigo y los C independientes de la segunda continuación. |
 | `Contaminated` o `Waiting` sin activador | No convertirlo en un tipo nominal ni en testigo del brazo. | Mantener obligaciones hasta punto fijo y finalizar en su propietario. |
 
 Esta distinción se determina por la igualdad y `ConsumerId` del `JoinRecord`, no por la forma textual ni por buscar diagnósticos ya emitidos. El prototipo usa una marca de conflicto propio para explorarla; C3 la representa en `ResultStatus` y la revisa con las 51 filas de conservación y M1/M2.
