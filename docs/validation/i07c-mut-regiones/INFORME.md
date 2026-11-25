@@ -1,5 +1,7 @@
 # I07c - mutacion de las regiones de S6-COR y S5b.1 (informe de C)
 
+> Actualizacion 2026-11-24: la campana continuo con ejecutor paralelo (`run_par.py`) y, tras agotar el limite de commit de Windows (mutante con asignacion sin limite, ver `memguard.py` y `results-s5b1-memoria.jsonl`), con Job Objects y vigilancia de commit. Los supervivientes posteriores al id de la primera tanda NO tienen caza todavia (deuda con fecha 2026-11-24, ver la columna de nota).
+
 **Estado: EN VALIDACION, no PASS.** Rama local `i07c-mut-regiones` (worktree `C:\projects\Nexo-i07c-f`), partiendo de `origin/main` = `68e0d2b`. Sin push. No se toco codigo de produccion: solo `docs/validation/i07c-mut-regiones/` y tres regresiones en `tests/`.
 
 ## Nota de proceso (desvio por presupuesto)
@@ -8,12 +10,12 @@ Ejecutado por un agente Sonnet por **desvio por presupuesto** (fondo de Codex ag
 
 ## Resultado resumido
 
-| Corte | Poblacion | Ejecutados | Muertos | No compilan | Supervivientes | Inconclusos (no terminan) |
-|---|---|---|---|---|---|---|
-| S6-COR | 400 (de 1.313) | 75 | 46 | 19 | 10 | 0 |
-| S5b.1 | 400 (de 1.048) | 73 | 36 | 15 | 20 | 2 |
+| Corte | Poblacion | Ejecutados | Muertos | No compilan | Supervivientes | Inconclusos en resultados | Inconclusos a repetir (en `-inconclusos`) |
+|---|---|---|---|---|---|---|---|
+| S6-COR | 400 (de 1.313) | 203 | 130 | 38 | 34 | 1 | 1 |
+| S5b.1 | 400 (de 1.048) | 197 | 104 | 39 | 46 | 8 | 12 |
 
-**Cobertura incompleta, declarada**: de los 800 mutantes congelados se ejecutaron 148 (75 de S6-COR y 73 de S5b.1) (el orden de ejecucion estaba fijado ANTES de ejecutar por barajado con semilla, campo `order` de cada poblacion: son una muestra aleatoria sin sesgo y ninguna seleccion dependio de resultados). Quedan **652 pendientes**, nominalmente los ids sin fila en las tablas (lista al pie de cada tabla). Motivo: tope de ~6 h y carga de la maquina compartida: otro carril uso el cerrojo pesado de forma casi continua (puertas y validadores), de modo que el ritmo medio fue de unos 6 a 20 mutantes por hora, y cada superviviente cuesta la suite completa en debug y release (~6 min). Se ejecutan con `run_mut.py` sobre las mismas poblaciones (SHA-256 abajo); sin una sesion con maquina dedicada, los 600 restantes necesitan del orden de 30 a 40 h.
+**Cobertura incompleta, declarada**: de los 800 mutantes congelados se ejecutaron 400 (203 de S6-COR y 197 de S5b.1) (el orden de ejecucion estaba fijado ANTES de ejecutar por barajado con semilla, campo `order` de cada poblacion: son una muestra aleatoria sin sesgo y ninguna seleccion dependio de resultados). Quedan **400 pendientes**, nominalmente los ids sin fila en las tablas (lista al pie de cada tabla). Motivo: tope de ~6 h y carga de la maquina compartida: otro carril uso el cerrojo pesado de forma casi continua (puertas y validadores), de modo que el ritmo medio fue de unos 6 a 20 mutantes por hora, y cada superviviente cuesta la suite completa en debug y release (~6 min). Se ejecutan con `run_mut.py` sobre las mismas poblaciones (SHA-256 abajo); sin una sesion con maquina dedicada, los 600 restantes necesitan del orden de 30 a 40 h.
 
 **Hallazgos**: tres defectos de cobertura con programa (M00158, M00156, M00067), cada uno con regresion que falla con el mutante y pasa sin el; un mutante equivalente por argumento de invariante de codigo (S5b.1 M00062); un mutante detectado por no terminacion (S5b.1 M00168); el resto de supervivientes, sin programa tras la caza. Los programas aparecen solo con fuentes dirigidas (error de sintaxis en un brazo con guarda; `break` tras un `match` con guarda; `break` tras un `for` con iterable rechazado): los corpus de diferenciales existentes (S6-COR-2: 5.685 fuentes; S5b.1: 3.000 selectores) no los contienen, lo que muestra su limite para regiones de parser y de control de bucles.
 
@@ -59,7 +61,7 @@ rustc 1.99.1, `CARGO_BUILD_JOBS=4` (2-3 en la caza), targets `C:/nexo-work/targe
 
 ### S6-COR (`1010938..2bc5c8d`; `parse.rs`, `effects.rs`, `names.rs`, `types.rs`)
 
-Población 400 (enumeración completa 1313), ejecutados 75: MUERTO 46, NO COMPILA 19, SUPERVIVIENTE 10
+Población 400 (enumeración completa 1313), ejecutados 203: INCONCLUSO 1, MUERTO 130, NO COMPILA 38, SUPERVIVIENTE 34
 
 | id | archivo:línea | operador | SHA ini | SHA mut | veredicto | test que lo mata / nota |
 |---|---|---|---|---|---|---|
@@ -138,13 +140,104 @@ Población 400 (enumeración completa 1313), ejecutados 75: MUERTO 46, NO COMPIL
 | M00317 | src/ir/effects.rs:1182 | drop_state | 7557010d | c96cd3f7 | MUERTO | debug: ir::effects::witness_differential_tests::grouped_non_name_targets_report_their_head_and_order_by_the_call |
 | M00290 | src/ir/effects.rs:629 | int_inc | 7557010d | a2320e44 | MUERTO | debug: ir::i10b_tests::drop_binding_machine_charge_is_observable_on_a_verified_ir_route |
 | M00316 | src/ir/effects.rs:1170 | drop_state | 7557010d | c93997a8 | MUERTO | debug: nexo::suite$i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call |
-
-Pendientes (no ejecutados, 325): M00369, M00353, M00244, M00262, M00377, M00228, M00381, M00222, M00366, M00007, M00115, M00386, M00161, M00367, M00054, M00139, M00042, M00387, M00028, M00027, M00195, M00277, M00230, M00325, M00076, M00049, M00304, M00269, M00364, M00253, M00370, M00331, M00376, M00160, M00063, M00031, M00297, M00013, M00303, M00209, M00274, M00324, M00194, M00334, M00059, M00075, M00337, M00165, M00365, M00159, M00211, M00053, M00041, M00065, M00343, M00080, M00190, M00276, M00097, M00384, M00069, M00096, M00157, M00021, M00109, M00266, M00110, M00003, M00234, M00128, M00174, M00193, M00249, M00090, M00329, M00177, M00400, M00171, M00120, M00285, M00154, M00087, M00306, M00079, M00335, M00363, M00149, M00319, M00340, M00126, M00169, M00033, M00235, M00088, M00215, M00125, M00119, M00009, M00151, M00289, M00310, M00379, M00321, M00350, M00152, M00191, M00322, M00091, M00085, M00047, M00220, M00114, M00192, M00314, M00398, M00224, M00045, M00060, M00359, M00382, M00101, M00070, M00217, M00130, M00034, M00137, M00389, M00175, M00341, M00116, M00238, M00236, M00057, M00183, M00098, M00313, M00035, M00178, M00272, M00083, M00308, M00148, M00307, M00020, M00242, M00052, M00394, M00145, M00356, M00399, M00347, M00196, M00227, M00203, M00055, M00077, M00287, M00153, M00095, M00124, M00309, M00245, M00241, M00092, M00260, M00012, M00186, M00391, M00147, M00333, M00349, M00037, M00104, M00142, M00258, M00318, M00061, M00180, M00051, M00162, M00291, M00010, M00199, M00373, M00255, M00279, M00184, M00011, M00144, M00188, M00185, M00106, M00140, M00233, M00112, M00113, M00208, M00100, M00320, M00243, M00344, M00392, M00173, M00004, M00032, M00226, M00301, M00105, M00368, M00263, M00284, M00223, M00123, M00141, M00362, M00352, M00294, M00005, M00046, M00167, M00257, M00182, M00198, M00339, M00135, M00393, M00374, M00342, M00074, M00323, M00254, M00354, M00286, M00111, M00328, M00018, M00050, M00293, M00212, M00248, M00017, M00237, M00056, M00250, M00200, M00221, M00305, M00086, M00214, M00040, M00332, M00204, M00252, M00103, M00064, M00093, M00099, M00163, M00108, M00219, M00336, M00264, M00312, M00207, M00246, M00206, M00240, M00265, M00146, M00375, M00078, M00397, M00155, M00016, M00172, M00259, M00072, M00295, M00187, M00138, M00136, M00396, M00371, M00133, M00117, M00166, M00281, M00231, M00390, M00330, M00131, M00271, M00385, M00038, M00129, M00302, M00181, M00278, M00361, M00014, M00150, M00232, M00327, M00073, M00030, M00288, M00299, M00001, M00372, M00039, M00127, M00292, M00218, M00225, M00084, M00251, M00239, M00311, M00071, M00355, M00345, M00023, M00002, M00346, M00089
+| M00369 | src/ir/effects.rs:2098 | negate_if | 7557010d | 94a38dc8 | MUERTO | debug: check::tests::nested_pending_nominal_result_has_executable_binding_type |
+| M00353 | src/ir/effects.rs:1975 | drop_assignment | 7557010d | 87de17e7 | MUERTO | debug: ir::effects::tests::unknown_effects_fail_each_written_restriction_in_code_order |
+| M00244 | src/frontend/parse.rs:3845 | or | 1793866d | c983bac7 | MUERTO | debug: nexo::suite$j11_generator::generator_yield_next_and_return_rules_have_paired_sources |
+| M00262 | src/frontend/parse.rs:3932 | and | 1793866d | 46671d1e | MUERTO | debug: frontend::parse::b_tests::hidden_f5_range_level_has_adr_ast_shape_across_both_sides |
+| M00377 | src/ir/effects.rs:2151 | drop_return | 7557010d | b44bc496 | MUERTO | debug: ir::effects::tests::return_exit_may_start_at_the_return_terminator |
+| M00228 | src/frontend/parse.rs:3643 | start_end | 1793866d | 1d704c90 | MUERTO | debug: ir::i07a_tests::directed_branch_error_and_divergence_fuzz_has_no_internal_failure |
+| M00381 | src/ir/effects.rs:4116 | negate_if | 7557010d | 5b7bedab | MUERTO | debug: ir::effects::tests::canonical_effect_witness_prefers_shorter_path_and_ascending_offsets |
+| M00222 | src/frontend/parse.rs:3544 | end_start | 1793866d | 4910abce | MUERTO | debug: frontend::migrated_parser_contracts::b_terminator_repair_uses_expression_end_and_exact_inserted_text |
+| M00366 | src/ir/effects.rs:2067 | int_inc | 7557010d | 5c9f2359 | MUERTO | debug: ir::verify::tests::j16_forged_generator_resume_item_is_rejected |
+| M00007 | src/check/names.rs:1208 | and | 3363b499 | f01fe766 | MUERTO | debug: nexo::suite$i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument |
+| M00115 | src/frontend/parse.rs:2752 | swap_args | 1793866d | b7a04f83 | MUERTO | debug: check::tests::adr_gap_explicit_empty_return_uses_keyword_primary |
+| M00386 | src/ir/effects.rs:4203 | swap_args | 7557010d | e12cea8d | NO COMPILA |  |
+| M00161 | src/frontend/parse.rs:3182 | drop_state | 1793866d | 98e957ae | MUERTO | debug: check::names::tests::constructor_pattern_binds_nested_name_before_arm_body |
+| M00367 | src/ir/effects.rs:2083 | and | 7557010d | 226a59af | MUERTO | debug: check::tests::nested_pending_nominal_result_has_executable_binding_type |
+| M00054 | src/check/types.rs:12288 | swap_args | 54c9dfed | 3e4997f2 | NO COMPILA |  |
+| M00139 | src/frontend/parse.rs:2846 | drop_state | 1793866d | bd19a0af | MUERTO | debug: check::tests::absent_value_and_call_target_use_distinct_kinds |
+| M00042 | src/check/types.rs:12070 | int_inc | 54c9dfed | 0f1ccd5e | MUERTO | debug: nexo::suite$i08::published_result_type_negatives_and_repairs |
+| M00387 | src/ir/effects.rs:4221 | int_inc | 7557010d | dd3eccff | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00028 | src/check/types.rs:11978 | all_any | 54c9dfed | deb95f2c | MUERTO | debug: nexo::suite$i07c_mutation_regressions::anchored_first_branch_keeps_independent_pending_join |
+| M00027 | src/check/types.rs:11974 | lt | 54c9dfed | 2dd8168c | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00195 | src/frontend/parse.rs:3372 | negate_if | 1793866d | 8d693152 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00277 | src/ir/effects.rs:504 | and | 7557010d | cf21d82f | NO COMPILA |  |
+| M00230 | src/frontend/parse.rs:3675 | negate_if | 1793866d | d90f13bc | MUERTO | debug: check::tests::a_returning_if_branch_does_not_contribute_a_value_type |
+| M00325 | src/ir/effects.rs:1536 | all_any | 7557010d | c8e02ed6 | MUERTO | debug: ir::effects::tests::recursive_call_components_converge_and_keep_known_leaf_witnesses |
+| M00076 | src/check/types.rs:12475 | eq | 54c9dfed | 9de83b79 | MUERTO | debug: check::tests::adr_gap_non_name_call_target_uses_whole_target_span |
+| M00049 | src/check/types.rs:12214 | and | 54c9dfed | c4fbef6f | NO COMPILA |  |
+| M00304 | src/ir/effects.rs:929 | continue | 7557010d | 4f70fe77 | MUERTO | debug: ir::effects::tests::borrowed_user_call_skips_borrowed_bindings_but_visits_later_temporaries |
+| M00269 | src/ir/effects.rs:143 | start_end | 7557010d | ffddbeb1 | MUERTO | debug: ir::effects::witness_differential_tests::grouped_non_name_targets_report_their_head_and_order_by_the_call |
+| M00364 | src/ir/effects.rs:2058 | or | 7557010d | 275dda02 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00253 | src/frontend/parse.rs:3877 | swap_args | 1793866d | 7719d37f | NO COMPILA |  |
+| M00370 | src/ir/effects.rs:2099 | drop_state | 7557010d | 57f68be7 | MUERTO | debug: check::tests::nested_pending_nominal_result_has_executable_binding_type |
+| M00331 | src/ir/effects.rs:1607 | start_end | 7557010d | b65ef858 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00376 | src/ir/effects.rs:2147 | false | 7557010d | 55bef97c | MUERTO | debug: ir::effects::tests::verifier_rejects_a_return_exit_on_a_non_return_terminator |
+| M00160 | src/frontend/parse.rs:3173 | end_start | 1793866d | db11867b | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00063 | src/check/types.rs:12340 | negate_if | 54c9dfed | e817811e | MUERTO | debug: check::tests::conditional_selector_constraint_blames_the_later_conflicting_value |
+| M00031 | src/check/types.rs:11978 | start_end | 54c9dfed | 9420049c | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00297 | src/ir/effects.rs:861 | ne | 7557010d | 5451e26c | MUERTO | debug: ir::effects::tests::unknown_effects_fail_each_written_restriction_in_code_order |
+| M00013 | src/check/types.rs:8270 | start_end | 54c9dfed | 844284f9 | MUERTO | debug: nexo::suite$f0005_b1b::pending_f5_destinations_and_const_have_exact_public_diagnostics |
+| M00303 | src/ir/effects.rs:926 | ne | 7557010d | ef1c6568 | MUERTO | debug: ir::effects::tests::borrowed_user_call_counts_the_argument_temporary_in_the_caller |
+| M00209 | src/frontend/parse.rs:3444 | drop_assignment | 1793866d | 4e82a5c8 | MUERTO | debug: frontend::tests::adr_literal_f2_table_rows_reach_the_published_frontend_boundary |
+| M00274 | src/ir/effects.rs:486 | add | 7557010d | 72ae527b | MUERTO | debug: check::tests::nested_pending_nominal_result_has_executable_binding_type |
+| M00324 | src/ir/effects.rs:1534 | drop_assignment | 7557010d | 2f6469ab | MUERTO | debug: check::tests::nested_pending_nominal_result_has_executable_binding_type |
+| M00194 | src/frontend/parse.rs:3362 | and | 1793866d | 4ec8ccdd | NO COMPILA |  |
+| M00334 | src/ir/effects.rs:1661 | int_inc | 7557010d | 14cc591a | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00059 | src/check/types.rs:12310 | negate_if | 54c9dfed | ec9a58b7 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00075 | src/check/types.rs:12472 | end_start | 54c9dfed | 87738f01 | MUERTO | debug: check::tests::absent_value_and_call_target_use_distinct_kinds |
+| M00337 | src/ir/effects.rs:1683 | int_inc | 7557010d | d5cd2446 | MUERTO | debug: nexo::suite$f0005_b1b::f5_effect_contracts_publish_the_profile_model |
+| M00165 | src/frontend/parse.rs:3224 | and | 1793866d | da9a1bba | MUERTO | debug: check::names::tests::constructor_pattern_binds_nested_name_before_arm_body |
+| M00365 | src/ir/effects.rs:2066 | int_inc | 7557010d | 46104729 | MUERTO | debug: ir::verify::tests::j16_forged_generator_resume_item_is_rejected |
+| M00159 | src/frontend/parse.rs:3173 | swap_args | 1793866d | 6573b409 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00211 | src/frontend/parse.rs:3450 | continue | 1793866d | 44692b8b | MUERTO | debug: check::tests::adr_gap_array_element_mismatch_uses_element_primary_and_whole_annotation_context |
+| M00053 | src/check/types.rs:12279 | true | 54c9dfed | 18668467 | MUERTO | debug: nexo::suite$i07c_normative_survivors::deferred_projection_and_constructor_programs_finish_with_causal_results |
+| M00041 | src/check/types.rs:12070 | int_dec | 54c9dfed | 9013548e | MUERTO | debug: nexo::suite$i08::published_result_type_negatives_and_repairs |
+| M00065 | src/check/types.rs:12344 | drop_return | 54c9dfed | 3e35a6aa | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00343 | src/ir/effects.rs:1811 | continue | 7557010d | c6e90896 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00080 | src/check/types.rs:12540 | negate_if | 54c9dfed | 16c16781 | MUERTO | debug: check::types::quota_tests::nested_divergent_branch_contributes_no_normal_type_under_context |
+| M00190 | src/frontend/parse.rs:3358 | drop_return | 1793866d | 507d4666 | MUERTO | debug: frontend::migrated_parser_contracts::b_repeated_and_grouped_modes_classify_after_the_whole_postfix |
+| M00276 | src/ir/effects.rs:498 | and | 7557010d | cbe60deb | NO COMPILA |  |
+| M00097 | src/frontend/parse.rs:2592 | decrement | 1793866d | f412469f | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00384 | src/ir/effects.rs:4138 | or | 7557010d | 1fd6ce01 | NO COMPILA |  |
+| M00069 | src/check/types.rs:12423 | drop_return | 54c9dfed | 721685d5 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00096 | src/frontend/parse.rs:2591 | int_inc | 1793866d | c1316997 | MUERTO | debug: frontend::migrated_parser_final::b_structural_budgets_have_literal_boundaries_and_diagnostic_fields |
+| M00157 | src/frontend/parse.rs:3151 | int_dec | 1793866d | e778b1ee | MUERTO | debug: nexo::suite$f0005_l04b::loop_control_after_a_guarded_match_arm_is_not_a_guard_control |
+| M00021 | src/check/types.rs:11934 | eq | 54c9dfed | bde92f8b | MUERTO | debug: ir::lower::tests::f5_source_logical_cfg_skips_only_untaken_rhs |
+| M00109 | src/frontend/parse.rs:2711 | negate_if | 1793866d | 323b73dd | MUERTO | debug: check::names::tests::constructor_pattern_binds_nested_name_before_arm_body |
+| M00266 | src/frontend/parse.rs:3967 | decrement | 1793866d | 6117a30d | MUERTO | debug: check::names::tests::j16_names_families_finish_in_256_kib_worker |
+| M00110 | src/frontend/parse.rs:2723 | is_some | 1793866d | cd7cb710 | MUERTO | debug: frontend::migrated_parser_final::b_first_sets_follow_the_committed_production |
+| M00003 | src/check/names.rs:1071 | and | 3363b499 | f9109bdd | NO COMPILA |  |
+| M00234 | src/frontend/parse.rs:3739 | drop_assignment | 1793866d | 9faafca2 | MUERTO | debug: check::tests::a_returning_if_branch_does_not_contribute_a_value_type |
+| M00128 | src/frontend/parse.rs:2795 | int_inc | 1793866d | 342b32e9 | MUERTO | debug: frontend::migrated_parser_final::b_related_locations_use_first_duplicate_and_full_crlf_delimiter |
+| M00174 | src/frontend/parse.rs:3277 | start_end | 1793866d | c7915e38 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00193 | src/frontend/parse.rs:3358 | int_inc | 1793866d | 0afe0738 | MUERTO | debug: frontend::migrated_parser_contracts::b_repeated_and_grouped_modes_classify_after_the_whole_postfix |
+| M00249 | src/frontend/parse.rs:3861 | swap_args | 1793866d | 8c392bcd | NO COMPILA |  |
+| M00090 | src/frontend/parse.rs:2510 | swap_args | 1793866d | ab4d4f5b | NO COMPILA |  |
+| M00329 | src/ir/effects.rs:1575 | continue | 7557010d | 1fe93035 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00177 | src/frontend/parse.rs:3289 | true | 1793866d | dd39bce5 | MUERTO | debug: check::names::tests::j16_names_families_finish_in_256_kib_worker |
+| M00400 | src/ir/effects.rs:4289 | drop_assignment | 7557010d | 5e0026f1 | MUERTO | debug: ir::effects::tests::transitive_witness_preserves_call_chain_and_diagnostic_operation |
+| M00171 | src/frontend/parse.rs:3230 | negate_if | 1793866d | b24bc120 | MUERTO | debug: check::names::tests::constructor_pattern_binds_nested_name_before_arm_body |
+| M00120 | src/frontend/parse.rs:2763 | is_none | 1793866d | 04b363c7 | MUERTO | debug: check::names::tests::j16_names_families_finish_in_256_kib_worker |
+| M00285 | src/ir/effects.rs:551 | int_inc | 7557010d | 826bee72 | MUERTO | debug: ir::effects::tests::no_alloc_counts_array_copies_from_index_and_result_bindings |
+| M00154 | src/frontend/parse.rs:3105 | or | 1793866d | 3ffa735d | MUERTO | debug: check::names::tests::j16_names_families_finish_in_256_kib_worker |
+| M00087 | src/check/types.rs:12592 | swap_args | 54c9dfed | 329b7e95 | NO COMPILA |  |
+| M00306 | src/ir/effects.rs:939 | eq | 7557010d | 62ab7d10 | MUERTO | debug: ir::effects::tests::borrowed_user_call_counts_the_argument_temporary_in_the_caller |
+| M00079 | src/check/types.rs:12531 | is_some | 54c9dfed | 3f244ebe | MUERTO | debug: nexo::suite$i07c_mutation_regressions::anchored_first_branch_keeps_independent_pending_join |
+| M00335 | src/ir/effects.rs:1679 | int_inc | 7557010d | bf9d8e5f | MUERTO | debug: nexo::suite$f0005_b1b::f5_effect_contracts_publish_the_profile_model |
+| M00363 | src/ir/effects.rs:2046 | int_inc | 7557010d | cf9f0265 | MUERTO | debug: frontend::tests::multi_token_construct_comment_gaps_preserve_execution |
+| M00149 | src/frontend/parse.rs:3040 | drop_assignment | 1793866d | 3ea94c41 | MUERTO | debug: check::tests::if_else_scope_does_not_erase_outer_binding |
+| M00319 | src/ir/effects.rs:1186 | drop_state | 7557010d | 2789fea6 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00340 | src/ir/effects.rs:1757 | swap_args | 7557010d | 1ba97e45 | NO COMPILA |  |
+| M00126 | src/frontend/parse.rs:2780 | add | 1793866d | 99ef754b | MUERTO | debug: frontend::migrated_parser_contracts::b_branch_value_negatives_keep_codes_spans_and_related_locations |
+| M00169 | src/frontend/parse.rs:3228 | int_dec | 1793866d | 3bca4a38 | MUERTO | debug: check::names::tests::constructor_pattern_binds_nested_name_before_arm_body |
+| M00033 | src/check/types.rs:11983 | swap_args | 54c9dfed | b7576a3b | NO COMPILA |  |
+| M00235 | src/frontend/parse.rs:3762 | start_end | 1793866d | d9c5fe09 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
 
 
 ### S5b.1 (`4acee20..1010938`; `types.rs`)
 
-Población 400 (enumeración completa 1048), ejecutados 73: INCONCLUSO 2, MUERTO 36, NO COMPILA 15, SUPERVIVIENTE 20
+Población 400 (enumeración completa 1048), ejecutados 197: INCONCLUSO 8, MUERTO 104, NO COMPILA 39, SUPERVIVIENTE 46
 
 | id | archivo:línea | operador | SHA ini | SHA mut | veredicto | test que lo mata / nota |
 |---|---|---|---|---|---|---|
@@ -221,6 +314,87 @@ Población 400 (enumeración completa 1048), ejecutados 73: INCONCLUSO 2, MUERTO
 | M00189 | src/check/types.rs:10500 | drop_return | 54c9dfed | 1188d181 | NO COMPILA |  |
 | M00094 | src/check/types.rs:9682 | swap_args | 54c9dfed | 3a5f05f2 | NO COMPILA |  |
 | M00317 | src/check/types.rs:11919 | drop_return | 54c9dfed | 80188f4d | MUERTO | debug: nexo::suite$f0005_b1b::f5_declared_constants_remain_pending_at_every_use_site |
-
-Pendientes (no ejecutados, 327): M00290, M00316, M00369, M00353, M00244, M00262, M00377, M00228, M00381, M00222, M00366, M00007, M00115, M00386, M00161, M00367, M00054, M00139, M00042, M00387, M00028, M00027, M00195, M00277, M00230, M00325, M00076, M00049, M00304, M00269, M00364, M00253, M00370, M00331, M00376, M00160, M00063, M00031, M00297, M00013, M00303, M00209, M00274, M00324, M00194, M00334, M00059, M00075, M00337, M00165, M00365, M00159, M00211, M00053, M00041, M00065, M00343, M00080, M00190, M00276, M00097, M00384, M00069, M00096, M00157, M00021, M00109, M00266, M00110, M00003, M00234, M00128, M00174, M00193, M00249, M00090, M00329, M00177, M00400, M00171, M00120, M00285, M00154, M00087, M00306, M00079, M00335, M00363, M00149, M00319, M00340, M00126, M00169, M00033, M00235, M00088, M00215, M00125, M00119, M00009, M00151, M00289, M00310, M00379, M00321, M00350, M00152, M00191, M00322, M00091, M00085, M00047, M00220, M00114, M00192, M00314, M00398, M00224, M00045, M00060, M00359, M00382, M00101, M00070, M00217, M00130, M00034, M00137, M00389, M00175, M00341, M00116, M00238, M00236, M00057, M00183, M00098, M00313, M00035, M00178, M00272, M00083, M00308, M00148, M00307, M00020, M00242, M00052, M00394, M00145, M00356, M00399, M00347, M00196, M00227, M00203, M00055, M00077, M00287, M00153, M00095, M00124, M00309, M00245, M00241, M00092, M00260, M00012, M00186, M00391, M00147, M00333, M00349, M00037, M00104, M00142, M00258, M00318, M00061, M00180, M00051, M00162, M00291, M00010, M00199, M00373, M00255, M00279, M00184, M00011, M00144, M00188, M00185, M00106, M00140, M00233, M00112, M00113, M00208, M00100, M00320, M00243, M00344, M00392, M00173, M00004, M00032, M00226, M00301, M00105, M00368, M00263, M00284, M00223, M00123, M00141, M00362, M00352, M00294, M00005, M00046, M00167, M00257, M00182, M00198, M00339, M00135, M00393, M00374, M00342, M00074, M00323, M00254, M00354, M00286, M00111, M00328, M00018, M00050, M00293, M00212, M00248, M00017, M00237, M00056, M00250, M00200, M00221, M00305, M00086, M00214, M00040, M00332, M00204, M00252, M00103, M00064, M00093, M00099, M00163, M00108, M00219, M00336, M00264, M00312, M00207, M00246, M00206, M00240, M00265, M00146, M00375, M00078, M00397, M00155, M00016, M00172, M00259, M00072, M00295, M00187, M00138, M00136, M00396, M00371, M00133, M00117, M00166, M00281, M00231, M00390, M00330, M00131, M00271, M00385, M00038, M00129, M00302, M00181, M00278, M00361, M00014, M00150, M00232, M00327, M00073, M00030, M00288, M00299, M00001, M00372, M00039, M00127, M00292, M00218, M00225, M00084, M00251, M00239, M00311, M00071, M00355, M00345, M00023, M00002, M00346, M00089
+| M00290 | src/check/types.rs:11167 | start_end | 54c9dfed | 9a31ec86 | MUERTO | debug: check::tests::adr_gap_primitive_domain_primary_is_first_offending_argument |
+| M00316 | src/check/types.rs:11918 | negate_if | 54c9dfed | 54190e26 | MUERTO | debug: ir::lower::tests::f5_neg_reaches_lowering_boundary |
+| M00369 | src/check/types.rs:12333 | drop_return | 54c9dfed | 92698f4e | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00353 | src/check/types.rs:12177 | and | 54c9dfed | b98d44fd | NO COMPILA |  |
+| M00244 | src/check/types.rs:10864 | drop_assignment | 54c9dfed | 3da9b300 | MUERTO | debug: check::tests::annotation_parameter_and_assignment_contexts_report_concrete_types |
+| M00262 | src/check/types.rs:10981 | continue | 54c9dfed | 08a2d0fa | NO COMPILA |  |
+| M00377 | src/check/types.rs:12407 | drop_state | 54c9dfed | d029db3b | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00228 | src/check/types.rs:10813 | swap_args | 54c9dfed | 0223c851 | NO COMPILA |  |
+| M00381 | src/check/types.rs:12435 | drop_record | 54c9dfed | 32c52610 | MUERTO | debug: nexo::suite$i07c_mutation_regressions::invalid_nested_selector_preserves_independent_len_domain |
+| M00222 | src/check/types.rs:10786 | drop_assignment | 54c9dfed | c193e187 | MUERTO | debug: check::tests::conditions_require_bool_and_assignment_keeps_written_type_origin |
+| M00366 | src/check/types.rs:12303 | swap_args | 54c9dfed | edbdbefb | NO COMPILA |  |
+| M00007 | src/check/types.rs:9015 | false | 54c9dfed | fae9883b | MUERTO | debug: nexo::suite$i07c_mutation_regressions::alias_of_intrinsically_fixed_binding_keeps_no_source_origin |
+| M00115 | src/check/types.rs:9851 | ne | 54c9dfed | f6bd0efe | MUERTO | debug: nexo::suite$i07c_causal_obligations::independent_operands_keep_their_causal_sites |
+| M00386 | src/check/types.rs:12475 | negate_if | 54c9dfed | 07cb5411 | MUERTO | debug: check::tests::adr_gap_non_name_call_target_uses_whole_target_span |
+| M00161 | src/check/types.rs:10262 | drop_return | 54c9dfed | 11f7d3ea | MUERTO | debug: check::types::quota_tests::boundary_closure_call_restores_parent_fact |
+| M00367 | src/check/types.rs:12310 | negate_if | 54c9dfed | ec9a58b7 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00054 | src/check/types.rs:9479 | int_dec | 54c9dfed | 9df7605a | INCONCLUSO |  |
+| M00139 | src/check/types.rs:10044 | swap_args | 54c9dfed | aea5d88e | NO COMPILA |  |
+| M00042 | src/check/types.rs:9429 | drop_assignment | 54c9dfed | d6a48f35 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00387 | src/check/types.rs:12475 | eq | 54c9dfed | 9de83b79 | MUERTO | debug: check::tests::adr_gap_non_name_call_target_uses_whole_target_span |
+| M00028 | src/check/types.rs:9161 | int_inc | 54c9dfed | 9a94e6a6 | MUERTO | debug: check::types::j16_probe_types::parent |
+| M00027 | src/check/types.rs:9157 | int_dec | 54c9dfed | 88f63f9b | INCONCLUSO |  |
+| M00195 | src/check/types.rs:10615 | swap_args | 54c9dfed | 9b3b5c48 | NO COMPILA |  |
+| M00277 | src/check/types.rs:11063 | drop_assignment | 54c9dfed | af44b36a | NO COMPILA |  |
+| M00230 | src/check/types.rs:10817 | drop_state | 54c9dfed | dde4bdc4 | MUERTO | debug: frontend::tests::lexer_and_parser_scale_linearly_across_surface_families |
+| M00325 | src/check/types.rs:11970 | drop_return | 54c9dfed | c79f005d | MUERTO | debug: ir::i07c_tests::assert_eq_logical_pair_charge_is_identical_for_live_and_deferred_values |
+| M00076 | src/check/types.rs:9547 | int_inc | 54c9dfed | 2665e5f3 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00049 | src/check/types.rs:9461 | true | 54c9dfed | dc07f507 | MUERTO | debug: check::types::quota_tests::i07c_survivor4_invalid_control_condition_taints_visit |
+| M00304 | src/check/types.rs:11330 | false | 54c9dfed | b9878f37 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00269 | src/check/types.rs:11029 | drop_assignment | 54c9dfed | 5ab30058 | MUERTO | debug: check::tests::direct_checker_checks_child_of_unavailable_try_operator |
+| M00364 | src/check/types.rs:12289 | drop_assignment | 54c9dfed | 5644d094 | MUERTO | debug: nexo::suite$i07c_deferred_mutation_cases::m00453_omits_derived_union |
+| M00253 | src/check/types.rs:10904 | drop_assignment | 54c9dfed | - | INCONCLUSO |  |
+| M00370 | src/check/types.rs:12340 | negate_if | 54c9dfed | e817811e | MUERTO | debug: check::tests::conditional_selector_constraint_blames_the_later_conflicting_value |
+| M00331 | src/check/types.rs:11978 | start_end | 54c9dfed | 9420049c | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00376 | src/check/types.rs:12396 | false | 54c9dfed | 6895ae90 | MUERTO | debug: ir::i07c_tests::divergent_initializer_and_array_operand_follow_their_distinct_constraints |
+| M00160 | src/check/types.rs:10237 | int_inc | 54c9dfed | 27076b78 | MUERTO | debug: check::types::quota_tests::boundary_closure_call_restores_parent_fact |
+| M00063 | src/check/types.rs:9505 | decrement | 54c9dfed | f23383b5 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00031 | src/check/types.rs:9223 | swap_args | 54c9dfed | 95a5b980 | NO COMPILA |  |
+| M00297 | src/check/types.rs:11228 | false | 54c9dfed | 3c87d576 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00013 | src/check/types.rs:9086 | drop_return | 54c9dfed | 9900af97 | MUERTO | debug: nexo::suite$i07c_pattern_deferred::open_pattern_reports_family_at_pattern_and_coverage_at_match |
+| M00303 | src/check/types.rs:11268 | negate_guard | 54c9dfed | 3c2ca6d0 | MUERTO | debug: check::tests::adr_gap_non_name_call_target_uses_whole_target_span |
+| M00209 | src/check/types.rs:10736 | is_none | 54c9dfed | d5bfe4ba | MUERTO | debug: check::tests::a_returning_if_branch_does_not_contribute_a_value_type |
+| M00274 | src/check/types.rs:11051 | drop_assignment | 54c9dfed | f113ee4b | MUERTO | debug: check::tests::mode_uses_associated_parameter_not_first_parameter |
+| M00324 | src/check/types.rs:11964 | drop_assignment | 54c9dfed | 15217feb | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00194 | src/check/types.rs:10610 | swap_args | 54c9dfed | 9f1008d0 | NO COMPILA |  |
+| M00334 | src/check/types.rs:12004 | end_start | 54c9dfed | feb6093c | MUERTO | debug: nexo::suite$j11_generator::generator_question_mark_and_shadowed_iterator_limit_forms |
+| M00059 | src/check/types.rs:9493 | drop_assignment | 54c9dfed | 09f6eeb3 | MUERTO | debug: check::types::quota_tests::i07c_survivor4_invalid_control_condition_taints_visit |
+| M00075 | src/check/types.rs:9547 | int_dec | 54c9dfed | 753bb29c | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00337 | src/check/types.rs:12056 | sub | 54c9dfed | bd4f53c7 | MUERTO | debug: check::types::quota_tests::non_result_try_is_rejected_at_the_expression_boundary |
+| M00165 | src/check/types.rs:10310 | eq | 54c9dfed | 4120c86b | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00365 | src/check/types.rs:12290 | swap_args | 54c9dfed | ba876bd3 | NO COMPILA |  |
+| M00159 | src/check/types.rs:10236 | int_inc | 54c9dfed | ec0c770c | MUERTO | debug: check::types::quota_tests::boundary_closure_call_restores_parent_fact |
+| M00211 | src/check/types.rs:10746 | is_some | 54c9dfed | e9d4a9c3 | MUERTO | debug: check::tests::written_parameter_result_and_assignment_type_spans_exclude_trivia |
+| M00053 | src/check/types.rs:9479 | drop_state | 54c9dfed | 86df538b | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00041 | src/check/types.rs:9428 | drop_assignment | 54c9dfed | 7d9ab781 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00065 | src/check/types.rs:9524 | negate_if | 54c9dfed | de8f74bd | MUERTO | debug: nexo::suite$f0005_b1b::pending_f5_destinations_and_const_have_exact_public_diagnostics |
+| M00343 | src/check/types.rs:12112 | drop_state | 54c9dfed | 5b8f6803 | MUERTO | debug: nexo::suite$f0007::try_constrains_result_error_and_never_does_not_constrain_payload |
+| M00080 | src/check/types.rs:9556 | decrement | 54c9dfed | 32c015bb | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00190 | src/check/types.rs:10516 | drop_state | 54c9dfed | 6cba9e1f | MUERTO | debug: check::tests::a_returning_if_branch_does_not_contribute_a_value_type |
+| M00276 | src/check/types.rs:11057 | continue | 54c9dfed | ab914987 | NO COMPILA |  |
+| M00097 | src/check/types.rs:9715 | swap_args | 54c9dfed | cba90850 | NO COMPILA |  |
+| M00384 | src/check/types.rs:12465 | swap_args | 54c9dfed | 0e64fccc | NO COMPILA |  |
+| M00069 | src/check/types.rs:9528 | int_inc | 54c9dfed | 3a6d9788 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00096 | src/check/types.rs:9713 | and | 54c9dfed | 33d1ca2b | MUERTO | debug: nexo::suite$i07c_causal_obligations::reduced_independent_sites_remain_causal |
+| M00157 | src/check/types.rs:10228 | true | 54c9dfed | 2023374d | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00021 | src/check/types.rs:9109 | eq | 54c9dfed | 30f8c2b5 | MUERTO | debug: nexo::suite$j05_match_guards::guard_error_preserves_derived_coverage_and_none_inference |
+| M00109 | src/check/types.rs:9814 | and | 54c9dfed | f058bb4f | MUERTO | debug: ir::i07c_tests::bad_binary_left_still_checks_independent_right_branch |
+| M00266 | src/check/types.rs:11009 | break | 54c9dfed | e05426ec | INCONCLUSO |  |
+| M00110 | src/check/types.rs:9818 | false | 54c9dfed | 6f529ed0 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00003 | src/check/types.rs:8976 | and | 54c9dfed | 89ec7a55 | MUERTO | debug: ir::lower::tests::f5_source_compound_index_evaluates_selector_before_rhs_once |
+| M00234 | src/check/types.rs:10832 | drop_assignment | 54c9dfed | 2f2b2c20 | MUERTO | debug: check::types::j16_probe_types::parent |
+| M00128 | src/check/types.rs:9922 | swap_args | 54c9dfed | c2e0906d | NO COMPILA |  |
+| M00174 | src/check/types.rs:10363 | eq | 54c9dfed | 26148726 | MUERTO | debug: check::tests::adr_gap_result_constructor_payload_label_is_v |
+| M00193 | src/check/types.rs:10574 | drop_return | 54c9dfed | d45e983b | NO COMPILA |  |
+| M00249 | src/check/types.rs:10895 | drop_assignment | 54c9dfed | - | INCONCLUSO |  |
+| M00090 | src/check/types.rs:9650 | is_some | 54c9dfed | 8276c16f | MUERTO | debug: check::tests::array_conflict_types_keep_the_outer_constructor_in_checker_diagnostics |
+| M00329 | src/check/types.rs:11978 | start_end | 54c9dfed | e7459869 | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00177 | src/check/types.rs:10417 | drop_assignment | 54c9dfed | 8cf4e6bf | MUERTO | debug: check::tests::adr_gap_primitive_domain_primary_is_first_offending_argument |
+| M00400 | src/check/types.rs:12581 | is_none | 54c9dfed | 8d2e3bdf | MUERTO | debug: ir::i07c_tests::adr_gap_nested_empty_arrays_resolve_from_outer_branch_in_both_orders |
+| M00171 | src/check/types.rs:10327 | true | 54c9dfed | c00b2f7a | SUPERVIVIENTE | SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores + 1.285 del corpus, binarios debug, 3 perfiles, check); deuda 2026-11-24, no se afirma equivalencia |
+| M00120 | src/check/types.rs:9863 | and | 54c9dfed | dcc0c397 | MUERTO | debug: check::tests::all_preparsed_names_are_resolved_by_lexical_position |
+| M00285 | src/check/types.rs:11096 | true | 54c9dfed | b3fe4ef7 | MUERTO | debug: check::tests::annotation_parameter_and_assignment_contexts_report_concrete_types |
+| M00154 | src/check/types.rs:10194 | true | 54c9dfed | 4d8fa299 | MUERTO | debug: check::tests::argument_labels_select_types_without_changing_written_diagnostic_order |
 
