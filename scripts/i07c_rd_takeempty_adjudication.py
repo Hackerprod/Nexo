@@ -14,7 +14,10 @@ from pathlib import Path
 import i07c_rd_oracle as oracle
 import i07c_rd_sweep as sweep
 
-ROWS = (3254, 4551, 4836, 6747, 7822, 8711, 8853, 10674, 11188, 13127, 13557, 14009, 15312)
+ROWS = {
+    "c2": (3254, 4551, 4836, 6747, 7822, 8711, 8853, 10674, 11188, 13127, 13557, 14009, 15312),
+    "c2-nueva": (33, 2797, 3174, 4069, 5560, 7652, 7829),
+}
 BASE = "main-44bef37452e4"
 PROTO = "proto-57f9db1da0d2-projection"
 OUT = Path("docs/validation/i07c-rediseno/adjudicacion-takeempty.json")
@@ -22,16 +25,18 @@ OUT = Path("docs/validation/i07c-rediseno/adjudicacion-takeempty.json")
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--corpus", choices=("c2", "c2@f0-0003-b-v1"), default="c2")
+    parser.add_argument("--corpus", choices=("c2", "c2@f0-0003-b-v1", "c2-nueva",
+                                              "c2-nueva@f0-0003-b-v1"), default="c2")
     args = parser.parse_args()
     rows = sweep.data(args.corpus)  # Checks the frozen corpus SHA-256.
     base, proto = sweep.load(BASE, args.corpus), sweep.load(PROTO, args.corpus)
     modeled = sweep.expected(args.corpus, rows)
     changed_unmodeled = {index for index in range(len(rows))
                          if modeled[index] is None and base[index] != proto[index]}
-    assert changed_unmodeled == set(ROWS), (args.corpus, changed_unmodeled)
+    base_corpus = args.corpus.split("@", 1)[0]
+    assert changed_unmodeled == set(ROWS[base_corpus]), (args.corpus, changed_unmodeled)
     result = []
-    for index in ROWS:
+    for index in ROWS[base_corpus]:
         row = rows[index]
         assert row["form"] == "takeempty", (index, row["form"])
         source = sweep.source(row)
@@ -59,17 +64,19 @@ def main():
         main_union, main_calls = split(base[index])
         proto_union, proto_calls = split(proto[index])
         assert main_calls == proto_calls, (index, "call constraint changed")
-        assert proto_union == expected, (index, "prototype differs from independent oracle")
+        matches = proto_union == expected
         result.append({"index": index, "expected_union": expected, "main_union": main_union,
-                       "proto_union": proto_union, "common_calls": main_calls})
-        print(f"{index}: C and fields match; calls unchanged", flush=True)
-    output = OUT if args.corpus == "c2" else OUT.with_name("adjudicacion-takeempty-f0-0003-b-v1.json")
+                       "proto_union": proto_union, "common_calls": main_calls,
+                       "matches_derived": matches})
+        print(f"{index}: {'C and fields match' if matches else 'DIFFERS FROM DERIVATION'}; calls unchanged", flush=True)
+    suffix = "" if "@" not in args.corpus else "-f0-0003-b-v1"
+    output = OUT.with_name("adjudicacion-takeempty" + ("-c2-nueva" if base_corpus == "c2-nueva" else "") + suffix + ".json")
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps({"corpus_sha256": sweep.CORPUS_SHA256["c2"],
-                                 "profile": "f0-0002-b-v2" if args.corpus == "c2" else "f0-0003-b-v1",
+    output.write_text(json.dumps({"corpus_sha256": sweep.CORPUS_SHA256[base_corpus],
+                                 "profile": "f0-0002-b-v2" if "@" not in args.corpus else "f0-0003-b-v1",
                                  "rows": result},
                               ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"adjudicated={len(result)} output={output}", flush=True)
+    print(f"matched={sum(row['matches_derived'] for row in result)}/{len(result)} output={output}", flush=True)
 
 
 if __name__ == "__main__":
