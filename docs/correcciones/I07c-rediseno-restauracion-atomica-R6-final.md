@@ -145,6 +145,17 @@ La regla principal de F0-0002 §§4.1.1, 4.1.2.1–.5, .7 y 13.9 es una transacc
 | F3 | Las cinco filas A core T5 dentro de arrays cambian de oráculo: manda F0-0002 §4.1.2.5. La unión errónea como primer elemento no transmite testigo parcial al array, argumento ni otro consumidor que no sea unión. En el mínimo de 77 B solo E0102 `[37,38)`; el de 87 B tiene E0102 `[53,54)` y E0103 `[25,27)` de `s`. Se congelan los cinco IDs y esperados antes de comparar. |
 | F4 | Pila: el ejecutable de test real ejecuta `option_match126` y `result_match126` 200/200 cada una a 65 KiB en debug y release; cada commit conserva margen ≥1.000 B sobre 66.560 B. |
 
+`JoinRecord` trata a `match` como consumidor de la misma unión de `if`, no como ruta especial. El resultado de un brazo lleva `ResultStatus` y la identidad de la igualdad propia del brazo; un C de un hijo no se confunde con el rechazo de esa igualdad propia:
+
+| Estado del resultado de un brazo | Entrada a la unión `match` | Salida al siguiente consumidor |
+|---|---|---|
+| `Valid` | Contrastar su valor en el ordinal del brazo. | `Valid` si el contraste se confirma; si se rechaza, conservar su C en el sitio del brazo. |
+| `Partial` con testigo del prefijo y sin conflicto propio del `JoinRecord` | Contrastar el testigo, aunque un hijo tenga su C independiente; una igualdad `Waiting` no publica forma hasta activarse. | El testigo y su origen conservan el prefijo; otro brazo puede completar una variable sin borrar el primer fijador. |
+| `Partial` cuyo `JoinRecord` propio rechazó su igualdad | Conservar los C internos; no usar ese resultado como testigo nuevo del `match`. | `Contaminated` para la unión exterior, sin borrar testigos previos independientes. |
+| `Contaminated` o `Waiting` sin activador | No convertirlo en un tipo nominal ni en testigo del brazo. | Mantener obligaciones hasta punto fijo y finalizar en su propietario. |
+
+Esta distinción se determina por la igualdad y `ConsumerId` del `JoinRecord`, no por la forma textual ni por buscar diagnósticos ya emitidos. El prototipo usa una marca de conflicto propio para explorarla; C3 la representa en `ResultStatus` y la revisa con las 51 filas de conservación y M1/M2.
+
 **Cierre tras punto fijo.** Todo `InferredTypes` se deriva de un único recorrido final de representantes, después de `Completion`; no se copia de resultados transitorios de brazos. El tipo de `let/var x=e` comparte representante con el resultado de `e`, también si `e` es `match` o `if`. Todo `x=e` aceptado tiene tipos finales iguales. `MatchExpr` crea igualdades de brazos con su `ConsumerId` y aristas de `Completion` publicadas. Si una obligación anterior aún puede activar una igualdad, ninguna expresión o binding dependiente se publica como concreto ni llega a IR. Una igualdad `Suspended` mantiene el origen del primer fijador. El repro de 91 B `fn Main(){var q=[];var r=[];let a=match true{true=>{value:q;},false=>{value:r;}};q=[1];}` (perfil `f0-0003-b-v1`) debe quedar `checked`, sin diagnóstico ni `driver_error`; `q`, `r`, resultado del `match` y `a` terminan Array<I64>.
 
 | Estado al cerrar `types` | Prohibición | Acción obligatoria |
