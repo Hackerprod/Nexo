@@ -1060,6 +1060,7 @@ struct PendingDeferredJoin {
     // this immutable boundary; later completion only changes the obligation.
     r1_occurrence: (u64, u64),
     r1_context_scope: Option<(u64, u64)>,
+    r1_statement: u64,
 }
 
 // Disposable R1 representation: a retired obligation leaves planning
@@ -1071,6 +1072,7 @@ struct R1JoinEvidence {
     constructor: u64,
     branch: bool,
     context_scope: Option<(u64, u64)>,
+    statement: u64,
 }
 
 // Disposable R4: source-ordered events are replayed into read-site gates.
@@ -2240,7 +2242,7 @@ struct InferenceGraph {
     nested_assignment_sites: HashSet<u64>,
     pre_assignment_snapshot: HashMap<u64, Option<ConcreteEvidence>>,
     projected_bases: HashSet<u64>,
-    r5_if_intervals: Vec<(u64, u64)>,
+    r5_projection_context: HashMap<u64, (u64, bool)>,
     projection_items: HashSet<u64>,
     assigned_bases: HashSet<u64>,
     assignment_starts: HashMap<u64, u64>,
@@ -2474,6 +2476,7 @@ impl InferenceGraph {
                 constructor: join.constructor,
                 branch: join.branch,
                 context_scope: join.r1_context_scope,
+                statement: join.r1_statement,
             });
             self.r4_events.push(R4EqualityEvent {
                 occurrence: join.r1_occurrence,
@@ -3245,13 +3248,13 @@ impl Checker<'_> {
             return false;
         };
         self.graph.expr_vars.iter().any(|(span, id)| {
-            let nested_in_union = self
+            let same_evaluation = self
                 .graph
-                .r5_if_intervals
-                .iter()
-                .any(|(start, end)| *start <= span.0 && span.1 <= *end);
+                .r5_projection_context
+                .get(id)
+                .is_some_and(|(statement, in_union)| *statement == join.statement && !in_union);
             span.0 < scope_start
-                && !nested_in_union
+                && same_evaluation
                 && self.graph.projection_items.contains(id)
                 && chain.contains(&self.root_no_compress(*id))
         })
@@ -5405,6 +5408,7 @@ impl Checker<'_> {
                 comparison_domain_if_unresolved: None,
                 r1_occurrence,
                 r1_context_scope: policy.branch.then_some(scope),
+                r1_statement: self.top_statement_start,
             })));
     }
 
@@ -6869,6 +6873,7 @@ impl Checker<'_> {
                                     left_origin: request.left_origin,
                                     r1_occurrence: span_key(&request.found),
                                     r1_context_scope: None,
+                                    r1_statement: self.top_statement_start,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -6893,6 +6898,7 @@ impl Checker<'_> {
                                     left_origin: request.left_origin,
                                     r1_occurrence: span_key(&request.found),
                                     r1_context_scope: None,
+                                    r1_statement: self.top_statement_start,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -6948,6 +6954,7 @@ impl Checker<'_> {
                                     left_origin: request.left_origin,
                                     r1_occurrence: span_key(&request.found),
                                     r1_context_scope: None,
+                                    r1_statement: self.top_statement_start,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -7877,7 +7884,7 @@ impl Checker<'_> {
         self.graph.obligations.clear();
         self.graph.r1_join_history.clear();
         self.graph.r4_events.clear();
-        self.graph.r5_if_intervals.clear();
+        self.graph.r5_projection_context.clear();
         self.graph.r2_reads.clear();
         self.graph.r2_shadows.clear();
         self.graph.r2_shadow_links.clear();
@@ -11688,9 +11695,6 @@ impl Checker<'_> {
                             ..
                         } => {
                             let pending_before_if = self.pending_join_count();
-                            if xv("r5prefix") {
-                                self.graph.r5_if_intervals.push(span_key(inner.span()));
-                            }
                             let previous_if = self.active_if_span.replace(inner.span().clone());
                             let pending_before_condition = self.graph.obligations.len();
                             let branch_context = OwnedCheckContext {
@@ -12833,6 +12837,10 @@ impl Checker<'_> {
                         };
                         self.graph.expr_vars.insert(span_key(e.span()), child);
                         self.graph.projection_items.insert(child);
+                        self.graph.r5_projection_context.insert(
+                            child,
+                            (self.top_statement_start, self.active_if_span.is_some()),
+                        );
                         self.graph
                             .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                         return Ok(Type::Deferred(child));
@@ -16303,7 +16311,7 @@ pub(crate) fn check_with_partial_limit(
             nested_assignment_sites: HashSet::new(),
             pre_assignment_snapshot: HashMap::new(),
             projected_bases: HashSet::new(),
-            r5_if_intervals: Vec::new(),
+            r5_projection_context: HashMap::new(),
             union_denounced: HashMap::new(),
             pending_unions: HashSet::new(),
             main_flags: HashMap::new(),
@@ -17930,7 +17938,7 @@ mod quota_tests {
                 nested_assignment_sites: HashSet::new(),
                 pre_assignment_snapshot: HashMap::new(),
                 projected_bases: HashSet::new(),
-                r5_if_intervals: Vec::new(),
+                r5_projection_context: HashMap::new(),
                 union_denounced: HashMap::new(),
                 pending_unions: HashSet::new(),
                 main_flags: HashMap::new(),

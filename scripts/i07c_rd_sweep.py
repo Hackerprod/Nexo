@@ -37,6 +37,10 @@ CORPUS_SHA256 = {
     "c2-nueva": "ff3de38ed02ca9857d6f073406d1f7c01c3b26dbb6fdadf8d94ff769a7db49e7",
     "c1-nueva2": "52b6f21f934f1fb5d60160ca7864c50fd966d2e1ea2911f9d33ccf42c56aeefa",
     "c2-nueva2": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+    "b-projections-2026112401": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+    "b-projections-t5-2026112402": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+    "b-projections-2026112403": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+    "owner-projections-771412": "f6d6fd8b0b3635dc8bbd873c72724a5755df712b36bd84866e95dc992d48a121",
 }
 ctypes.windll.kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
 ctypes.windll.kernel32.OpenProcess.restype = wintypes.HANDLE
@@ -77,6 +81,8 @@ def data(name):
         path = NEW / ("b-" + name[1:] + ".json")
     elif name in ("c1-nueva", "c2-nueva", "c1-nueva2", "c2-nueva2"):
         path = NEW / (name + ".json")
+    elif name in ("b-projections-2026112401", "b-projections-t5-2026112402", "b-projections-2026112403", "owner-projections-771412"):
+        path = Path(__file__).resolve().parents[1] / "docs/validation/i07c-rediseno" / (name + ".json")
     else:
         raise ValueError(name)
     content = path.read_bytes()
