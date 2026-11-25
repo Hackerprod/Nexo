@@ -12,8 +12,12 @@ from i07c_rd_drive6 import free_virtual_memory_kb
 def main():
     env = os.environ.copy()
     env["I07C_RD_LOCK_HELD"] = "1"
-    work = (["scripts/i07c_rd_followup_work.py"] if sys.argv[1:] == ["--followup"]
-            else ["scripts/i07c_rd_drive6.py", *sys.argv[1:]])
+    if sys.argv[1:] == ["--followup"]:
+        work = ["scripts/i07c_rd_followup_work.py"]
+    elif sys.argv[1:] == ["--no-t5"]:
+        work = ["scripts/i07c_rd_no_t5.py"]
+    else:
+        work = ["scripts/i07c_rd_drive6.py", *sys.argv[1:]]
     command = [sys.executable, "-B", "scripts/heavy-lock.py", "run",
                "--session", "i07c-rediseno", "--", sys.executable, "-B",
                *work]
