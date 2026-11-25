@@ -1,0 +1,72 @@
+{
+  "corpus": "c2-nueva@f0-0003-b-v1",
+  "rows": 8000,
+  "binary_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,passes",
+  "max_passes": 2,
+  "histogram": [
+    [
+      0,
+      31
+    ],
+    [
+      1,
+      18
+    ],
+    [
+      2,
+      7945
+    ]
+  ],
+  "inconclusive": [],
+  "driver_errors": [
+    [
+      526,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ],
+    [
+      3121,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ],
+    [
+      3436,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ],
+    [
+      5211,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ],
+    [
+      6313,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ],
+    [
+      7240,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ]
+  ]
+}

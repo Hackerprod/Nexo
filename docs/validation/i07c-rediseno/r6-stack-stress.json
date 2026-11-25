@@ -1,0 +1,64 @@
+{
+  "test_exe_sha256": "bebd3069d17b52d19d621f402f43a1e21db3f4fd0a6911be065dc2b7e274d622",
+  "batches": [
+    {
+      "case": "option_match126",
+      "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+      "count": 100,
+      "successes": 97,
+      "failures": [
+        {
+          "repeat": 38,
+          "exit": 1,
+          "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=3221225725\n\nrunning 1 test\n\n\nthread '<unknown>' (10608) has overflowed its stack",
+          "stderr": ""
+        },
+        {
+          "repeat": 44,
+          "exit": 1,
+          "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=3221225725\n\nrunning 1 test\n\n\nthread '<unknown>' (7700) has overflowed its stack",
+          "stderr": ""
+        },
+        {
+          "repeat": 46,
+          "exit": 1,
+          "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=3221225725\n\nrunning 1 test\n\n\nthread '<unknown>' (864) has overflowed its stack",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "case": "option_match126",
+      "flags": null,
+      "count": 100,
+      "successes": 97,
+      "failures": [
+        {
+          "repeat": 12,
+          "exit": 1,
+          "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=3221225725\n\nrunning 1 test\n\n\nthread '<unknown>' (1896) has overflowed its stack",
+          "stderr": ""
+        },
+        {
+          "repeat": 45,
+          "exit": 1,
+          "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=3221225725\n\nrunning 1 test\n\n\nthread '<unknown>' (17392) has overflowed its stack",
+          "stderr": ""
+        },
+        {
+          "repeat": 85,
+          "exit": 1,
+          "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=3221225725\n\nrunning 1 test\n\n\nthread '<unknown>' (7144) has overflowed its stack",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "case": "result_match126",
+      "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+      "count": 30,
+      "successes": 30,
+      "failures": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "corpus": "b",
+  "rows": 4000,
+  "binary_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,passes",
+  "max_passes": 2,
+  "histogram": [
+    [
+      0,
+      41
+    ],
+    [
+      1,
+      6
+    ],
+    [
+      2,
+      3953
+    ]
+  ],
+  "inconclusive": [],
+  "driver_errors": []
+}

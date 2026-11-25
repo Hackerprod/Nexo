@@ -1,0 +1,48 @@
+{
+  "corpus": "c2-nueva2@f0-0003-b-v1",
+  "rows": 8000,
+  "binary_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,passes",
+  "max_passes": 2,
+  "histogram": [
+    [
+      0,
+      30
+    ],
+    [
+      1,
+      20
+    ],
+    [
+      2,
+      7947
+    ]
+  ],
+  "inconclusive": [],
+  "driver_errors": [
+    [
+      795,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ],
+    [
+      1917,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ],
+    [
+      7157,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ]
+  ]
+}

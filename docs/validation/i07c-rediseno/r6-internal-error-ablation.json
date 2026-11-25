@@ -1,0 +1,120 @@
+{
+  "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:q;}};q=[1];}",
+  "bytes": 131,
+  "source_sha256": "c7594733c1e53faa78763464b8c83c4c616e9ee0ce143bffae5fba23b439be35",
+  "binary_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "modes": {
+    "r6": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+    "minus_witness": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape",
+    "minus_noshape": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,r6witness",
+    "noshape_only": "noshape",
+    "plus_retired_rmm3": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b,rmm3e,rmm3f",
+    "unflagged": null
+  },
+  "rows": {
+    "r6": {
+      "check": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      },
+      "run": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    "minus_witness": {
+      "check": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      },
+      "run": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    "minus_noshape": {
+      "check": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "run": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "unit"
+        }
+      }
+    },
+    "noshape_only": {
+      "check": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      },
+      "run": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    "plus_retired_rmm3": {
+      "check": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      },
+      "run": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    "unflagged": {
+      "check": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "run": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "unit"
+        }
+      }
+    }
+  }
+}

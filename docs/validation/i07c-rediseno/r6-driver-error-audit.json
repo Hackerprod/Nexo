@@ -1,0 +1,1205 @@
+{
+  "base_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "candidate_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "candidate_debug_sha256": "3835b09ca9b6cae218f560115eb66b9a36b1a209e8b6b67c4b1f0d55ef515d60",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+  "rows": [
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 52,
+      "profile": "f0-0003-b-v1",
+      "bytes": 195,
+      "source_sha256": "455e7900fed6a9e06af8fe853090798daeb4262cc0aec2626a0338ed4720034d",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else q);},None=>{value: r;}};r=ar;q=ar;}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.958,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.939,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.136,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 30.857,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.831,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.674,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 12050,
+      "profile": "f0-0003-b-v1",
+      "bytes": 192,
+      "source_sha256": "ef5b1398cc3536c5db1b1935d69ab882a90e2948814cfa782d1e25330fd80a00",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else q);},None=>{value: q;}};q=[ar];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.026,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.914,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.235,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.312,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.102,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.908,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 14018,
+      "profile": "f0-0003-b-v1",
+      "bytes": 193,
+      "source_sha256": "02fc23cef26992f31f71d1b06845c96ef1c242d0d2c54dccdfbca0036c1d4393",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else q);},None=>{value: r;}};q=[[3]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.126,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.969,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.07,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.832,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.328,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.983,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 15631,
+      "profile": "f0-0003-b-v1",
+      "bytes": 222,
+      "source_sha256": "46036770967e3b62a99f735efb1c3347dab80e4c8cc1d58ddceda3268c2895ab",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else (if p then q else r));},None=>{value: s;}};r=[[ar]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.067,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.211,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.147,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 28.63,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.185,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.066,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s7021993",
+      "index": 714,
+      "profile": "f0-0003-b-v1",
+      "bytes": 232,
+      "source_sha256": "ed81676321f653f3389032a942b7c056bbe2e61e4b07b6b9ab78da8338b6adf2",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else (if p then q else r));},None=>{value: (if p then q else r);}};q=[[ar]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.34,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.364,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.615,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.869,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.02,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.018,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s7021993",
+      "index": 2024,
+      "profile": "f0-0003-b-v1",
+      "bytes": 222,
+      "source_sha256": "7f4110a4de2bc85c6be771041821496a5ca615e0c0688e9b3314960bdfba9007",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=q;let a0=match move o{Some(n)=>{value: (if p then s else s);},None=>{value: (if p then q else r);}};r=ar;}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.908,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.293,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.197,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.093,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.002,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.021,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s7021993",
+      "index": 2575,
+      "profile": "f0-0003-b-v1",
+      "bytes": 210,
+      "source_sha256": "a0925a21539fbf8d899bb84a260e445bb78bdc9a9a5fc7577729a835fcd65e86",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else r);},None=>{value: (if p then q else r);}};q=aar;}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.089,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.373,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.031,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 28.651,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.418,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.317,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s7021993",
+      "index": 3521,
+      "profile": "f0-0003-b-v1",
+      "bytes": 207,
+      "source_sha256": "5d052d4a5d173ecbfc5e8372e0c10514382871c74d357ccbfcf2e88bf09ff092",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then [q,r] else [q,r]);},None=>{value: [q,r];}};q=aar;q=r;}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 20.832,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.996,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.795,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.577,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.296,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.264,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s7021993",
+      "index": 3758,
+      "profile": "f0-0003-b-v1",
+      "bytes": 193,
+      "source_sha256": "1e94b3523a71d9c4aadd3c31db7e9d0c6762d09bb84f3c8d1730f005a29ea1ea",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else q);},None=>{value: [r];}};q=aar;}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.206,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.092,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.035,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.037,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.017,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.143,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s4417061",
+      "index": 1561,
+      "profile": "f0-0003-b-v1",
+      "bytes": 209,
+      "source_sha256": "23d9296ba22e85b0199fb3f6e4f9fccc333f450f0e27b8f31dd98e3e5a43b443",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else q[0]);},None=>{value: r[0];}};s=[true];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.421,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.237,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.241,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 28.113,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.889,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.838,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s4417061",
+      "index": 2667,
+      "profile": "f0-0003-b-v1",
+      "bytes": 213,
+      "source_sha256": "369781d5008462d1f66b5e56324743c24461cb1648d4aae2debd4ebb51f78074",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else r);},None=>{value: (if p then q else r);}};q=[[ar]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 20.856,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.983,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.449,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.85,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.004,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.053,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "s9908255",
+      "index": 2902,
+      "profile": "f0-0003-b-v1",
+      "bytes": 203,
+      "source_sha256": "6e53bbe8170d85c12ebbb06ded6c2e4dd865f7fe234b531be5f8a1575b29deea",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then q else s);},None=>{value: r;}};q=r;q=ar;}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.866,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.344,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.054,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.271,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.92,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.075,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 526,
+      "profile": "f0-0003-b-v1",
+      "bytes": 214,
+      "source_sha256": "cd8273d30487cd695274b16c5204ec6cfa6ae7e9720c0fdd7827d65abb8fc4e0",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then q else q);},None=>{value: r[0];}};q=[[3]];s=[true];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.101,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.561,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.278,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 28.874,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.218,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.164,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 3121,
+      "profile": "f0-0003-b-v1",
+      "bytes": 197,
+      "source_sha256": "13a6272a8ecd449a1dbd22a1716abfedf54bcf99df5384c8a3f167047b4ef04c",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r[0] else q);},None=>{value: q;}};r=[[ar]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 20.872,
+            "accepted": true
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "simulator_fault",
+            "elapsed_ms": 21.084,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.141,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.236,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.729,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.976,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 3436,
+      "profile": "f0-0003-b-v1",
+      "bytes": 203,
+      "source_sha256": "dbc048a1b9e4d8b0e98570faa1c6fc40b8f2a32d97bed860524ac6d5705ac3d1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else r[0]);},None=>{value: q;}};q=[3];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.048,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.869,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.425,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.078,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.462,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.536,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 5211,
+      "profile": "f0-0003-b-v1",
+      "bytes": 213,
+      "source_sha256": "62717b4d9260e94a56f345aaec13202eabce96af19a2d517aae58677091e041a",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else (if p then q else r));},None=>{value: r;}};r=[true];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.218,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.992,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.142,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 29.107,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.599,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.151,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 6313,
+      "profile": "f0-0003-b-v1",
+      "bytes": 196,
+      "source_sha256": "45d7ff7b5e4058c4a666bdb73c3495ba07a5f78bb7c7dcd2f2576f0eab0b3d95",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then [q] else r);},None=>{value: [q];}};q=[ar];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.104,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.325,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.225,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.151,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.021,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.084,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 7240,
+      "profile": "f0-0003-b-v1",
+      "bytes": 209,
+      "source_sha256": "f94881761fc1d193da7be9e9c70c12c272e25bd910e9b00d82d0707f92a3846a",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then [q,r] else s);},None=>{value: s;}};r=[ar];q=r;}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.209,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.938,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.916,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.207,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.29,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.889,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 795,
+      "profile": "f0-0003-b-v1",
+      "bytes": 213,
+      "source_sha256": "2b4f47ad7ab18d8748a9ddaa761581b14e1d26a252106a77c68270120ff9a750",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else [q]);},None=>{value: [q,r];}};r=q;q=[[ar]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.289,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.635,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.326,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 28.461,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.609,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.438,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 1917,
+      "profile": "f0-0003-b-v1",
+      "bytes": 212,
+      "source_sha256": "28194efc6bf9e376900e46e95ba77f214e0eba3fc0f6ffdc461fc76cc6412591",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then r else r);},None=>{value: s;}};q=[[ar]];s=[[ar]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.112,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.277,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.017,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.127,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.955,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.863,
+            "accepted": false
+          }
+        }
+      }
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 7157,
+      "profile": "f0-0003-b-v1",
+      "bytes": 213,
+      "source_sha256": "175ee2ba3ac24e3a7755733612c4f45b800c85a48c229fbf78b508688bea3024",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else r) else r);},None=>{value: q;}};q=[[ar]];}",
+      "pass_counter_error": {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      },
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 20.812,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.971,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 20.94,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.29,
+            "accepted": false
+          }
+        },
+        "r6_debug": {
+          "check": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.349,
+            "accepted": false
+          },
+          "run": {
+            "exit": 2,
+            "outcome": "driver_error",
+            "elapsed_ms": 21.107,
+            "accepted": false
+          }
+        }
+      }
+    }
+  ]
+}

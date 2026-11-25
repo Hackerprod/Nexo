@@ -1,0 +1,19 @@
+{
+  "corpus": "c1-nueva",
+  "rows": 8000,
+  "binary_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,passes",
+  "max_passes": 2,
+  "histogram": [
+    [
+      1,
+      31
+    ],
+    [
+      2,
+      7969
+    ]
+  ],
+  "inconclusive": [],
+  "driver_errors": []
+}

@@ -1,0 +1,32 @@
+{
+  "corpus": "s9908255",
+  "rows": 4500,
+  "binary_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,passes",
+  "max_passes": 2,
+  "histogram": [
+    [
+      0,
+      49
+    ],
+    [
+      1,
+      20
+    ],
+    [
+      2,
+      4430
+    ]
+  ],
+  "inconclusive": [],
+  "driver_errors": [
+    [
+      2902,
+      {
+        "driver_error": "internal_error",
+        "exit": 2,
+        "stderr": "PASSES 2\n"
+      }
+    ]
+  ]
+}
