@@ -1060,7 +1060,7 @@ struct PendingDeferredJoin {
     // this immutable boundary; later completion only changes the obligation.
     r1_occurrence: (u64, u64),
     r1_context_scope: Option<(u64, u64)>,
-    r1_statement: u64,
+    r1_consumers: Vec<FactId>,
 }
 
 // Disposable R1 representation: a retired obligation leaves planning
@@ -1072,7 +1072,7 @@ struct R1JoinEvidence {
     constructor: u64,
     branch: bool,
     context_scope: Option<(u64, u64)>,
-    statement: u64,
+    consumers: Vec<FactId>,
 }
 
 // Disposable R4: source-ordered events are replayed into read-site gates.
@@ -2242,7 +2242,7 @@ struct InferenceGraph {
     nested_assignment_sites: HashSet<u64>,
     pre_assignment_snapshot: HashMap<u64, Option<ConcreteEvidence>>,
     projected_bases: HashSet<u64>,
-    r5_projection_context: HashMap<u64, (u64, bool)>,
+    r5_projection_context: HashMap<u64, (Vec<FactId>, bool)>,
     projection_items: HashSet<u64>,
     assigned_bases: HashSet<u64>,
     assignment_starts: HashMap<u64, u64>,
@@ -2476,7 +2476,7 @@ impl InferenceGraph {
                 constructor: join.constructor,
                 branch: join.branch,
                 context_scope: join.r1_context_scope,
-                statement: join.r1_statement,
+                consumers: join.r1_consumers.clone(),
             });
             self.r4_events.push(R4EqualityEvent {
                 occurrence: join.r1_occurrence,
@@ -3243,18 +3243,40 @@ impl Checker<'_> {
         result
     }
 
+    fn r5_consumers(&self, mut fact: FactId) -> Vec<FactId> {
+        let mut consumers = Vec::new();
+        loop {
+            let Some(current) = self.graph.active_facts.get(&fact) else {
+                break;
+            };
+            if matches!(
+                current.role,
+                FactRole::Expression | FactRole::Operator | FactRole::Selector
+            ) {
+                consumers.push(fact);
+            }
+            let Some(parent) = current.parent else {
+                break;
+            };
+            fact = parent;
+        }
+        consumers
+    }
+
     fn r5_external_projection(&self, join: &R1JoinEvidence, chain: &[u64]) -> bool {
         let Some((scope_start, _)) = join.context_scope else {
             return false;
         };
         self.graph.expr_vars.iter().any(|(span, id)| {
-            let same_evaluation = self
-                .graph
-                .r5_projection_context
-                .get(id)
-                .is_some_and(|(statement, in_union)| *statement == join.statement && !in_union);
+            let shared_consumer =
+                self.graph
+                    .r5_projection_context
+                    .get(id)
+                    .is_some_and(|(consumers, in_union)| {
+                        !in_union && consumers.iter().any(|id| join.consumers.contains(id))
+                    });
             span.0 < scope_start
-                && same_evaluation
+                && shared_consumer
                 && self.graph.projection_items.contains(id)
                 && chain.contains(&self.root_no_compress(*id))
         })
@@ -5395,6 +5417,7 @@ impl Checker<'_> {
                 .push(scope);
         }
         let r1_occurrence = span_key(&found);
+        let r1_consumers = self.r5_consumers(fact);
         self.graph
             .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
                 left,
@@ -5408,7 +5431,7 @@ impl Checker<'_> {
                 comparison_domain_if_unresolved: None,
                 r1_occurrence,
                 r1_context_scope: policy.branch.then_some(scope),
-                r1_statement: self.top_statement_start,
+                r1_consumers,
             })));
     }
 
@@ -6859,6 +6882,7 @@ impl Checker<'_> {
                     pending_before,
                 } => {
                     if let Err(error) = outcome {
+                        let r1_consumers = self.r5_consumers(request.fact);
                         if error.code == "NX-E0102"
                             && (self.graph.type_nodes[&a_root].variant_children.is_some()
                                 || self.graph.type_nodes[&b_root].variant_children.is_some())
@@ -6873,7 +6897,7 @@ impl Checker<'_> {
                                     left_origin: request.left_origin,
                                     r1_occurrence: span_key(&request.found),
                                     r1_context_scope: None,
-                                    r1_statement: self.top_statement_start,
+                                    r1_consumers: r1_consumers.clone(),
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -6898,7 +6922,7 @@ impl Checker<'_> {
                                     left_origin: request.left_origin,
                                     r1_occurrence: span_key(&request.found),
                                     r1_context_scope: None,
-                                    r1_statement: self.top_statement_start,
+                                    r1_consumers,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -6932,6 +6956,7 @@ impl Checker<'_> {
                     pending_before,
                 } => {
                     if let Err(error) = outcome {
+                        let r1_consumers = self.r5_consumers(request.fact);
                         let root = self.root(id);
                         if error.code == "NX-E0102"
                             && concrete_union(&other).is_some()
@@ -6954,7 +6979,7 @@ impl Checker<'_> {
                                     left_origin: request.left_origin,
                                     r1_occurrence: span_key(&request.found),
                                     r1_context_scope: None,
-                                    r1_statement: self.top_statement_start,
+                                    r1_consumers,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -12837,10 +12862,10 @@ impl Checker<'_> {
                         };
                         self.graph.expr_vars.insert(span_key(e.span()), child);
                         self.graph.projection_items.insert(child);
-                        self.graph.r5_projection_context.insert(
-                            child,
-                            (self.top_statement_start, self.active_if_span.is_some()),
-                        );
+                        let consumers = self.r5_consumers(visit);
+                        self.graph
+                            .r5_projection_context
+                            .insert(child, (consumers, self.active_if_span.is_some()));
                         self.graph
                             .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                         return Ok(Type::Deferred(child));

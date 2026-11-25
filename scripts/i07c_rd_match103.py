@@ -25,22 +25,29 @@ def inspect(exe, src, profile, flags):
             env.pop("NEXO_XV", None)
         else:
             env["NEXO_XV"] = flags
-        process = subprocess.Popen(
-            [exe, "check", "--format", "json", "--profile", profile, str(source)],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
-        )
-        started = time.monotonic()
-        while process.poll() is None:
-            if sweep.working_set(process.pid) > sweep.MAX_WORKING_SET:
-                process.kill()
-                process.wait()
-                raise RuntimeError("INCONCLUSO: child exceeded 6 GB")
-            if time.monotonic() - started > sweep.SILENCE_LIMIT:
-                process.kill()
-                process.wait()
-                raise RuntimeError("INCONCLUSO: child exceeded 20 min")
-            time.sleep(0.02)
-        output, error = process.communicate()
+        with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+            process = subprocess.Popen(
+                [exe, "check", "--format", "json", "--profile", profile, str(source)],
+                stdout=stdout, stderr=stderr, env=env,
+            )
+            last_output = time.monotonic()
+            last_size = 0
+            while process.poll() is None:
+                size = os.fstat(stdout.fileno()).st_size + os.fstat(stderr.fileno()).st_size
+                if size != last_size:
+                    last_output, last_size = time.monotonic(), size
+                if sweep.working_set(process.pid) > sweep.MAX_WORKING_SET:
+                    process.kill()  # This process belongs to this invocation.
+                    process.wait()
+                    raise RuntimeError("INCONCLUSO: child exceeded 6 GB")
+                if time.monotonic() - last_output > sweep.SILENCE_LIMIT:
+                    process.kill()  # This process belongs to this invocation.
+                    process.wait()
+                    raise RuntimeError("INCONCLUSO: child exceeded 20 min of silence")
+                time.sleep(0.02)
+            stdout.seek(0)
+            stderr.seek(0)
+            output, error = stdout.read(), stderr.read()
     try:
         data = json.loads(output)
     except (TypeError, ValueError) as exc:

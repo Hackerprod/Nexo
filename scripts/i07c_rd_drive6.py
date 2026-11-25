@@ -12,7 +12,7 @@ import time
 import i07c_rd_sweep as sweep
 
 BASE = "C:/nexo-work/target-rd-main/release/nexo.exe"
-CANDIDATE = "C:/nexo-work/target-rd/release/nexo.exe"
+CANDIDATE = "C:/nexo-work/tmp/r5-statement-82729b1f.exe"
 FLAGS = "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r5prefix,r1t5,r5t5"
 CORPORA = [
     "b-projections-2026112401", "b-projections-t5-2026112402",
