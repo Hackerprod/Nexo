@@ -305,7 +305,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102 Bool tras I64: expected_type=[10,11); dominio Copyable rechaza MockResource",
       "target_output": "E0102 Bool tras I64: expected_type=[10,11); dominio Copyable rechaza MockResource",
-      "target_reason_adr": "I64 se fija primero en recorrido; unión posterior no reemplaza OriginFact. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "target_reason_adr": "I64 se fija primero en recorrido; unión posterior no reemplaza OriginFact. F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
       "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
@@ -369,7 +369,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102: Bool/I64, expected_type=[2,12)",
       "target_output": "E0102: I64/Bool, expected_type=[6,7)",
-      "target_reason_adr": "El hijo I64 se comprueba antes del resultado exterior Bool aunque [2,12) empiece antes. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "target_reason_adr": "El hijo I64 se comprueba antes del resultado exterior Bool aunque [2,12) empiece antes. F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
       "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
@@ -499,7 +499,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102: I64/Bool, expected_type=[5,6)",
       "target_output": "E0102: I64/Bool, expected_type=[5,6)",
-      "target_reason_adr": "El hecho I64 precede a Bool en recorrido; rechazo no publica origen. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "target_reason_adr": "El hecho I64 precede a Bool en recorrido; rechazo no publica origen. F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
       "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
@@ -1292,7 +1292,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102: Bool/I64, expected_type=[5,15)",
       "target_output": "E0102: I64/Bool, expected_type=[10,20)",
-      "target_reason_adr": "El hijo I64 [10,20) se comprueba antes del exterior Bool [5,15). F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "target_reason_adr": "El hijo I64 [10,20) se comprueba antes del exterior Bool [5,15). F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
       "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
@@ -3104,7 +3104,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0103 primary=[10,11)",
       "target_output": "E0103 primary=[10,11)",
-      "target_reason_adr": "Los dos spans empiezan en 10; el primer ConstructorDuty visitado gana por recorrido. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "target_reason_adr": "Los dos spans empiezan en 10; el primer ConstructorDuty visitado gana por recorrido. F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
       "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
