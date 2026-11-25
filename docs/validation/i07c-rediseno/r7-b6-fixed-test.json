@@ -1,0 +1,216 @@
+{
+  "schema": "i07c-r7-b6-fixed-v1",
+  "test": "i07c_causal_obligations::first_indexed_array_assignment_owns_later_element_origin",
+  "historical_commit": "267e8c2a99fec4600205465dbd2b89711dade965",
+  "current_commit": "654e322422f3b44f5e182718e8fcd41d7941bed6",
+  "binary_sha256": {
+    "main": "9a071e940c39a0cb944af6bc2f171f6d3f7740080dc641a045342374093f7044",
+    "b6_proto": "e4b90463cd4701794a40744f22853c76e1bdb6c46b8a355b71ce427186b3e4d0",
+    "r7_proto": "c4dff09f7fdc4b8243f02dfa1b91ca368f42247f609932f019da7494798ffff5"
+  },
+  "adr_clause": "F0-0002 sections4.1.2.2, 4.1.2.6, 13.17",
+  "treatment": "prototype_equals_main; already fixed on R7",
+  "rows": [
+    {
+      "id": "flat",
+      "source": "fn Main(){var o=[];o=[(if true then [1] else [2])[0]];o=[true];}",
+      "source_sha256": "0c66e4730610c624dc28f9da2bca4219ce6c75b6e84c320db4a9a780140303bb",
+      "profile": "f0-0002-b-v2",
+      "outputs": {
+        "main": {
+          "exit": 1,
+          "outcome": "rejected",
+          "diagnostics": [
+            {
+              "code": "NX-E0102",
+              "subcause": "type_mismatch",
+              "primary": [
+                57,
+                61
+              ],
+              "expected_type": "I64",
+              "found_type": "Bool",
+              "relations": [
+                {
+                  "role": "expected_type",
+                  "span": [
+                    21,
+                    53
+                  ]
+                },
+                {
+                  "role": "found_type",
+                  "span": [
+                    57,
+                    61
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "b6_proto": {
+          "exit": 1,
+          "outcome": "rejected",
+          "diagnostics": [
+            {
+              "code": "NX-E0102",
+              "subcause": "type_mismatch",
+              "primary": [
+                57,
+                61
+              ],
+              "expected_type": "I64",
+              "found_type": "Bool",
+              "relations": [
+                {
+                  "role": "expected_type",
+                  "span": [
+                    21,
+                    53
+                  ]
+                },
+                {
+                  "role": "found_type",
+                  "span": [
+                    57,
+                    61
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "r7_proto": {
+          "exit": 1,
+          "outcome": "rejected",
+          "diagnostics": [
+            {
+              "code": "NX-E0102",
+              "subcause": "type_mismatch",
+              "primary": [
+                57,
+                61
+              ],
+              "expected_type": "I64",
+              "found_type": "Bool",
+              "relations": [
+                {
+                  "role": "expected_type",
+                  "span": [
+                    21,
+                    53
+                  ]
+                },
+                {
+                  "role": "found_type",
+                  "span": [
+                    57,
+                    61
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "nested",
+      "source": "fn Main(){var o=[];o=[(if true then [[1]] else [[2],[3]])[0],[0,1],[2,3]];o=[true];}",
+      "source_sha256": "225993d7c81402e5a3568bb48000fedec76bc91faa254bead50eae07fa6f441b",
+      "profile": "f0-0002-b-v2",
+      "outputs": {
+        "main": {
+          "exit": 1,
+          "outcome": "rejected",
+          "diagnostics": [
+            {
+              "code": "NX-E0102",
+              "subcause": "type_mismatch",
+              "primary": [
+                77,
+                81
+              ],
+              "expected_type": "Array<I64>",
+              "found_type": "Bool",
+              "relations": [
+                {
+                  "role": "expected_type",
+                  "span": [
+                    21,
+                    73
+                  ]
+                },
+                {
+                  "role": "found_type",
+                  "span": [
+                    77,
+                    81
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "b6_proto": {
+          "exit": 1,
+          "outcome": "rejected",
+          "diagnostics": [
+            {
+              "code": "NX-E0102",
+              "subcause": "type_mismatch",
+              "primary": [
+                77,
+                81
+              ],
+              "expected_type": "Array<I64>",
+              "found_type": "Bool",
+              "relations": [
+                {
+                  "role": "found_type",
+                  "span": [
+                    77,
+                    81
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "r7_proto": {
+          "exit": 1,
+          "outcome": "rejected",
+          "diagnostics": [
+            {
+              "code": "NX-E0102",
+              "subcause": "type_mismatch",
+              "primary": [
+                77,
+                81
+              ],
+              "expected_type": "Array<I64>",
+              "found_type": "Bool",
+              "relations": [
+                {
+                  "role": "expected_type",
+                  "span": [
+                    21,
+                    73
+                  ]
+                },
+                {
+                  "role": "found_type",
+                  "span": [
+                    77,
+                    81
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
