@@ -293,3 +293,13 @@ La segunda instrumentación de R5 (`r45-sondas-segunda.json`, SHA de binario en 
 La tercera medición (`r45-sondas-tercera.json`) sigue en **15/16 y 44/45**. La proyección anidada aún añade `NX-E0103` `[76,78)`; registrar solo `active_if_span` al producir la proyección no identifica con fiabilidad su contención sintáctica. O08 cambia, pero no se corrige: faltan los `NX-E0102` `[100,101)` y `[107,109)`, y aparecen `NX-E1303` `[144,147)` y `NX-E0102` `[155,158)`. Vaciar todo el contexto esperado tras una condición inválida elimina errores propios de las ramas. La siguiente hipótesis conserva `expected` y retira solo el ancla exterior; para la proyección registra todos los intervalos sintácticos `if` y exige que la evidencia esté fuera de ellos. Sigue sin barrido ni PASS.
 
 La cuarta medición (`r45-sondas-cuarta.json`, binario SHA-256 `bf5cb6e764153006b06ef6dda55fd3d1654fcd566c94c873f54110ea2decfb00`) da **16/16 sondas y 45/45 T5/N** tanto para `r5prefix,r1t5,r5t5` como al añadir `txmarks,txmarksproj`. La evidencia de proyección externa se calcula desde intervalos sintácticos de `if` y el contexto esperado solo se retira cuando dependía de un ancla exterior que una condición inválida no puede ofrecer. O08 conserva sus cuatro diagnósticos internos, `incompatible_prefix` conserva su contraste de ramas y los dos `planned` dejan de retipar la lectura. El binario se fijó como `.scratch/rd-bin/r5.exe` (reconstruible por el SHA); **entra al barrido completo**, sin PASS todavía.
+
+### R5: primeros lotes del barrido (todavía incompleto)
+
+En c1 0..4.000, la tabla publicada `summary-r5-c1.json` da core **A/B/C/D = 0/425/0/0** y full **1/227/2311/230**. El único A full es el índice 2882; el diferencial núcleo coincide. Fuente exacta de 189 bytes:
+
+```nexo
+fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then (if p then r else r[0]) else (if p then [q] else r)) else [q])==aar;q=[[3]];r=q;}
+```
+
+Para `NX-E0102/type_mismatch` con primario `[186,187)`, `main` y el oráculo derivan `expected_type` `[148,151)` (el `[q]` anterior); R5 la traslada a `[178,183)` (la asignación posterior `q=[[3]]`). La causa inmediata es pérdida de procedencia de prefijo al completar una lectura anterior con evidencia posterior, familia S5a.5 y regla A de `F0-0002-lagunas.md`. Todavía no se ha reducido a mínimo ni se ha adjudicado si otras filas full comparten la causa. El binario permanece fijo y el resto del barrido sigue; **no es PASS**.
