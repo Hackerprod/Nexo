@@ -579,7 +579,12 @@ class Checker:
             first = None
             any_bad = False
             for el in g.elems:
-                sub_i = Ctx(E, ctx.mode, ctx.rel, ctx.wit, ctx.box)
+                component_origin = (src_of_type(E) if ctx.mode == "assign"
+                                    and ((E.k == "var" and E.wit is not None) or ctx.rel == "origin")
+                                    else None)
+                if component_origin in self.read_origins and component_origin not in self.continuation_roots:
+                    component_origin = self.read_origins[component_origin] or component_origin
+                sub_i = Ctx(E, ctx.mode, component_origin or ctx.rel, ctx.wit, ctx.box)
                 sub_i.lit = ctx.mode == "ref"
                 v = self.check_elem(el, sub_i)
                 any_bad |= v.bad
@@ -935,6 +940,10 @@ ADR = [
      [("NX-E0102", "type_mismatch", (62, 66), "I64", "Bool", (56, 57))], "F2 N11 continuacion conserva lectura"),
     ("fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=[3];let a0=(if p then s else (if p then aar else [q,r]));q=[[ar]];}",
      [("NX-E0102", "type_mismatch", (150, 154), "I64", "Array<Array<I64>>", (90, 93))], "F2 #13262 componente dentro de continuacion"),
+    ("fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then q else aar);q=[[ar]];}",
+     [("NX-E0103", None, (76, 78), "", "", None),
+      ("NX-E0102", "type_mismatch", (113, 115), "I64", "Array<I64>", (104, 107))],
+     "F2 c1:4 continuacion completa conserva lectura"),
 ]
 
 
