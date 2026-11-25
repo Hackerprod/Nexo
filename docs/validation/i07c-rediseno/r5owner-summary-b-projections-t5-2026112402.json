@@ -1,0 +1,50 @@
+{
+  "corpus": "b-projections-t5-2026112402",
+  "n": 3000,
+  "unmodeled": 0,
+  "core": {
+    "A": 22,
+    "B": 1063,
+    "C": 162,
+    "D": 117
+  },
+  "full": {
+    "A": 20,
+    "B": 399,
+    "C": 1288,
+    "D": 952
+  },
+  "ok": {
+    "core": 1636,
+    "full": 341
+  },
+  "same_unmodeled": 0,
+  "changed_unmodeled": 0,
+  "regressions": [
+    172,
+    416,
+    537,
+    581,
+    594,
+    812,
+    950,
+    1089,
+    1217,
+    1254,
+    1373,
+    1421,
+    1553,
+    1559,
+    1593,
+    1800,
+    2272,
+    2334,
+    2372,
+    2460,
+    2836,
+    2980
+  ],
+  "base_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "candidate_sha256": "82729b1f2b6c21300974a455614c2c12ad0d20a48c4f3da00456ae9cfc4890eb",
+  "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r5prefix,r1t5,r5t5"
+}

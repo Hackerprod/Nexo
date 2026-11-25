@@ -1,0 +1,570 @@
+{
+  "binary_sha256": "82729b1f2b6c21300974a455614c2c12ad0d20a48c4f3da00456ae9cfc4890eb",
+  "rows": [
+    {
+      "piece": "pendfa",
+      "corpus": "c1",
+      "index": 4896,
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then [q,r] else r) else r3)==ar;r=ar;}",
+      "expected": [
+        [
+          "NX-E1303",
+          null,
+          119,
+          120
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          137,
+          139
+        ]
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          119,
+          120
+        ],
+        [
+          "NX-E1303",
+          null,
+          127,
+          129
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          137,
+          139
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E1303",
+          null,
+          119,
+          120
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          137,
+          139
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E1303",
+          null,
+          119,
+          120
+        ],
+        [
+          "NX-E1303",
+          null,
+          127,
+          129
+        ]
+      ],
+      "discriminates": true
+    },
+    {
+      "piece": "retfa",
+      "corpus": "c1",
+      "index": 15495,
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then q else [q,r]) else 1);r=[true];}",
+      "expected": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          120
+        ],
+        [
+          "NX-E1303",
+          null,
+          127,
+          128
+        ]
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          120
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          120
+        ],
+        [
+          "NX-E1303",
+          null,
+          127,
+          128
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          120
+        ]
+      ],
+      "discriminates": true
+    },
+    {
+      "piece": "retract",
+      "corpus": "c1",
+      "index": 4929,
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then true else (if p then 1 else ar)));r=q;q=[[3]];}",
+      "expected": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          119
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          156,
+          159
+        ]
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          119
+        ],
+        [
+          "NX-E1303",
+          null,
+          136,
+          137
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          119
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          156,
+          159
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E1303",
+          null,
+          115,
+          119
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          156,
+          159
+        ]
+      ],
+      "discriminates": false
+    },
+    {
+      "piece": "nojoin+nojoinr",
+      "corpus": "c2",
+      "index": 6392,
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0:Array<Array<I64>>=(if p then q else (if p then ar else ar));}",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          133,
+          135
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          141,
+          143
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          123,
+          143
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          133,
+          135
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          141,
+          143
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          133,
+          135
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          141,
+          143
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          123,
+          143
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          133,
+          135
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          141,
+          143
+        ]
+      ],
+      "discriminates": true
+    },
+    {
+      "piece": "atomic0",
+      "corpus": "c1",
+      "index": 9440,
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then q else (if p then 1 else aar)));q=r;}",
+      "expected": [
+        [
+          "NX-E1303",
+          null,
+          114,
+          115
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E1303",
+          null,
+          121,
+          124
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E1303",
+          null,
+          114,
+          115
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E1303",
+          null,
+          114,
+          115
+        ]
+      ],
+      "discriminates": false
+    },
+    {
+      "piece": "e0103rule",
+      "corpus": "b",
+      "index": 80,
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then r[0] else r));}",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E0103",
+          null,
+          106,
+          107
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E0103",
+          null,
+          106,
+          107
+        ]
+      ],
+      "discriminates": true
+    },
+    {
+      "piece": "retfail",
+      "corpus": "c1",
+      "index": 14436,
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then r else (if p then 1 else r)) else ar);}",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E1303",
+          null,
+          126,
+          127
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E1303",
+          null,
+          142,
+          144
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E1303",
+          null,
+          126,
+          127
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E0103",
+          null,
+          67,
+          69
+        ],
+        [
+          "NX-E0103",
+          null,
+          76,
+          78
+        ],
+        [
+          "NX-E1303",
+          null,
+          142,
+          144
+        ]
+      ],
+      "discriminates": true
+    },
+    {
+      "piece": "rmm3",
+      "corpus": "c2",
+      "index": 7454,
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then [q,r] else [q]) else 2);},None=>{value: aar;}};}",
+      "expected": [
+        [
+          "NX-E1303",
+          null,
+          185,
+          186
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E1303",
+          null,
+          185,
+          186
+        ]
+      ],
+      "ablated": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104
+        ]
+      ],
+      "discriminates": true
+    },
+    {
+      "piece": "skipv3",
+      "corpus": "negative-recursive",
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          66,
+          67
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          66,
+          67
+        ]
+      ],
+      "complete": [
+        [
+          "NX-E0103",
+          null,
+          66,
+          67
+        ]
+      ],
+      "ablated": [],
+      "discriminates": true
+    }
+  ]
+}
