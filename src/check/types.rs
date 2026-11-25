@@ -1073,6 +1073,17 @@ struct R1JoinEvidence {
     context_scope: Option<(u64, u64)>,
 }
 
+// Disposable R4: source-ordered events are replayed into read-site gates.
+// They deliberately outlive the pending queue, whose entries are drained by
+// finalization before the planning pass examines later assignments.
+#[derive(Clone)]
+struct R4EqualityEvent {
+    occurrence: (u64, u64),
+    constructor: u64,
+    scope: Option<(u64, u64)>,
+    branch: bool,
+}
+
 #[derive(Clone)]
 struct R2ReadSite {
     occurrence: (u64, u64),
@@ -2211,6 +2222,7 @@ struct InferenceGraph {
     // array-on-left, and branch join (NX-E1303 instead of NX-E0102).
     obligations: Vec<ObligationKind>,
     r1_join_history: Vec<R1JoinEvidence>,
+    r4_events: Vec<R4EqualityEvent>,
     r2_reads: Vec<R2ReadSite>,
     r2_blocked_reads: HashSet<(u64, u64)>,
     r2_prefix_nodes: HashMap<(u64, u64), R2ReadPrefix>,
@@ -2228,6 +2240,7 @@ struct InferenceGraph {
     nested_assignment_sites: HashSet<u64>,
     pre_assignment_snapshot: HashMap<u64, Option<ConcreteEvidence>>,
     projected_bases: HashSet<u64>,
+    r5_projection_if_owner: HashMap<(u64, u64), Option<(u64, u64)>>,
     projection_items: HashSet<u64>,
     assigned_bases: HashSet<u64>,
     assignment_starts: HashMap<u64, u64>,
@@ -2461,6 +2474,12 @@ impl InferenceGraph {
                 constructor: join.constructor,
                 branch: join.branch,
                 context_scope: join.r1_context_scope,
+            });
+            self.r4_events.push(R4EqualityEvent {
+                occurrence: join.r1_occurrence,
+                constructor: join.constructor,
+                scope: join.r1_context_scope,
+                branch: join.branch,
             });
         }
         let (class, site) = obligation.occurrence();
@@ -3221,6 +3240,24 @@ impl Checker<'_> {
         result
     }
 
+    fn r5_external_projection(&self, join: &R1JoinEvidence, chain: &[u64]) -> bool {
+        let Some((scope_start, _)) = join.context_scope else {
+            return false;
+        };
+        self.graph.expr_vars.iter().any(|(span, id)| {
+            let nested_in_join = self
+                .graph
+                .r5_projection_if_owner
+                .get(span)
+                .and_then(|owner| *owner)
+                .is_some_and(|(start, end)| start <= join.occurrence.0 && join.occurrence.0 < end);
+            span.0 < scope_start
+                && !nested_in_join
+                && self.graph.projection_items.contains(id)
+                && chain.contains(&self.root_no_compress(*id))
+        })
+    }
+
     fn collect_planned_shapes(&mut self) -> bool {
         let mut changed = false;
         if xv("r2view") {
@@ -3314,7 +3351,40 @@ impl Checker<'_> {
             let has_deferred_join = chain
                 .iter()
                 .any(|root| self.graph.type_nodes[root].deferred_join);
-            let has_deferred_join = if xv("r1ledger") && xv("r1history") {
+            let has_deferred_join = if xv("r5prefix") {
+                self.pending_joins().any(|join| {
+                    join.branch
+                        && join.r1_context_scope.is_some()
+                        && self
+                            .graph
+                            .assignment_starts
+                            .get(&site)
+                            .is_none_or(|start| join.r1_occurrence.0 < *start)
+                        && chain.contains(&self.root_no_compress(join.constructor))
+                }) || self.graph.r1_join_history.iter().any(|join| {
+                    join.branch
+                        && self
+                            .graph
+                            .assignment_starts
+                            .get(&site)
+                            .is_none_or(|start| join.occurrence.0 < *start)
+                        && chain.contains(&self.root_no_compress(join.constructor))
+                        && self.r5_external_projection(join, &chain)
+                })
+            } else if xv("r4replay") {
+                let mut events = self.graph.r4_events.clone();
+                events.sort_by_key(|event| event.occurrence);
+                events.iter().any(|event| {
+                    event.branch
+                        && event.scope.is_some()
+                        && self
+                            .graph
+                            .assignment_starts
+                            .get(&site)
+                            .is_none_or(|start| event.occurrence.0 < *start)
+                        && chain.contains(&self.root_no_compress(event.constructor))
+                })
+            } else if xv("r1ledger") && xv("r1history") {
                 self.graph.r1_join_history.iter().any(|join| {
                     join.branch
                         && join.context_scope.is_some()
@@ -3387,7 +3457,40 @@ impl Checker<'_> {
                 && let Some(ty) = read_type
                 && let Some(&assignment_start) = self.graph.assignment_starts.get(&site)
             {
-                let mut blocked: Vec<_> = if xv("r1ledger") && xv("r1history") {
+                let mut blocked: Vec<_> = if xv("r5prefix") {
+                    self.pending_joins()
+                        .filter(|join| {
+                            join.branch
+                                && join.r1_occurrence.0 < assignment_start
+                                && chain.contains(&self.root_no_compress(join.constructor))
+                        })
+                        .filter_map(|join| join.r1_context_scope)
+                        .chain(
+                            self.graph
+                                .r1_join_history
+                                .iter()
+                                .filter(|join| {
+                                    join.branch
+                                        && join.occurrence.0 < assignment_start
+                                        && chain.contains(&self.root_no_compress(join.constructor))
+                                        && self.r5_external_projection(join, &chain)
+                                })
+                                .filter_map(|join| join.context_scope),
+                        )
+                        .collect()
+                } else if xv("r4replay") {
+                    let mut events = self.graph.r4_events.clone();
+                    events.sort_by_key(|event| event.occurrence);
+                    events
+                        .into_iter()
+                        .filter(|event| {
+                            event.branch
+                                && event.occurrence.0 < assignment_start
+                                && chain.contains(&self.root_no_compress(event.constructor))
+                        })
+                        .filter_map(|event| event.scope)
+                        .collect()
+                } else if xv("r1ledger") && xv("r1history") {
                     self.graph
                         .r1_join_history
                         .iter()
@@ -7774,6 +7877,8 @@ impl Checker<'_> {
         // the compilation before another function. Clearing is defensive.
         self.graph.obligations.clear();
         self.graph.r1_join_history.clear();
+        self.graph.r4_events.clear();
+        self.graph.r5_projection_if_owner.clear();
         self.graph.r2_reads.clear();
         self.graph.r2_shadows.clear();
         self.graph.r2_shadow_links.clear();
@@ -12726,6 +12831,12 @@ impl Checker<'_> {
                         };
                         self.graph.expr_vars.insert(span_key(e.span()), child);
                         self.graph.projection_items.insert(child);
+                        if xv("r5prefix") {
+                            self.graph.r5_projection_if_owner.insert(
+                                span_key(e.span()),
+                                self.active_if_span.as_ref().map(span_key),
+                            );
+                        }
                         self.graph
                             .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                         return Ok(Type::Deferred(child));
@@ -14013,9 +14124,26 @@ impl Checker<'_> {
         second_failed: bool,
         second_anchored: bool,
     ) -> Result<(Option<Type>, bool, bool), Box<Diagnostic>> {
-        if xv("r1t5") && progress.r1_condition_tainted {
+        if xv("r1t5") && !xv("r5t5") && progress.r1_condition_tainted {
             return Ok((Some(Type::Tainted), true, false));
         }
+        let result = self.if_finish_join_inner(progress, second, second_failed, second_anchored)?;
+        if xv("r5t5") && progress.r1_condition_tainted {
+            // T5 taints the value offered to the parent; it does not erase
+            // diagnostics owned by this union's branch comparison.
+            return Ok((Some(Type::Tainted), true, false));
+        }
+        Ok(result)
+    }
+
+    #[inline(never)]
+    fn if_finish_join_inner(
+        &mut self,
+        progress: &mut IfProgress<'_>,
+        second: Option<Type>,
+        second_failed: bool,
+        second_anchored: bool,
+    ) -> Result<(Option<Type>, bool, bool), Box<Diagnostic>> {
         let condition = progress.condition;
         let then_block = progress.then_block;
         let otherwise = progress.otherwise;
@@ -14028,11 +14156,18 @@ impl Checker<'_> {
         let anchor_error = progress.anchor_error.take();
         let anchor_pending = progress.anchor_pending;
         let anchor_absorbed = progress.anchor_absorbed;
-        let first_var = branch_value_expr(then_block).and_then(|e| self.expression_variable(e));
+        let first_var = (!xv("r5t5") || first != Some(Type::Tainted))
+            .then(|| branch_value_expr(then_block).and_then(|e| self.expression_variable(e)))
+            .flatten();
         let second_var = match otherwise {
             Some(Else::Block(b)) => branch_value_expr(b).and_then(|e| self.expression_variable(e)),
             Some(Else::If(e)) => self.expression_variable(e),
             None => None,
+        };
+        let second_var = if xv("r5t5") && second == Some(Type::Tainted) {
+            None
+        } else {
+            second_var
         };
         let first_join = first_var.map(Type::Deferred).or_else(|| first.clone());
         let second_join = second_var.map(Type::Deferred).or_else(|| second.clone());
@@ -14495,6 +14630,7 @@ impl Checker<'_> {
             (xv("atomic0") && state == Some(false)).then(|| self.graph.type_nodes.clone());
         let before = self.pending_join_count();
         let r1_history_before = self.graph.r1_join_history.len();
+        let r4_events_before = self.graph.r4_events.len();
         let outcome = match visit {
             None => self.unify_independent(
                 base.0.clone(),
@@ -14519,7 +14655,7 @@ impl Checker<'_> {
             Err(error) => Some(error),
             Ok(_) => None,
         };
-        if xv("r1ledger") || xv("r2view") {
+        if xv("r1ledger") || xv("r2view") || xv("r4replay") || xv("r5prefix") {
             let scope = self
                 .active_if_span
                 .as_ref()
@@ -14539,6 +14675,11 @@ impl Checker<'_> {
             {
                 if join.branch {
                     join.context_scope = Some(scope);
+                }
+            }
+            for event in self.graph.r4_events.iter_mut().skip(r4_events_before) {
+                if event.branch {
+                    event.scope = Some(scope);
                 }
             }
         }
@@ -14578,8 +14719,9 @@ impl Checker<'_> {
             return Ok(AnchorOutcome::Compatible);
         }
         if state == Some(true) {
-            if xv("r1ledger") || xv("r2view") {
+            if xv("r1ledger") || xv("r2view") || xv("r4replay") || xv("r5prefix") {
                 self.graph.r1_join_history.truncate(r1_history_before);
+                self.graph.r4_events.truncate(r4_events_before);
             }
             if let Some((nodes, obligations)) = snapshot {
                 self.graph.type_nodes = nodes;
@@ -14678,7 +14820,10 @@ impl Checker<'_> {
         failed: bool,
         anchored: bool,
     ) -> Result<(), Box<Diagnostic>> {
-        if xv("r1t5") && progress.r1_condition_tainted {
+        if xv("r5t5") && *second == Some(Type::Tainted) {
+            return Ok(());
+        }
+        if xv("r1t5") && !xv("r5t5") && progress.r1_condition_tainted {
             return Ok(());
         }
         let Some(Else::Block(block)) = progress.otherwise else {
@@ -14744,7 +14889,7 @@ impl Checker<'_> {
 
     #[inline(never)]
     fn if_after_first(&mut self, progress: &mut IfProgress<'_>) -> Result<(), Box<Diagnostic>> {
-        if xv("r1t5") && progress.r1_condition_tainted {
+        if xv("r1t5") && !xv("r5t5") && progress.r1_condition_tainted {
             progress.anchor = None;
             return Ok(());
         }
@@ -14767,6 +14912,9 @@ impl Checker<'_> {
                 .filter(|id| !(xv("noprojA") && self.graph.projection_items.contains(id)))
                 .map(Type::Deferred)
         });
+        if xv("r5t5") && progress.first_for_anchor == Some(Type::Tainted) {
+            progress.first_for_anchor = None;
+        }
         if progress.branch_context.expected.is_none()
             && (!progress.first_failed || progress.first_partial)
             && !progress.first_anchored
@@ -16123,6 +16271,7 @@ pub(crate) fn check_with_partial_limit(
             next_variable: 0,
             obligations: Vec::new(),
             r1_join_history: Vec::new(),
+            r4_events: Vec::new(),
             r2_reads: Vec::new(),
             r2_blocked_reads: HashSet::new(),
             r2_prefix_nodes: HashMap::new(),
@@ -16138,6 +16287,7 @@ pub(crate) fn check_with_partial_limit(
             nested_assignment_sites: HashSet::new(),
             pre_assignment_snapshot: HashMap::new(),
             projected_bases: HashSet::new(),
+            r5_projection_if_owner: HashMap::new(),
             union_denounced: HashMap::new(),
             pending_unions: HashSet::new(),
             main_flags: HashMap::new(),
@@ -17748,6 +17898,7 @@ mod quota_tests {
                 next_variable: 0,
                 obligations: Vec::new(),
                 r1_join_history: Vec::new(),
+                r4_events: Vec::new(),
                 r2_reads: Vec::new(),
                 r2_blocked_reads: HashSet::new(),
                 r2_prefix_nodes: HashMap::new(),
@@ -17763,6 +17914,7 @@ mod quota_tests {
                 nested_assignment_sites: HashSet::new(),
                 pre_assignment_snapshot: HashMap::new(),
                 projected_bases: HashSet::new(),
+                r5_projection_if_owner: HashMap::new(),
                 union_denounced: HashMap::new(),
                 pending_unions: HashSet::new(),
                 main_flags: HashMap::new(),

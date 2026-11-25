@@ -35,6 +35,8 @@ CORPUS_SHA256 = {
     "s9908255": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
     "c1-nueva": "dba4c8fdd45b9651403463c36cd30626f4a31c8951ad43c80a11802a1090332d",
     "c2-nueva": "ff3de38ed02ca9857d6f073406d1f7c01c3b26dbb6fdadf8d94ff769a7db49e7",
+    "c1-nueva2": "52b6f21f934f1fb5d60160ca7864c50fd966d2e1ea2911f9d33ccf42c56aeefa",
+    "c2-nueva2": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
 }
 ctypes.windll.kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
 ctypes.windll.kernel32.OpenProcess.restype = wintypes.HANDLE
@@ -73,7 +75,7 @@ def data(name):
     elif name == "dirigido5": path = EXP / "corpus-dirigido5.json"
     elif name.startswith("s") and name[1:] in ("7021993", "4417061", "9908255"):
         path = NEW / ("b-" + name[1:] + ".json")
-    elif name in ("c1-nueva", "c2-nueva"):
+    elif name in ("c1-nueva", "c2-nueva", "c1-nueva2", "c2-nueva2"):
         path = NEW / (name + ".json")
     else:
         raise ValueError(name)
