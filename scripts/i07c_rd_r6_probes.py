@@ -27,6 +27,7 @@ CASES = {
     "X_08_outer_condition_equiv": ("fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}", [("NX-E0102", 24, 25), ("NX-E0102", 31, 35), ("NX-E0102", 62, 66)]),
     "SB_equivalent": ("fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}", [("NX-E0102", 72, 74), ("NX-E0103", 47, 49)]),
     "T5_constructor_equivalent": ("fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}", [("NX-E0103", 36, 38)]),
+    "S_A_independent_constructor_equiv": ("fn Main(){var q=[];let z=true+1;}", [("NX-E0103", 16, 18), ("NX-E0102", 25, 29)]),
     "recursive_69": ("fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}", [("NX-E0103", 60, 63)]),
     "recursive_78_equivalent": ("fn Main(){var q=[];var v=(if true then {return;}else{return;});var a=[v];v=a;}", [("NX-E0103", 16, 18), ("NX-E0103", 69, 72)]),
     "recursive_127_equivalent": ("fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;var w=(if true then {return;}else{return;});var b=[w];w=b;}", [("NX-E0103", 60, 63), ("NX-E0103", 118, 121)]),

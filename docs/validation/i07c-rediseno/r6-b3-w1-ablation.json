@@ -1,0 +1,90 @@
+{
+  "binary_sha256": "a06f16268fe6c99b29c5e1cf203228dcdfb2c026ccc0fd249e975ccc04085e58",
+  "profile": "f0-0002-b-v2",
+  "rows": [
+    {
+      "name": "seed",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+      "bytes": 221,
+      "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5",
+      "actual": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ]
+    },
+    {
+      "name": "noshape",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+      "bytes": 221,
+      "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape",
+      "actual": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ]
+    },
+    {
+      "name": "no_assignment",
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);}",
+      "bytes": 215,
+      "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5",
+      "actual": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ]
+      ]
+    }
+  ]
+}

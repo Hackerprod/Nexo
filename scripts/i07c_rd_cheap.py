@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Disposable, exact core probes before a full I07c corpus scan."""
 import json
+import hashlib
+from pathlib import Path
 import sys
 
 import i07c_rd_oracle as oracle
@@ -47,7 +49,8 @@ def run(exe, src, flags, name):
 
 def main():
     exe, flags = sys.argv[1:3]
-    result = {"flags": flags, "probes": {}, "matrix": {}}
+    result = {"binary_sha256": hashlib.sha256(Path(exe).read_bytes()).hexdigest(),
+              "flags": flags, "probes": {}, "matrix": {}}
     for name, src in MINIMA.items():
         got = run(exe, src, flags, name)
         if got and got[0][0] == -1:
