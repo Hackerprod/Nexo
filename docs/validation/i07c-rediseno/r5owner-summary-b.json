@@ -1,0 +1,27 @@
+{
+  "corpus": "b",
+  "n": 4000,
+  "unmodeled": 41,
+  "core": {
+    "A": 0,
+    "B": 551,
+    "C": 307,
+    "D": 0
+  },
+  "full": {
+    "A": 2,
+    "B": 311,
+    "C": 2214,
+    "D": 280
+  },
+  "ok": {
+    "core": 3101,
+    "full": 1152
+  },
+  "same_unmodeled": 41,
+  "changed_unmodeled": 0,
+  "regressions": [],
+  "base_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "candidate_sha256": "82729b1f2b6c21300974a455614c2c12ad0d20a48c4f3da00456ae9cfc4890eb",
+  "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r5prefix,r1t5,r5t5"
+}
