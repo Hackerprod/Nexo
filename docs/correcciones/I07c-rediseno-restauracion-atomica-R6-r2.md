@@ -18,6 +18,8 @@ Son decisiones adoptadas aparte: T5 (condición fallida y contaminación), liter
 
 ## 2. Identidades y estados
 
+La derivación propuesta para W2 fija el conjunto completo **E0103 `[77,79)` y E1303 `[140,145)`**; el segundo procede de la unión independiente de `a1`. La ablación sin `atomic0` del binario experimental `9d48720e…` coincide con ese conjunto, pero no constituye su oráculo. B debe verificar esta adjudicación contra §4.1.2.2/.4/.5 antes de aprobar el contrato.
+
 `OccurrenceId=(función, nodo AST estable, rol, índice local)`; los offsets son atributos diagnósticos y **no** la identidad. `ConsumerId=(OccurrenceId del operador consumidor, rol de obligación)`, persistente entre visitas de hermanos del driver. `EqualityId=(ConsumerId, ordinal fuente, índice local)`; el ordinal se fija al crear la obligación y no cambia al replanificar. `Epoch` cuenta prefijos publicados, no iteraciones de planning. Cada `Frame` transporta el `ConsumerId` de su obligación y entrega un ID nuevo a un consumidor hijo; `FactId` sigue identificando la visita transitoria, no sirve de identidad persistente.
 
 ```text
