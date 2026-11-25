@@ -245,17 +245,11 @@ fn two_failed_numeric_operands_do_not_supply_an_assignment_type() {
 }
 
 #[test]
-fn adr_gap_nested_union_and_array_element_keep_current_causal_sites() {
+fn nested_union_completes_first_array_before_reporting_later_branch() {
     let nested =
         "fn Main(){let c=true;let br=1;let m0=(if c then [] else (if c then [1] else br));}";
     let array = "fn Main(){let br=1;let a=[[],[1],br];}";
-    assert_eq!(
-        causes(nested),
-        vec![
-            ("NX-E0103".into(), None, "[]".into()),
-            ("NX-E1303".into(), None, "br".into()),
-        ]
-    );
+    assert_eq!(causes(nested), vec![("NX-E1303".into(), None, "br".into())]);
     assert_eq!(
         causes(array),
         vec![("NX-E0102".into(), Some("type_mismatch".into()), "br".into())]

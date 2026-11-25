@@ -12,8 +12,10 @@ import i07c_rd_sweep as sweep
 FROZEN_COMMIT = "f4c47df"
 FROZEN_PATH = "docs/validation/i07c-rediseno/r5-modeled-regressions.json"
 BASE = "main-44bef37452e4"
-CANDIDATE = "proto-66c2cf310e7a-r6"
-DEST = Path("docs/validation/i07c-rediseno/r6-modeladas-73.json")
+from i07c_rd_drive_r6 import CANDIDATE as CANDIDATE_EXE
+
+CANDIDATE = "proto-" + hashlib.sha256(Path(CANDIDATE_EXE).read_bytes()).hexdigest()[:12] + "-r6-final"
+DEST = Path("docs/validation/i07c-rediseno/r6-final-modeladas-73.json")
 
 
 def signature(value, level, short_full):

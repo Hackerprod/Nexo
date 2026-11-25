@@ -2291,9 +2291,12 @@ struct InferenceGraph {
     union_denounced: HashMap<(u64, u64), bool>,
     // Unions whose discrepancy is still pending (no diagnostic of their own yet).
     pending_unions: HashSet<(u64, u64)>,
+    own_join_conflicts: HashSet<(u64, u64)>,
     // Simulation of the consumer flags `main` reports per union: (failed, join_failed, has_type).
     main_flags: HashMap<(u64, u64), (bool, bool, bool)>,
     // NX-E0103 diagnostics omitted by the finalization rule; emitted if nothing else rejects the program.
+    #[allow(clippy::vec_box)]
+    // Disposable R6 prototype preserves boxed diagnostic ownership until C6 removes this ledger.
     skipped_e0103: Vec<Box<Diagnostic>>,
     // Layer index of each unconsumed seed: (binding site, depth).
     preseeded_layer: HashMap<u64, (u64, usize)>,
@@ -3324,10 +3327,7 @@ impl Checker<'_> {
 
     fn r5_consumers(&self, mut fact: FactId) -> Vec<FactId> {
         let mut consumers = Vec::new();
-        loop {
-            let Some(current) = self.graph.active_facts.get(&fact) else {
-                break;
-            };
+        while let Some(current) = self.graph.active_facts.get(&fact) {
             if matches!(
                 current.role,
                 FactRole::Expression | FactRole::Operator | FactRole::Selector
@@ -7900,6 +7900,7 @@ impl Checker<'_> {
         self.graph.projected_bases.clear();
         self.graph.union_denounced.clear();
         self.graph.pending_unions.clear();
+        self.graph.own_join_conflicts.clear();
         self.graph.main_flags.clear();
         self.graph.skipped_e0103.clear();
         self.graph.projection_items.clear();
@@ -9820,6 +9821,7 @@ impl Checker<'_> {
             (result, parent_fact)
         }
         #[inline(never)]
+        #[allow(clippy::boxed_local)] // Keep the extracted driver frame on the heap for the 65 KiB stack gate.
         fn resume_binary<'a>(
             checker: &mut Checker<'_>,
             mut visit: FactId,
@@ -10069,6 +10071,7 @@ impl Checker<'_> {
             Resume::Next(result, visit)
         }
         #[inline(never)]
+        #[allow(clippy::boxed_local)] // Keep the extracted driver frame on the heap for the 65 KiB stack gate.
         fn resume_index<'a>(
             checker: &mut Checker<'_>,
             mut visit: FactId,
@@ -10919,6 +10922,26 @@ impl Checker<'_> {
             Resume::Next(result, visit)
         }
         #[inline(never)]
+        #[cfg(test)]
+        fn trace_helper_exit(checker: &Checker<'_>, tag: Option<&'static str>, resume: &Resume) {
+            if let (Some(tag), Resume::Next(_, visit)) = (tag, resume) {
+                CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| {
+                    if enabled.get() {
+                        FRAME_EXIT_TRACE.with(|trace| {
+                            let fact = checker.graph.fact(*visit);
+                            trace.borrow_mut().push((
+                                tag,
+                                fact.numeric_domain_owner,
+                                fact.tainted,
+                                checker.graph.fact_depth(*visit),
+                                fact.role,
+                            ));
+                        });
+                    }
+                });
+            }
+        }
+        #[inline(never)]
         #[allow(clippy::too_many_arguments)] // Continuation carries one drive's cursor.
         fn resume_non_match<'a>(
             checker: &mut Checker<'_>,
@@ -11115,7 +11138,10 @@ impl Checker<'_> {
                 | Frame::BinaryDeferredRight(..)
                 | Frame::BinaryIndependentLeftError(..)
                 | Frame::BinaryIndependentRight(..)) => {
-                    return resume_binary_tail(checker, visit, frame, result);
+                    let next = resume_binary_tail(checker, visit, frame, result);
+                    #[cfg(test)]
+                    trace_helper_exit(checker, boundary_frame, &next);
+                    return next;
                 }
                 frame @ (Frame::Call(..)
                 | Frame::CallTarget(..)
@@ -11124,7 +11150,7 @@ impl Checker<'_> {
                 | Frame::IntrinsicOne(..)
                 | Frame::TryAdd(..)
                 | Frame::AssertEq(..)) => {
-                    return resume_call_other(
+                    let next = resume_call_other(
                         checker,
                         visit,
                         frame,
@@ -11133,6 +11159,9 @@ impl Checker<'_> {
                         inner,
                         inner_context,
                     );
+                    #[cfg(test)]
+                    trace_helper_exit(checker, boundary_frame, &next);
+                    return next;
                 }
                 Frame::If(mut progress) => {
                     match checker.if_advance(&mut visit, &mut progress, Some(result)) {
@@ -14382,6 +14411,11 @@ impl Checker<'_> {
         let first_partial = progress.first_partial;
         let first_for_anchor = progress.first_for_anchor.clone();
         let anchor_error = progress.anchor_error.take();
+        if anchor_error.is_some() && second.is_some() {
+            self.graph
+                .own_join_conflicts
+                .insert(span_key(progress.expr.span()));
+        }
         let anchor_pending = progress.anchor_pending;
         let anchor_absorbed = progress.anchor_absorbed;
         let first_var = (!xv("r5t5") || first != Some(Type::Tainted))
@@ -15568,7 +15602,7 @@ impl Checker<'_> {
                             .and_then(|expr| self.expression_variable(expr))
                             .map(Type::Deferred)
                     });
-                    let arm_partial = ((xv("matchpartial") || xv("r6witness"))
+                    let arm_partial = (xv("matchpartial")
                         && branch_value_expr(&arm.body).is_some_and(|expr| {
                             self.graph
                                 .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)
@@ -15593,6 +15627,10 @@ impl Checker<'_> {
                                     inner = next;
                                 }
                                 self.graph.pending_unions.contains(&span_key(inner.span()))
+                                    && !self
+                                        .graph
+                                        .own_join_conflicts
+                                        .contains(&span_key(inner.span()))
                             }))
                         || (xv("rmm3")
                             && failed
@@ -16558,6 +16596,7 @@ pub(crate) fn check_with_partial_limit(
             r5_projection_context: HashMap::new(),
             union_denounced: HashMap::new(),
             pending_unions: HashSet::new(),
+            own_join_conflicts: HashSet::new(),
             main_flags: HashMap::new(),
             skipped_e0103: Vec::new(),
             projection_items: HashSet::new(),
@@ -18186,6 +18225,7 @@ mod quota_tests {
                 r5_projection_context: HashMap::new(),
                 union_denounced: HashMap::new(),
                 pending_unions: HashSet::new(),
+                own_join_conflicts: HashSet::new(),
                 main_flags: HashMap::new(),
                 skipped_e0103: Vec::new(),
                 projection_items: HashSet::new(),

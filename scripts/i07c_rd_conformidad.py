@@ -230,6 +230,10 @@ def examine(row: dict, diagnostics: list[dict], command: str, file: str) -> tupl
 
 
 def public_diagnostics(document: dict) -> list[dict]:
+    if document.get("driver_error") is not None or document.get("internal_error") is not None:
+        raise ValueError(f"hard driver error: {document.get('driver_error') or document.get('internal_error')}")
+    if (document.get("outcome") or {}).get("kind") not in ("checked", "rejected", "unit", "simulator_fault"):
+        raise ValueError(f"abnormal outcome: {document.get('outcome')}")
     result = []
     for item in document["diagnostics"]:
         diag = normalized(item)

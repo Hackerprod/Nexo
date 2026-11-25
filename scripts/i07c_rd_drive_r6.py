@@ -13,7 +13,7 @@ import i07c_rd_sweep as sweep
 
 BASE = "C:/nexo-work/target-rd-main/release/nexo.exe"
 CANDIDATE = "C:/nexo-work/target-r6/release/nexo.exe"
-FLAGS = "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness"
+FLAGS = "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b"
 CORPORA = [
     "b-projections-2026112401", "b-projections-t5-2026112402",
     "b-projections-2026112403", "owner-projections-771412",
@@ -80,7 +80,7 @@ def main():
     if not base_hash.startswith("44bef374"):
         raise RuntimeError(f"unexpected main binary {base_hash}")
     base_tag = "main-" + base_hash[:12]
-    candidate_tag = "proto-" + candidate_hash[:12] + "-r6-r5"
+    candidate_tag = "proto-" + candidate_hash[:12] + "-r6-final"
     session_started = time.monotonic()
     print(json.dumps({"base_sha256": base_hash, "candidate_sha256": candidate_hash,
                       "base_tag": base_tag, "candidate_tag": candidate_tag}), flush=True)
@@ -115,7 +115,7 @@ def main():
         summary = json.loads(result.stdout)
         summary.update({"base_sha256": base_hash, "candidate_sha256": candidate_hash,
                         "flags": FLAGS})
-        output = DEST / ("r6-r5-summary-" + corpus.replace("@", "-") + ".json")
+        output = DEST / ("r6-final-summary-" + corpus.replace("@", "-") + ".json")
         output.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({"corpus": corpus, "core": summary["core"],
                           "full": summary["full"], "unmodeled": summary["unmodeled"]}), flush=True)

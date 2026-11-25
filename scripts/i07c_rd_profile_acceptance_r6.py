@@ -54,6 +54,8 @@ def inspect(binary, command, profile, source, flags):
         raise RuntimeError(f"INCONCLUSO stderr: {error[-300:]}")
     document = json.loads(output)
     outcome = document["outcome"]["kind"]
+    if document.get("driver_error") or document.get("internal_error") or outcome not in ("checked", "rejected", "unit", "simulator_fault"):
+        raise RuntimeError(f"hard error: {command} {profile}: {document.get('driver_error') or document.get('internal_error') or outcome}")
     return {"exit": child.returncode, "outcome": outcome, "elapsed_ms": elapsed_ms,
             "accepted": outcome in ("checked", "unit")}
 
@@ -89,7 +91,7 @@ def main():
                                      if not r["check_run_same"]],
               "main_r6_failures": [r["profile"] + "/" + r["name"] for r in rows
                                    if not r["main_r6_same"]]}
-    dest = Path("docs/validation/i07c-rediseno/r6-profile-acceptance.json")
+    dest = Path("docs/validation/i07c-rediseno/r6-final-profile-acceptance.json")
     dest.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"rows": len(rows),
                       "check_run_failures": result["check_run_failures"],

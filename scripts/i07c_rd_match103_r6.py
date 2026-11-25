@@ -12,7 +12,7 @@ import time
 import i07c_rd_sweep as sweep
 
 TABLE = Path("C:/projects/Nexo-i07c/docs/validation/i07c-s5c-explor/match-conservacion-ext.json")
-OUTPUT = Path("docs/validation/i07c-rediseno/r6-match103.json")
+OUTPUT = Path(os.environ.get("I07C_RD_OUTPUT", "docs/validation/i07c-rediseno/r6-final-match103.json"))
 
 
 def inspect(exe, src, profile, flags):
@@ -51,6 +51,8 @@ def inspect(exe, src, profile, flags):
         data = json.loads(output)
     except (TypeError, ValueError) as exc:
         raise RuntimeError(f"INCONCLUSO: child exit {process.returncode}: {error[-300:]!r}") from exc
+    if data.get("driver_error") or data.get("internal_error") or (data.get("outcome") or {}).get("kind") not in ("checked", "rejected"):
+        raise RuntimeError(f"hard error: {data.get('driver_error') or data.get('internal_error') or data.get('outcome')}")
     diagnostics = []
     for item in data["diagnostics"]:
         details = item.get("data") or {}
@@ -73,7 +75,8 @@ def main():
     assert hashlib.sha256(table_bytes).hexdigest() == recorded_sha
     table = json.loads(table_bytes)
     assert len(table["filas"]) == 103
-    flags = "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness"
+    from i07c_rd_drive_r6 import FLAGS
+    flags = os.environ.get("I07C_RD_FLAGS", FLAGS)
     rows = []
     for item in table["filas"]:
         expected = {"outcome": item["outcome"], "diagnosticos": item["diagnosticos"]}

@@ -1,0 +1,19 @@
+{
+  "test_exe_sha256": "9f9862b4fad91d868588483ccc86192b365d7d9bdd81ee418f56bf554e3c655f",
+  "batches": [
+    {
+      "case": "option_match126",
+      "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b",
+      "count": 200,
+      "successes": 200,
+      "failures": []
+    },
+    {
+      "case": "result_match126",
+      "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b",
+      "count": 200,
+      "successes": 200,
+      "failures": []
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "corpus": "c2-nueva@f0-0003-b-v1",
+  "n": 8000,
+  "unmodeled": 90,
+  "core": {
+    "A": 0,
+    "B": 555,
+    "C": 1188,
+    "D": 59
+  },
+  "full": {
+    "A": 4,
+    "B": 307,
+    "C": 3947,
+    "D": 346
+  },
+  "ok": {
+    "core": 6108,
+    "full": 3306
+  },
+  "same_unmodeled": 83,
+  "changed_unmodeled": 7,
+  "regressions": [],
+  "base_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "candidate_sha256": "74ad3dda03d5c2d8506b014b4ade1b5ad924bf994a7e116344bacf07e3bf096e",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b"
+}

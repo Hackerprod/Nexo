@@ -1,0 +1,177 @@
+{
+  "status": "en validacion; sin PASS de B",
+  "source_sha256": "96d11cbdb89e2a4597d79e3c3003a9353d3db81fb739085bd2e00f6298ca600a",
+  "candidate_binary_sha256": "74ad3dda03d5c2d8506b014b4ade1b5ad924bf994a7e116344bacf07e3bf096e",
+  "candidate_flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b",
+  "corpora": {
+    "count": 20,
+    "rows_profiles": 151188,
+    "core": {
+      "A": 0,
+      "B": 11803,
+      "C": 21175,
+      "D": 476
+    },
+    "full": {
+      "A": 135,
+      "B": 6241,
+      "C": 68782,
+      "D": 7504
+    },
+    "unmodeled": 27743,
+    "hard_errors": 0,
+    "files": [
+      "r6-final-summary-b-projections-2026112401.json",
+      "r6-final-summary-b-projections-2026112403.json",
+      "r6-final-summary-b-projections-t5-2026112402.json",
+      "r6-final-summary-b.json",
+      "r6-final-summary-c1-nueva.json",
+      "r6-final-summary-c1-nueva2.json",
+      "r6-final-summary-c1.json",
+      "r6-final-summary-c2-f0-0003-b-v1.json",
+      "r6-final-summary-c2-nueva-f0-0003-b-v1.json",
+      "r6-final-summary-c2-nueva.json",
+      "r6-final-summary-c2-nueva2-f0-0003-b-v1.json",
+      "r6-final-summary-c2-nueva2.json",
+      "r6-final-summary-c2.json",
+      "r6-final-summary-dirigido5.json",
+      "r6-final-summary-owner-projections-771412.json",
+      "r6-final-summary-perm.json",
+      "r6-final-summary-s4417061.json",
+      "r6-final-summary-s7021993.json",
+      "r6-final-summary-s9908255.json",
+      "r6-final-summary-t.json"
+    ]
+  },
+  "modeladas73": {
+    "A": 45,
+    "OK": 23,
+    "B": 5
+  },
+  "match103": {
+    "rows": 103,
+    "conservation_rows": 51,
+    "conservation_failures": 0,
+    "declared_mismatches": 22,
+    "declared_mismatch_ids": [
+      "dif-s7021993-1253-quitado",
+      "dif-s7021993-1937-anadido",
+      "dif-s4417061-292-anadido",
+      "dif-s4417061-4002-anadido",
+      "dif-s4417061-4363-quitado",
+      "dif-s9908255-130-quitado",
+      "dif-s9908255-3958-anadido",
+      "rmm3fuera-c2-10405",
+      "rmm3fuera-c2-6523",
+      "rmm3fuera-s4417061-1107",
+      "rmm3fuera-s7021993-682",
+      "rmm3fuera-s7021993-77",
+      "rmm3fuera-c2-14100",
+      "rmm3fuera-s7021993-1306",
+      "rmm3fuera-s9908255-3083",
+      "rmm3fuera-c2-3289",
+      "rmm3fuera-s9908255-3098",
+      "rmm3fuera-s7021993-3794",
+      "rmm3fuera-s9908255-2027",
+      "rmm3fuera-s7021993-2840",
+      "rmm3fuera-s7021993-41",
+      "rmm3fuera-c2-7454"
+    ]
+  },
+  "directed": {
+    "rows": 74,
+    "matches": 74,
+    "hard_errors": 0
+  },
+  "ie21": {
+    "rows": 21,
+    "commands": 42,
+    "hard_errors": 0
+  },
+  "rd": {
+    "check_run_pairs": 152,
+    "snapshot_differences": 0,
+    "filter_selftest": "passed"
+  },
+  "acceptance": {
+    "rows": 54,
+    "check_run_failures": 0,
+    "main_r6_failures": 0,
+    "timing": {
+      "main": {
+        "check": {
+          "median_ms": 21.148,
+          "n": 54
+        },
+        "run": {
+          "median_ms": 21.161,
+          "n": 54
+        }
+      },
+      "r6": {
+        "check": {
+          "median_ms": 21.2,
+          "n": 54
+        },
+        "run": {
+          "median_ms": 21.175,
+          "n": 54
+        }
+      }
+    }
+  },
+  "stack65": {
+    "debug": {
+      "batches": [
+        {
+          "case": "option_match126",
+          "count": 200,
+          "successes": 200
+        },
+        {
+          "case": "result_match126",
+          "count": 200,
+          "successes": 200
+        }
+      ],
+      "test_exe_sha256": "a3156b75c9b702aa4f95cf5829e228e8efc76a02bdc8b0d248c418e8c1852f07"
+    },
+    "release": {
+      "batches": [
+        {
+          "case": "option_match126",
+          "count": 200,
+          "successes": 200
+        },
+        {
+          "case": "result_match126",
+          "count": 200,
+          "successes": 200
+        }
+      ],
+      "test_exe_sha256": "9f9862b4fad91d868588483ccc86192b365d7d9bdd81ee418f56bf554e3c655f"
+    },
+    "frames_debug_bytes": {
+      "drive": 27536,
+      "resume_non_match": 9232,
+      "pair": 36768,
+      "margin_to_66560": 29792,
+      "actual_helper_chain": 57008
+    }
+  },
+  "mechanical_gate": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "selection": "passed",
+    "debug_default": "failed",
+    "executed": 179,
+    "passed": 177,
+    "failed": 2,
+    "not_run": 2036,
+    "failures": [
+      "check::types::quota_tests::deferred_if_join_charges_the_reduced_boundary",
+      "check::types::quota_tests::failed_branch_join_keeps_reduced_quota_error_prefix"
+    ],
+    "history": "Both failures reproduced at prototype milestone 501511f before final edits; prototype gate is not GREEN."
+  }
+}
