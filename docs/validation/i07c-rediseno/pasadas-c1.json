@@ -1,0 +1,22 @@
+{
+  "corpus": "c1",
+  "rows": 24000,
+  "binary_sha256": "57f9db1da0d28375e7cfc82965158c9063c81bb0e39d4e5766f4983973dfe3ff",
+  "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,txmarks,txmarksproj,passes",
+  "max_passes": 3,
+  "histogram": [
+    [
+      1,
+      77
+    ],
+    [
+      2,
+      23882
+    ],
+    [
+      3,
+      41
+    ]
+  ],
+  "inconclusive": []
+}
