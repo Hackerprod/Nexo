@@ -14649,9 +14649,16 @@ impl Checker<'_> {
                             let failed = self
                                 .graph
                                 .has(&span_key(other.span()), OccurrenceFlag::FailedJoin);
+                            let partial = self
+                                .graph
+                                .has(&span_key(other.span()), OccurrenceFlag::PartialNormal);
+                            // A discrepant nested union exports its first
+                            // valid witness only to an enclosing union. The
+                            // witness may still be a deferred type variable.
                             self.if_finish_join(
                                 progress,
-                                internal_state(&ty).is_none().then_some(ty),
+                                (internal_state(&ty).is_none() || xv("r6witness") && partial)
+                                    .then_some(ty),
                                 failed,
                                 failed,
                             )

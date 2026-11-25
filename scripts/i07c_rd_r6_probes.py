@@ -41,6 +41,18 @@ CASES = {
     "join_record": ("fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}", [("NX-E1303", 56, 60), ("NX-E1303", 67, 70)]),
     "ST1_equivalent": ("fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}", [("NX-E1303", 68, 71)]),
     "W1_atomic_compound": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}", [("NX-E0102", 99, 100), ("NX-E1303", 147, 148), ("NX-E1303", 199, 200), ("NX-E1303", 209, 212), ("NX-E0102", 216, 219)]),
+    "W1a_without_later_assignment": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);}", [("NX-E0102", 99, 100), ("NX-E1303", 147, 148), ("NX-E1303", 199, 200), ("NX-E1303", 209, 212)]),
+    "M2_partial_witness_chain": ("fn Main(){let p=true;let aar=[[1]];var q=[];(if p then (if p then (if p then (if 1 then true else false) else (if p then q[0] else q)) else [[true]]) else aar);}", [("NX-E0102", 81, 82), ("NX-E1303", 131, 132), ("NX-E1303", 155, 158)]),
+    "RC1_read_context_variable": ("fn Main(){var s=[];let a=[s[0],(if true then 1 else true)];s=[1];}", [("NX-E1303", 52, 56)]),
+    "RC2_read_context_committed": ("fn Main(){var q=[];q=[1];let a=[q[0],(if true then 1 else true)];}", [("NX-E0102", 58, 62)]),
+    "RC3_read_context_no_retroactive": ("fn Main(){var q=[];let a=[q[0],(if true then 1 else true)];let b:I64=q[0];}", [("NX-E1303", 52, 56)]),
+    "SU1_suspended_order": ("fn Main(){var q=[];var r=[];(if true then q else r);r=[true];q=[1];}", [("NX-E0102", 64, 65)]),
+    "SU2_suspended_chain": ("fn Main(){var q=[];var r=[];var s=[];(if true then q else r);(if true then r else s);s=[1];q=[true];}", [("NX-E0102", 94, 98)]),
+    "RS1_condition_contaminated": ("fn Main(){let a=(if true then (if 1 then true else false) else 2);}", [("NX-E0102", 34, 35)]),
+    "RS2_independent_child_errors": ("fn Main(){let a=(if true then true+1 else (if true then 1 else true));}", [("NX-E0102", 30, 34), ("NX-E1303", 63, 67)]),
+    "RS3_partial_in_array": ("fn Main(){let a=[(if true then 1 else true),[1]];}", [("NX-E1303", 38, 42)]),
+    "CD1_independent_constructor": ("fn Main(){var q=[];var r=[];let a=[q,1];r=[true];}", [("NX-E0103", 16, 18)]),
+    "CD2_independent_error_and_duties": ("fn Main(){var q=[];var r=[];(if true then q else r);let z=true+1;}", [("NX-E0103", 16, 18), ("NX-E0103", 25, 27), ("NX-E0102", 58, 62)]),
     # A's ADR derivation: E0103 [77,79) in place of main's E0102 [85,86).
     # The E1303 in a1 is independent. B has not yet validated this oracle.
     "W2_no_retroactive_context": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}", [("NX-E0103", 77, 79), ("NX-E1303", 140, 145)]),
