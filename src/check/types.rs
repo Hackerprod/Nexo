@@ -4662,6 +4662,30 @@ impl Checker<'_> {
         let mut links = self.graph.r2_shadow_links.clone();
         links.sort_by_key(|link| link.occurrence);
         for link in links {
+            if xv("r3txlink") {
+                let before_graph = self.graph.clone();
+                let pending_before = self.pending_join_count();
+                let site = Span {
+                    file: self.file.into(),
+                    start: link.occurrence.0,
+                    end: link.occurrence.1,
+                };
+                let outcome = self.unify_independent(
+                    Type::Deferred(link.shadow),
+                    Type::Deferred(link.original),
+                    site.clone(),
+                    site.clone(),
+                    site,
+                    false,
+                );
+                if outcome.is_err() || self.pending_join_count() > pending_before {
+                    // A late link is not evidence until its entire composite
+                    // equality is decided. Retain the source occurrence, not
+                    // any partial union-find writes of the failed proposal.
+                    self.graph = before_graph;
+                }
+                continue;
+            }
             let Some((ty, origin)) = self.concrete(link.original) else {
                 continue;
             };
