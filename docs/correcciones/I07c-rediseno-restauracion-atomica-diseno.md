@@ -1,5 +1,7 @@
 # I07c — Rediseño de restauración atómica y ancla de unión
 
+**Actualización tras B r2:** las transiciones y la autoridad normativa de R6 propuestas abajo quedan sustituidas por `I07c-rediseno-restauracion-atomica-R6-r2.md`. Las decisiones D1–D4 retiran RM-M3, `retract` y `atomic0`, fijan el primario recursivo en `[60,63)` y precisan T5 con y sin esperado externo. Las cifras R5 de este documento son históricas; no son evidencia de R6 ni PASS.
+
 ## Corrección tras validación B r1 (2026-11-24; en curso)
 
 B dio **FAIL** a la R5 publicada en `afbe8c6`. La cifra vigente de esa R5 es **16/16 sondas y 45/45 filas**, no los 15/16 y 44/45 de una instrumentación anterior. Los 45 A de núcleo en 9.000 fuentes nuevas de B muestran que ese recuento dirigido no prueba ausencia de regresiones. Dos mínimos de B fijan el defecto: M1 (100 bytes) añade `NX-E0102` `[96,97)` y M2 (108 bytes) añade `NX-E0103` `[25,27)` cuando una proyección de la misma componente precede a la unión en otra sentencia. `main`, oráculo y derivación independiente coinciden en la salida sin esos diagnósticos (§§4.1.2.2, .4, .7). Las cifras y fuentes están en `docs/validation/i07c-rediseno/B-r1-informe.md`.
