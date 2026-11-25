@@ -363,12 +363,13 @@ class Ctx:
     wit: operando que se registra como testigo al fijar una variable (asignacion: el RHS completo, l.309).
     box: estado compartido de supresion/consumo de la denuncia de dominio (L "Operandos de +/-") o D de 4.1.2.5."""
 
-    def __init__(self, ty, mode, rel, wit=None, box=None):
+    def __init__(self, ty, mode, rel, wit=None, box=None, alias_initializer=None):
         self.ty, self.mode, self.rel, self.wit, self.box = ty, mode, rel, wit, box
+        self.alias_initializer = alias_initializer
         self.lit = False  # contexto distribuido a los elementos de un literal de array (marca de decision no fijada)
 
     def sub(self, ty):
-        return Ctx(ty, self.mode, self.rel, self.wit, self.box)
+        return Ctx(ty, self.mode, self.rel, self.wit, self.box, self.alias_initializer)
 
 
 class Conflict:
@@ -428,6 +429,12 @@ class Checker:
         other = ctx.rel if isinstance(ctx.rel, tuple) else None
         mark = len(self.u.trail)
         if self.unify(ctx.ty, t, other, w):
+            if ctx.alias_initializer is not None:
+                # Un alias directo a un inicializador ya concreto presta la
+                # restriccion inicial, no el span de la lectura del alias.
+                for linked in self.u.trail[mark:]:
+                    if linked.wit == w:
+                        linked.wit = ctx.alias_initializer
             if ctx.lit and ctx.wit is None and len(self.u.trail) > mark:
                 # el ADR no fija si el testigo de una variable fijada por la igualdad de un elemento de literal de
                 # array (referencia de homogeneidad) es el elemento hoja o el elemento completo (cl.1 "contexto
@@ -757,14 +764,25 @@ class Checker:
             ig = strip(s.init)
             if not tainted and ig.k in ("arr", "int", "bool", "bin", "call"):
                 self.adopt(ty, (ig.s, ig.e), mark)
-            self.env[s.name] = {"ty": ty, "mut": s.mut, "tainted": tainted and ctx is None}
+            concrete_init = (ig.s, ig.e) if not tainted and not has_var(ty) and ig.k in ("arr", "int", "bool") else None
+            if concrete_init is None and not tainted and ig.k == "var":
+                source = self.env.get(ig.name)
+                if source is not None:
+                    concrete_init = source.get("concrete_init")
+            self.env[s.name] = {"ty": ty, "mut": s.mut, "tainted": tainted and ctx is None,
+                                "concrete_init": concrete_init}
         elif s.k == "assign":
             b = self.env.get(s.name)
             if b is None or b["tainted"]:
                 self.check(s.rhs, None)
                 return
             rhs = strip(s.rhs)
-            ctx = Ctx(b["ty"], "assign", "origin", wit=(rhs.s, rhs.e))
+            alias_init = None
+            if rhs.k == "var" and src_of_type(b["ty"]) is None:
+                source = self.env.get(rhs.name)
+                if source is not None:
+                    alias_init = source.get("concrete_init")
+            ctx = Ctx(b["ty"], "assign", "origin", wit=(rhs.s, rhs.e), alias_initializer=alias_init)
             # una asignacion posterior se comprueba contra el tipo ya fijado (cl.2, L); no se redistribuye
             # retrospectivamente y una asignacion rechazada no cambia el tipo del destino (cl.2, cl.5)
             self.check_assign_rhs(rhs, ctx)
@@ -886,6 +904,10 @@ ADR = [
     ("fn Main(){let ar=[1];var q=[];let a=(1 + (if true then q[0] else (if true then [2] else q)));q=[3];}",
      [("NX-E0102", "type_mismatch", (79, 82), "I64", "Array<I64>", None),
       ("NX-E0102", "type_mismatch", (88, 89), "I64", "Array<I64>", None)], "L +/- (sin consumo)"),
+    ("fn Main(){let c=[1];var v=[];v=c;v=[true];}",
+     [("NX-E0102", "type_mismatch", (36, 40), "I64", "Bool", (16, 19))], "L origen Alias"),
+    ("fn Main(){let c=[1];let b=c;var v=[];v=b;v=[true];}",
+     [("NX-E0102", "type_mismatch", (44, 48), "I64", "Bool", (16, 19))], "L origen Alias encadenado"),
 ]
 
 

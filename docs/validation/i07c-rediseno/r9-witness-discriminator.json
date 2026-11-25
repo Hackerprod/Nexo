@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r9-witness-v1",
+  "schema": "i07c-r11-witness-observations-v2",
   "index_base": 0,
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "rows": [
@@ -2020,7 +2020,278 @@
         ]
       },
       "expected_normative": null
+    },
+    {
+      "id": "match-index-20",
+      "fixture_id": "match-index-20",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];var s=[];let a0=match move o{Some(n)=>{value: match move o{Some(m)=>{value: (if p then (if p then 1 else q) else 2);},None=>{value: 3;}};},None=>{value: true;}};}",
+      "source_sha256": "70ab6beb6b173bd89bb41e54d0632b74cb9abc951615109544ba1daf81445d1c",
+      "conservation_class": "nested_match_parent",
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              73,
+              75
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_normative": null
+    },
+    {
+      "id": "match-index-46",
+      "fixture_id": "match-index-46",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];let a0=match move o{Some(n)=>{value: match move o{Some(m)=>{value: (if p then (if p then 1 else q) else 2);},None=>{value: 3;}};},None=>{value: true;}};}",
+      "source_sha256": "43180924815c08dfd05cce2c41d6c6d07d6bbdb3efdde1742b4f25e103968d95",
+      "conservation_class": "nested_match_parent",
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_normative": null
+    },
+    {
+      "id": "match-circular",
+      "fixture_id": "match-circular",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;var q=[];let a0=match move o{Some(n)=>{value:(if p then (if p then q else 1) else 2);},None=>{value:[1];}};}",
+      "source_sha256": "234f567097015eef5ea7cfd63dbccd0f4ec372332a75d02ba7d171b7129b28f8",
+      "conservation_class": "r10_counterexample",
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              121,
+              122
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  114,
+                  115
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  121,
+                  122
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              129,
+              130
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  104,
+                  122
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  129,
+                  130
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_normative": null
+    },
+    {
+      "id": "match-later-unassigned",
+      "fixture_id": "match-later-unassigned",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];let a0=match move o{Some(n)=>{value:(if p then (if p then 1 else ar) else q);},None=>{value:true;}};}",
+      "source_sha256": "e230dc03f20e06eae7cff6b2359cb64a9d336da421b3dc9fc6ca6a32f3032ad6",
+      "conservation_class": "r10_counterexample",
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              134
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  125,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  132,
+                  134
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              159,
+              163
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  104,
+                  142
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  159,
+                  163
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_normative": null
+    },
+    {
+      "id": "match-later-assigned",
+      "fixture_id": "match-later-assigned",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];let a0=match move o{Some(n)=>{value:(if p then (if p then 1 else ar) else q);},None=>{value:true;}};q=[1];}",
+      "source_sha256": "d789e53cd3e8a05973d52d93910a15f2f19297bd692c233c5dbba4c5da8941b6",
+      "conservation_class": "r10_counterexample",
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              134
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  125,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  132,
+                  134
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              141,
+              142
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  115,
+                  134
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  141,
+                  142
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_normative": null
     }
   ],
-  "r10_main_binary_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7"
+  "r10_main_binary_sha256": "22ba6e81b75555c2eb0139e99dabf8bc35a91fbea1f3017332414eecbbc27daf",
+  "r11_main_binary_sha256": "22ba6e81b75555c2eb0139e99dabf8bc35a91fbea1f3017332414eecbbc27daf"
 }

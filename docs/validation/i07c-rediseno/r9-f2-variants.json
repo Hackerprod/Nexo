@@ -199,6 +199,58 @@
           }
         ]
       }
+    },
+    {
+      "id": "P5_result_only_ok_mismatch",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];var w=[];var z=[];var x=(if true then Ok(q) else Err(r));var y=(if true then Ok(w) else Err(z));w=[1];z=[true];q=[true];r=[true];x=y;}",
+      "source_sha256": "2ab882d07691ad499976f3d894a59adf8af40c633c790177eca3561127d48465",
+      "bytes": 162,
+      "authority": "ADR F0-0002-lagunas Origen expected_type paso 6; decision del propietario D5",
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              159,
+              160
+            ],
+            "expected_type": "Result<Array<Bool>,Array<Bool>>",
+            "found_type": "Result<Array<I64>,Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  66,
+                  71
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  159,
+                  160
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "difference_main": {
+        "class": "I",
+        "field": "related_spans.expected_type",
+        "main_span": [
+          77,
+          83
+        ],
+        "adr_span": [
+          66,
+          71
+        ],
+        "reason": "Solo falla Result.Ok; el origen es la continuacion entera Ok(q), no Err(r)."
+      }
     }
   ]
 }

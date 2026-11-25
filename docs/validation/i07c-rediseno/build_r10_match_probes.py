@@ -69,6 +69,12 @@ def main():
         raise SystemExit(f"missing main binary: {exe}")
     frozen = json.loads(OUT.read_text(encoding="utf-8"))
     existing = frozen["rows"][:9]
+    r10_followups = [row for row in frozen["rows"] if row["id"] in {
+        "match-index-20", "match-index-46", "match-circular",
+        "match-later-unassigned", "match-later-assigned",
+    }]
+    if len(r10_followups) != 5:
+        raise RuntimeError("missing five r10 follow-up probes")
     matrix = json.loads(MATCH.read_text(encoding="utf-8"))["rows"]
     extra = []
     for index in (4, 44):
@@ -81,10 +87,10 @@ def main():
             extra.append(row(f"match-conservation-{number:02}", source, run(exe, source, path), "borrowed_partial_probe"))
         source = PREFIX + "(if p then 1 else q)" + SUFFIX
         extra.append(row("match-conservation-flat", source, run(exe, source, path), "own_partial_without_borrow"))
-    frozen["rows"] = existing + extra
+    frozen["rows"] = existing + extra + r10_followups
     frozen["r10_main_binary_sha256"] = hashlib.sha256(exe.read_bytes()).hexdigest()
     OUT.write_text(json.dumps(frozen, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"frozen {len(extra)} new rows; total {len(frozen['rows'])}")
+    print(f"frozen {len(extra)} r9 rows and retained five r10 follow-ups; total {len(frozen['rows'])}")
 
 
 if __name__ == "__main__":
