@@ -10,10 +10,14 @@ from collections import Counter
 import copy
 import hashlib
 import json
+import os
 import re
 import subprocess
 import tempfile
+import time
 from pathlib import Path
+
+import i07c_rd_sweep as sweep
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -285,9 +289,32 @@ def verify(binary: Path, rows: list[dict]) -> int:
             path.write_bytes(row["source"].encode("ascii"))
             row_failed = False
             for command in ("check", "run"):
-                done = subprocess.run([str(binary), command, "case.n", "--format", "json",
-                                       "--profile", "f0-0002-b-v2"], cwd=temporary,
-                                       capture_output=True, text=True, encoding="utf-8")
+                with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stdout, \
+                     tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr:
+                    process = subprocess.Popen(
+                        [str(binary), command, "case.n", "--format", "json",
+                         "--profile", "f0-0002-b-v2"], cwd=temporary,
+                        stdout=stdout, stderr=stderr,
+                    )
+                    last_output = time.monotonic()
+                    last_size = 0
+                    while process.poll() is None:
+                        size = os.fstat(stdout.fileno()).st_size + os.fstat(stderr.fileno()).st_size
+                        if size != last_size:
+                            last_output, last_size = time.monotonic(), size
+                        if sweep.working_set(process.pid) > sweep.MAX_WORKING_SET:
+                            process.kill()  # This invocation created this PID.
+                            process.wait()
+                            raise RuntimeError(f"INCONCLUSO {row['id']} {command}: >6 GB")
+                        if time.monotonic() - last_output > sweep.SILENCE_LIMIT:
+                            process.kill()  # This invocation created this PID.
+                            process.wait()
+                            raise RuntimeError(f"INCONCLUSO {row['id']} {command}: >20 min silent")
+                        time.sleep(0.02)
+                    stdout.seek(0)
+                    stderr.seek(0)
+                    done = subprocess.CompletedProcess(
+                        process.args, process.returncode, stdout.read(), stderr.read())
                 try:
                     document = json.loads(done.stdout)
                     actual = public_diagnostics(document)
