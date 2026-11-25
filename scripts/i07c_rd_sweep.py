@@ -157,11 +157,21 @@ def load(tag, name):
     files = sorted(path.glob(name + "-*.json"))
     if not files: raise FileNotFoundError(str(path / (name + "-*.json")))
     values = {}
+    matched = 0
     for f in files:
         doc = json.loads(f.read_text(encoding="utf-8"))
+        if doc.get("corpus") != name:
+            # c1-*.json also matches c1-nueva-*.json. The embedded corpus
+            # identity is authoritative; never mix two frozen source sets.
+            continue
+        if doc.get("tag") != tag or doc.get("end", 0) - doc.get("start", 0) != len(doc.get("results", [])):
+            raise ValueError((tag, name, f.name, "identity_or_length"))
+        matched += 1
         for i, v in enumerate(doc["results"], doc["start"]):
             if i in values and values[i] != v: raise ValueError((tag, name, i, "overlap"))
             values[i] = v
+    if matched == 0:
+        raise FileNotFoundError(str(path / (name + "-*.json")))
     return values
 
 def oracle_module():
