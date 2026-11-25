@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """Disposable, exact core probes before a full I07c corpus scan."""
 import json
-import os
-from pathlib import Path
-import subprocess
 import sys
-import tempfile
 
 import i07c_rd_oracle as oracle
+import i07c_rd_sweep as sweep
 sources = oracle.load_sources()
 
 MINIMA = {
@@ -43,25 +40,19 @@ EXPECTED = {
 }
 
 def run(exe, src, flags, name):
-    with tempfile.TemporaryDirectory(prefix="rd-cheap-") as tmp:
-        source = Path(tmp) / "source.n"
-        source.write_bytes(src.encode("utf-8"))
-        env = os.environ.copy()
-        env["NEXO_XV"] = flags
-        p = subprocess.run([exe, "check", "--format", "json", "--profile", "f0-0002-b-v2", str(source)],
-                           env=env, text=True, capture_output=True, timeout=60)
-        try:
-            data = json.loads(p.stdout)
-            return [(d["code"], d.get("subcause"), d["primary_span"]["start"], d["primary_span"]["end"])
-                    for d in data.get("diagnostics", [])]
-        except (ValueError, KeyError, TypeError):
-            return [(-1, p.returncode, p.stdout[-200:], p.stderr[-200:])]
+    result = sweep.run_one((exe, flags, "f0-0002-b-v2", src))
+    if isinstance(result, dict):
+        return [(-1, result)]  # INCONCLUSO; never cached as a passing probe.
+    return [(row[0], row[1], row[2], row[3]) for row in result]
 
 def main():
     exe, flags = sys.argv[1:3]
     result = {"flags": flags, "probes": {}, "matrix": {}}
     for name, src in MINIMA.items():
         got = run(exe, src, flags, name)
+        if got and got[0][0] == -1:
+            result["probes"][name] = {"ok": False, "inconclusive": got[0][1]}
+            continue
         simple = [(d[0], d[2], d[3]) for d in got]
         expected = EXPECTED.get(name)
         if name in ("planned", "planned_full"):
@@ -84,6 +75,9 @@ def main():
         expected = [(d["code"], d.get("subcause"), d["primary"][0], d["primary"][1])
                     for d in model["diagnostics"]]
         got = run(exe, src, flags, name)
+        if got and got[0][0] == -1:
+            result["matrix"][name] = {"ok": False, "inconclusive": got[0][1]}
+            continue
         result["matrix"][name] = {"ok": got == expected, "actual": got, "expected": expected} if got != expected else {"ok": True}
     result["summary"] = {"probes_ok": sum(v["ok"] for v in result["probes"].values()),
                          "matrix_ok": sum(v["ok"] for v in result["matrix"].values())}

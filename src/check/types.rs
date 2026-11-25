@@ -1055,6 +1055,22 @@ struct PendingDeferredJoin {
     related_expected: bool,
     numeric_domain_owner: Option<(u64, u64)>,
     comparison_domain_if_unresolved: Option<PendingComparisonDomain>,
+    // R1: the obligation owns its source occurrence and the context boundary.
+    // Neither is a property of a unification root. The planning view may use
+    // this immutable boundary; later completion only changes the obligation.
+    r1_occurrence: (u64, u64),
+    r1_context_scope: Option<(u64, u64)>,
+}
+
+// Disposable R1 representation: a retired obligation leaves planning
+// evidence at its own occurrence. The queue below may be drained before
+// collect_planned_shapes, so querying that queue loses the context boundary.
+#[derive(Clone)]
+struct R1JoinEvidence {
+    occurrence: (u64, u64),
+    constructor: u64,
+    branch: bool,
+    context_scope: Option<(u64, u64)>,
 }
 
 #[derive(Clone)]
@@ -1941,6 +1957,7 @@ struct IfProgress<'a> {
     pending_before_if: usize,
     parent_fact: FactId,
     pending_before_condition: usize,
+    r1_condition_tainted: bool,
     stage: IfStage,
     branch: Option<BranchProgress<'a>>,
     first: Option<Type>,
@@ -2173,6 +2190,7 @@ struct InferenceGraph {
     // Root, scalar constraint, expected source, incompatible operand,
     // array-on-left, and branch join (NX-E1303 instead of NX-E0102).
     obligations: Vec<ObligationKind>,
+    r1_join_history: Vec<R1JoinEvidence>,
     occurrences: HashMap<(u64, u64), OccurrenceState>,
     // §13.9: an operand/constraint site owns one diagnostic, regardless of
     // whether it is discovered immediately or by a deferred join.
@@ -2412,6 +2430,14 @@ impl InferenceGraph {
     }
 
     fn register(&mut self, obligation: ObligationKind) {
+        if let ObligationKind::Join(join) = &obligation {
+            self.r1_join_history.push(R1JoinEvidence {
+                occurrence: join.r1_occurrence,
+                constructor: join.constructor,
+                branch: join.branch,
+                context_scope: join.r1_context_scope,
+            });
+        }
         let (class, site) = obligation.occurrence();
         let state = self.occurrences.entry(site).or_default();
         state.obligations[class as usize].get_or_insert(ObligationStatus::Pending);
@@ -2728,7 +2754,6 @@ fn record_solver_bind_entry(
         }
     });
 }
-
 
 /// EXPLORACION: interruptores de variantes por entorno (NEXO_XV=a,b,c). No integrable.
 fn xv(flag: &str) -> bool {
@@ -3243,6 +3268,31 @@ impl Checker<'_> {
             let has_deferred_join = chain
                 .iter()
                 .any(|root| self.graph.type_nodes[root].deferred_join);
+            let has_deferred_join = if xv("r1ledger") && xv("r1history") {
+                self.graph.r1_join_history.iter().any(|join| {
+                    join.branch
+                        && join.context_scope.is_some()
+                        && self
+                            .graph
+                            .assignment_starts
+                            .get(&site)
+                            .is_none_or(|start| join.occurrence.0 < *start)
+                        && chain.contains(&self.root_no_compress(join.constructor))
+                })
+            } else if xv("r1ledger") {
+                self.pending_joins().any(|join| {
+                    join.branch
+                        && join.r1_context_scope.is_some()
+                        && self
+                            .graph
+                            .assignment_starts
+                            .get(&site)
+                            .is_none_or(|start| join.r1_occurrence.0 < *start)
+                        && chain.contains(&self.root_no_compress(join.constructor))
+                })
+            } else {
+                has_deferred_join
+            };
             let has_recursive_join = chain
                 .iter()
                 .any(|root| self.graph.type_nodes[root].recursive_join);
@@ -3291,15 +3341,37 @@ impl Checker<'_> {
                 && let Some(ty) = read_type
                 && let Some(&assignment_start) = self.graph.assignment_starts.get(&site)
             {
-                let mut blocked: Vec<_> = chain
-                    .iter()
-                    .flat_map(|root| {
-                        self.graph.type_nodes[root]
-                            .branch_join_scopes
-                            .iter()
-                            .copied()
-                    })
-                    .collect();
+                let mut blocked: Vec<_> = if xv("r1ledger") && xv("r1history") {
+                    self.graph
+                        .r1_join_history
+                        .iter()
+                        .filter(|join| {
+                            join.branch
+                                && join.occurrence.0 < assignment_start
+                                && chain.contains(&self.root_no_compress(join.constructor))
+                        })
+                        .filter_map(|join| join.context_scope)
+                        .collect()
+                } else if xv("r1ledger") {
+                    self.pending_joins()
+                        .filter(|join| {
+                            join.branch
+                                && join.r1_occurrence.0 < assignment_start
+                                && chain.contains(&self.root_no_compress(join.constructor))
+                        })
+                        .filter_map(|join| join.r1_context_scope)
+                        .collect()
+                } else {
+                    chain
+                        .iter()
+                        .flat_map(|root| {
+                            self.graph.type_nodes[root]
+                                .branch_join_scopes
+                                .iter()
+                                .copied()
+                        })
+                        .collect()
+                };
                 if !blocked.is_empty() {
                     blocked.sort_unstable();
                     blocked.dedup();
@@ -4485,6 +4557,14 @@ impl Checker<'_> {
         root
     }
 
+    fn root_no_compress(&self, id: u64) -> u64 {
+        let mut root = id;
+        while self.graph.type_nodes[&root].parent != root {
+            root = self.graph.type_nodes[&root].parent;
+        }
+        root
+    }
+
     fn concrete(&mut self, id: u64) -> Option<(Type, Span)> {
         self.concrete_with_depth(id, 0)
     }
@@ -5058,18 +5138,18 @@ impl Checker<'_> {
         if !policy.branch {
             self.graph.mark_failed_constructor(constructor);
         }
+        let scope = self
+            .active_if_span
+            .as_ref()
+            .map_or((self.top_statement_start, self.top_statement_end), |span| {
+                (span.start, span.end)
+            });
         if policy.branch {
             self.graph
                 .type_nodes
                 .get_mut(&constructor)
                 .unwrap()
                 .deferred_join = true;
-            let scope = self
-                .active_if_span
-                .as_ref()
-                .map_or((self.top_statement_start, self.top_statement_end), |span| {
-                    (span.start, span.end)
-                });
             self.graph
                 .type_nodes
                 .get_mut(&constructor)
@@ -5077,6 +5157,7 @@ impl Checker<'_> {
                 .branch_join_scopes
                 .push(scope);
         }
+        let r1_occurrence = span_key(&found);
         self.graph
             .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
                 left,
@@ -5088,6 +5169,8 @@ impl Checker<'_> {
                 related_expected: policy.related_expected,
                 numeric_domain_owner: self.graph.fact(fact).numeric_domain_owner,
                 comparison_domain_if_unresolved: None,
+                r1_occurrence,
+                r1_context_scope: policy.branch.then_some(scope),
             })));
     }
 
@@ -6550,6 +6633,8 @@ impl Checker<'_> {
                                     right: Type::Deferred(b),
                                     constructor,
                                     left_origin: request.left_origin,
+                                    r1_occurrence: span_key(&request.found),
+                                    r1_context_scope: None,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -6572,6 +6657,8 @@ impl Checker<'_> {
                                     right: Type::Deferred(b),
                                     constructor,
                                     left_origin: request.left_origin,
+                                    r1_occurrence: span_key(&request.found),
+                                    r1_context_scope: None,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -6625,6 +6712,8 @@ impl Checker<'_> {
                                     },
                                     constructor: root,
                                     left_origin: request.left_origin,
+                                    r1_occurrence: span_key(&request.found),
+                                    r1_context_scope: None,
                                     found: request.found,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
@@ -7552,6 +7641,7 @@ impl Checker<'_> {
         // Normal exits drain this vector with mem::take; a quota exit stops
         // the compilation before another function. Clearing is defensive.
         self.graph.obligations.clear();
+        self.graph.r1_join_history.clear();
         self.graph.emitted_sites.clear();
         // These sets use source offsets, which are unique across function
         // bodies in one file. A later function cannot read an earlier span;
@@ -7788,12 +7878,16 @@ impl Checker<'_> {
                     && self.graph.type_nodes[&constructor].array_origin.is_none()
                     && (!xv("skipv2") || join.branch)
                     && (!xv("skipv1")
-                        || self.pending_constructors().into_iter().any(|(child, array, _)| {
-                            self.root(array) == constructor || self.root(child) == constructor
-                        }))
+                        || self
+                            .pending_constructors()
+                            .into_iter()
+                            .any(|(child, array, _)| {
+                                self.root(array) == constructor || self.root(child) == constructor
+                            }))
                 {
                     if xv("skipv3") {
-                        let skipped = self.unresolved_constructor_diagnostic(constructor, join.found.clone());
+                        let skipped =
+                            self.unresolved_constructor_diagnostic(constructor, join.found.clone());
                         self.graph.skipped_e0103.push(skipped);
                     }
                     continue;
@@ -7827,7 +7921,8 @@ impl Checker<'_> {
                         .array_origin
                         .as_ref()
                         .is_some_and(|span| causal_inference_sites.contains(&span_key(span)));
-                ((has_cause || xv("arrx") || xv("e0103rule")) && self.concrete(child).is_none()).then_some(root)
+                ((has_cause || xv("arrx") || xv("e0103rule")) && self.concrete(child).is_none())
+                    .then_some(root)
             })
             .collect();
         let shared_inference_roots: HashSet<u64> = self
@@ -11377,6 +11472,7 @@ impl Checker<'_> {
                                 pending_before_if,
                                 parent_fact: visit,
                                 pending_before_condition,
+                                r1_condition_tainted: false,
                                 stage: IfStage::Condition,
                                 branch: None,
                                 first: None,
@@ -12617,7 +12713,11 @@ impl Checker<'_> {
                 if value_failed {
                     self.graph.fact_mut(visit).tainted = true;
                 }
-                if self.graph.fact_mut(visit).tainted && normal.is_some() {
+                if self.graph.fact_mut(visit).tainted
+                    && normal
+                        .as_ref()
+                        .is_some_and(|ty| !xv("r1t5") || *ty != Type::Tainted)
+                {
                     // §13.9: a clean continuation contributes a constraint
                     // even when another reachable child taints this if.
                     self.graph
@@ -13743,6 +13843,9 @@ impl Checker<'_> {
         second_failed: bool,
         second_anchored: bool,
     ) -> Result<(Option<Type>, bool, bool), Box<Diagnostic>> {
+        if xv("r1t5") && progress.r1_condition_tainted {
+            return Ok((Some(Type::Tainted), true, false));
+        }
         let condition = progress.condition;
         let then_block = progress.then_block;
         let otherwise = progress.otherwise;
@@ -13907,7 +14010,7 @@ impl Checker<'_> {
             || (!xv("rmm3e")
                 && (anchor_error.is_some() || anchor_pending || anchor_absorbed)
                 && !main_join_failed)
-            && (!xv("rmm3d") || branch_value_expr(then_block).is_some_and(Self::is_value_if))
+                && (!xv("rmm3d") || branch_value_expr(then_block).is_some_and(Self::is_value_if))
         {
             self.graph
                 .pending_unions
@@ -14019,6 +14122,15 @@ impl Checker<'_> {
                         });
                     let condition_tainted =
                         self.graph.fact(*visit).tainted || pending_shape_failure;
+                    if xv("r1t5") {
+                        progress.r1_condition_tainted =
+                            condition_tainted || condition_result.is_err();
+                        if progress.r1_condition_tainted {
+                            progress.branch_context.expected = None;
+                            progress.branch_context.expected_span = None;
+                            progress.branch_context.anchor = None;
+                        }
+                    }
                     self.graph.merge_child(progress.parent_fact, *visit, false);
                     *visit = progress.parent_fact;
                     self.graph.fact_mut(*visit).tainted |=
@@ -14208,11 +14320,16 @@ impl Checker<'_> {
         let state = self.graph.union_denounced.get(&key).copied();
         let found_span_dbg = found_span.clone();
         let found_ty_dbg = found.clone();
-        let snapshot = (xv("atomic") && state == Some(true))
-            .then(|| (self.graph.type_nodes.clone(), self.graph.obligations.clone()));
-        let snapshot0 = (xv("atomic0") && state == Some(false))
-            .then(|| self.graph.type_nodes.clone());
+        let snapshot = (xv("atomic") && state == Some(true)).then(|| {
+            (
+                self.graph.type_nodes.clone(),
+                self.graph.obligations.clone(),
+            )
+        });
+        let snapshot0 =
+            (xv("atomic0") && state == Some(false)).then(|| self.graph.type_nodes.clone());
         let before = self.pending_join_count();
+        let r1_history_before = self.graph.r1_join_history.len();
         let outcome = match visit {
             None => self.unify_independent(
                 base.0.clone(),
@@ -14237,6 +14354,29 @@ impl Checker<'_> {
             Err(error) => Some(error),
             Ok(_) => None,
         };
+        if xv("r1ledger") {
+            let scope = self
+                .active_if_span
+                .as_ref()
+                .map_or((self.top_statement_start, self.top_statement_end), |span| {
+                    (span.start, span.end)
+                });
+            for join in self.pending_joins_mut().skip(before) {
+                if join.branch {
+                    join.r1_context_scope = Some(scope);
+                }
+            }
+            for join in self
+                .graph
+                .r1_join_history
+                .iter_mut()
+                .skip(r1_history_before)
+            {
+                if join.branch {
+                    join.context_scope = Some(scope);
+                }
+            }
+        }
         if xv("dbg") {
             eprintln!(
                 "CONTRAST pl={} base={:?} found={:?} state={:?} err={} newjoins={}",
@@ -14252,11 +14392,7 @@ impl Checker<'_> {
             for join in self.pending_joins().skip(before) {
                 eprintln!(
                     "NEWJOIN pl={} left={:?} right={:?} ctor={} branch={}",
-                    self.planning,
-                    join.left,
-                    join.right,
-                    join.constructor,
-                    join.branch
+                    self.planning, join.left, join.right, join.constructor, join.branch
                 );
             }
         }
@@ -14277,6 +14413,9 @@ impl Checker<'_> {
             return Ok(AnchorOutcome::Compatible);
         }
         if state == Some(true) {
+            if xv("r1ledger") {
+                self.graph.r1_join_history.truncate(r1_history_before);
+            }
             if let Some((nodes, obligations)) = snapshot {
                 self.graph.type_nodes = nodes;
                 self.graph.obligations = obligations;
@@ -14302,11 +14441,12 @@ impl Checker<'_> {
                         && span.0 >= self.top_statement_start
                         && span.1 <= self.top_statement_end
                 });
-                let has_prior_statement_projection = self.graph.expr_vars.iter().any(|(span, id)| {
-                    self.graph.projection_items.contains(id)
-                        && span.0 >= self.top_statement_start
-                        && span.1 <= found_span_dbg.start
-                });
+                let has_prior_statement_projection =
+                    self.graph.expr_vars.iter().any(|(span, id)| {
+                        self.graph.projection_items.contains(id)
+                            && span.0 >= self.top_statement_start
+                            && span.1 <= found_span_dbg.start
+                    });
                 let pending_constructors: Vec<u64> = if xv("txmarks") {
                     self.pending_joins()
                         .skip(before)
@@ -14336,13 +14476,16 @@ impl Checker<'_> {
                             base.1.start.min(found_span_dbg.start),
                             self.active_if_span
                                 .as_ref()
-                                .map_or(found_span_dbg.end, |span| span.end.max(found_span_dbg.end)),
+                                .map_or(found_span_dbg.end, |span| {
+                                    span.end.max(found_span_dbg.end)
+                                }),
                         )
                     } else {
-                        self.active_if_span.as_ref().map_or(
-                            (self.top_statement_start, self.top_statement_end),
-                            |span| (span.start, span.end),
-                        )
+                        self.active_if_span
+                            .as_ref()
+                            .map_or((self.top_statement_start, self.top_statement_end), |span| {
+                                (span.start, span.end)
+                            })
                     };
                     for constructor in pending_constructors {
                         let root = self.root(constructor);
@@ -14370,6 +14513,9 @@ impl Checker<'_> {
         failed: bool,
         anchored: bool,
     ) -> Result<(), Box<Diagnostic>> {
+        if xv("r1t5") && progress.r1_condition_tainted {
+            return Ok(());
+        }
         let Some(Else::Block(block)) = progress.otherwise else {
             return Ok(());
         };
@@ -14407,7 +14553,12 @@ impl Checker<'_> {
                 return None;
             }
             branch_value_expr(block)
-                .and_then(|expr| self.graph.expression_types.get(&span_key(expr.span())).cloned())
+                .and_then(|expr| {
+                    self.graph
+                        .expression_types
+                        .get(&span_key(expr.span()))
+                        .cloned()
+                })
                 .filter(|ty| internal_state(ty).is_none())
         });
         let Some(found) = found else {
@@ -14428,6 +14579,10 @@ impl Checker<'_> {
 
     #[inline(never)]
     fn if_after_first(&mut self, progress: &mut IfProgress<'_>) -> Result<(), Box<Diagnostic>> {
+        if xv("r1t5") && progress.r1_condition_tainted {
+            progress.anchor = None;
+            return Ok(());
+        }
         let then_block = progress.then_block;
         progress.first_anchored |= branch_value_expr(then_block).is_some_and(|expr| {
             self.graph
@@ -14488,7 +14643,11 @@ impl Checker<'_> {
                 "IF1 pl={} first_span={:?} ctx_anchor={:?} anchor={:?} failed={} anchored={} partial={} fa={}",
                 self.planning,
                 progress.first_span.as_ref().map(|s| (s.start, s.end)),
-                progress.branch_context.anchor.as_ref().map(|a| (a.1.start, a.1.end)),
+                progress
+                    .branch_context
+                    .anchor
+                    .as_ref()
+                    .map(|a| (a.1.start, a.1.end)),
                 progress.anchor.as_ref().map(|a| (a.1.start, a.1.end)),
                 progress.first_failed,
                 progress.first_anchored,
@@ -14813,7 +14972,10 @@ impl Checker<'_> {
                             value,
                             self.errors
                                 .iter()
-                                .map(|e| (e.code.to_string(), e.primary_span.as_ref().map(|p| (p.start, p.end))))
+                                .map(|e| (
+                                    e.code.to_string(),
+                                    e.primary_span.as_ref().map(|p| (p.start, p.end))
+                                ))
                                 .collect::<Vec<_>>(),
                             branch_value_expr(&arm.body).is_some_and(|expr| self
                                 .graph
@@ -14864,7 +15026,9 @@ impl Checker<'_> {
                                             })
                                     })
                             }));
-                    if (!failed || arm_partial) && let Some(value) = value {
+                    if (!failed || arm_partial)
+                        && let Some(value) = value
+                    {
                         let origin =
                             branch_value_span(&arm.body).unwrap_or_else(|| arm.body.span.clone());
                         if let Some((first, first_origin)) = &progress.joined {
@@ -15793,6 +15957,7 @@ pub(crate) fn check_with_partial_limit(
             nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
             next_variable: 0,
             obligations: Vec::new(),
+            r1_join_history: Vec::new(),
             occurrences: HashMap::new(),
             emitted_sites: HashSet::new(),
             eligible_shapes: HashSet::new(),
@@ -17412,6 +17577,7 @@ mod quota_tests {
                 expression_types: HashMap::new(),
                 next_variable: 0,
                 obligations: Vec::new(),
+                r1_join_history: Vec::new(),
                 occurrences: HashMap::new(),
                 emitted_sites: HashSet::new(),
                 eligible_shapes: HashSet::new(),
