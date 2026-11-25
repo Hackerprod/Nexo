@@ -40,6 +40,8 @@ Tras el barrido completo, se compiló bajo `heavy-lock` el prototipo con los int
 
 Las siete fallan además O08, cuya derivación T5/N retira dos diagnósticos contaminados y todavía requiere validación independiente. La causa estructural común permanece: `deferred_join` representa simultáneamente disponibilidad de contexto previo y posibilidad de completar un constructor posterior. Filtrar la marca por función, sentencia, posición o forma del operando cambia ambas vistas a la vez; permitir la concreción global cambia las dos en dirección contraria. Ninguna variante de esta familia realiza el compromiso por ocurrencia con dependencias y dos vistas del prefijo que exige la regla candidata.
 
+La medición de pasadas del binario congelado `txmarksproj` sobre los 24.000 programas de c1, con `NEXO_XV=…,txmarks,txmarksproj,passes`, cuatro hijos y watchdog de 6 GB/20 min, dio máximo **3**: 77 programas con una pasada, 23.882 con dos y 41 con tres; cero inconclusos. `pasadas-c1.json` guarda el SHA del binario y el histograma. No se observó la parada de cinco pasadas en este corpus; la cota general sigue sin demostrarse.
+
 ## Continuación: mínimo, causa y sondas baratas
 
 Se redujo t3584 a 89 bytes, ASCII sin BOM ni LF final, perfil `f0-0002-b-v2`:
