@@ -42,6 +42,8 @@ Las siete fallan además O08, cuya derivación T5/N retira dos diagnósticos con
 
 La medición de pasadas del binario congelado `txmarksproj` sobre los 24.000 programas de c1, con `NEXO_XV=…,txmarks,txmarksproj,passes`, cuatro hijos y watchdog de 6 GB/20 min, dio máximo **3**: 77 programas con una pasada, 23.882 con dos y 41 con tres; cero inconclusos. `pasadas-c1.json` guarda el SHA del binario y el histograma. No se observó la parada de cinco pasadas en este corpus; la cota general sigue sin demostrarse.
 
+La sonda de pila de `scripts/f5-stack65.py` se **repitió válidamente bajo `heavy-lock`** con rustc 1.99.1 y las flags de `txmarksproj`: el control de 16 KiB desbordó como se esperaba (`0xc00000fd`), y `option_match126` y `result_match126` pasaron **5/5 cada uno a 65 KiB**. El test executable fue SHA-256 `239b807fc8f3…`; `pila65-txmarksproj.json` registra hashes, flags y salidas. Esta observación reemplaza la ejecución accidental anterior para esas diez sondas. **NO EVALUADO** aún: reserva exacta de `Checker::drive` y `resume_non_match` por el método exe/MAP de `f5-frame-sizes.py`; no se atribuye el margen ≥1.000 B sin esa medición.
+
 ## Continuación: mínimo, causa y sondas baratas
 
 Se redujo t3584 a 89 bytes, ASCII sin BOM ni LF final, perfil `f0-0002-b-v2`:
