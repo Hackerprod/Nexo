@@ -2240,7 +2240,7 @@ struct InferenceGraph {
     nested_assignment_sites: HashSet<u64>,
     pre_assignment_snapshot: HashMap<u64, Option<ConcreteEvidence>>,
     projected_bases: HashSet<u64>,
-    r5_projection_if_owner: HashMap<(u64, u64), Option<(u64, u64)>>,
+    r5_if_intervals: Vec<(u64, u64)>,
     projection_items: HashSet<u64>,
     assigned_bases: HashSet<u64>,
     assignment_starts: HashMap<u64, u64>,
@@ -3247,10 +3247,9 @@ impl Checker<'_> {
         self.graph.expr_vars.iter().any(|(span, id)| {
             let nested_in_union = self
                 .graph
-                .r5_projection_if_owner
-                .get(span)
-                .and_then(|owner| *owner)
-                .is_some();
+                .r5_if_intervals
+                .iter()
+                .any(|(start, end)| *start <= span.0 && span.1 <= *end);
             span.0 < scope_start
                 && !nested_in_union
                 && self.graph.projection_items.contains(id)
@@ -7878,7 +7877,7 @@ impl Checker<'_> {
         self.graph.obligations.clear();
         self.graph.r1_join_history.clear();
         self.graph.r4_events.clear();
-        self.graph.r5_projection_if_owner.clear();
+        self.graph.r5_if_intervals.clear();
         self.graph.r2_reads.clear();
         self.graph.r2_shadows.clear();
         self.graph.r2_shadow_links.clear();
@@ -11689,6 +11688,9 @@ impl Checker<'_> {
                             ..
                         } => {
                             let pending_before_if = self.pending_join_count();
+                            if xv("r5prefix") {
+                                self.graph.r5_if_intervals.push(span_key(inner.span()));
+                            }
                             let previous_if = self.active_if_span.replace(inner.span().clone());
                             let pending_before_condition = self.graph.obligations.len();
                             let branch_context = OwnedCheckContext {
@@ -12831,12 +12833,6 @@ impl Checker<'_> {
                         };
                         self.graph.expr_vars.insert(span_key(e.span()), child);
                         self.graph.projection_items.insert(child);
-                        if xv("r5prefix") {
-                            self.graph.r5_projection_if_owner.insert(
-                                span_key(e.span()),
-                                self.active_if_span.as_ref().map(span_key),
-                            );
-                        }
                         self.graph
                             .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                         return Ok(Type::Deferred(child));
@@ -14440,14 +14436,10 @@ impl Checker<'_> {
                             condition_tainted || condition_result.is_err();
                     }
                     if xv("r5t5") && progress.r1_condition_tainted {
-                        // A failed condition invalidates the value offered to
-                        // the parent. Its branches still have independent
-                        // constraints, but cannot inherit the parent's
-                        // expected type or union anchor through that value.
-                        progress.branch_context.expected = None;
-                        progress.branch_context.expected_span = None;
+                        // The branch checks retain their distributed type,
+                        // but a failed condition cannot turn the enclosing
+                        // union's anchor into a witness for this result.
                         progress.branch_context.anchor = None;
-                        progress.branch_context.related_expected = false;
                     }
                     self.graph.merge_child(progress.parent_fact, *visit, false);
                     *visit = progress.parent_fact;
@@ -16305,7 +16297,7 @@ pub(crate) fn check_with_partial_limit(
             nested_assignment_sites: HashSet::new(),
             pre_assignment_snapshot: HashMap::new(),
             projected_bases: HashSet::new(),
-            r5_projection_if_owner: HashMap::new(),
+            r5_if_intervals: Vec::new(),
             union_denounced: HashMap::new(),
             pending_unions: HashSet::new(),
             main_flags: HashMap::new(),
@@ -17932,7 +17924,7 @@ mod quota_tests {
                 nested_assignment_sites: HashSet::new(),
                 pre_assignment_snapshot: HashMap::new(),
                 projected_bases: HashSet::new(),
-                r5_projection_if_owner: HashMap::new(),
+                r5_if_intervals: Vec::new(),
                 union_denounced: HashMap::new(),
                 pending_unions: HashSet::new(),
                 main_flags: HashMap::new(),
