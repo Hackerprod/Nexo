@@ -386,6 +386,8 @@ class Checker:
         self.conflicts = []
         self.ctors = []  # (span, elem)  -> NX-E0103 al cierre si elem sigue variable (cl.2, 4.1)
         self.projs = []  # (base, result): "si la base es Array, el resultado es su elemento" (cl.3)
+        self.read_origins = {}  # lectura -> origen comprometido de su binding al entrar
+        self.continuation_roots = set()  # lecturas que SON el operando completo de if
         self.notes = []
         self.unmodeled = []
         self.nonfixed = set()  # decisiones que el ADR no fija y que el oraculo toma con la lectura mas cercana
@@ -490,6 +492,7 @@ class Checker:
                 return Val(bad=True)
             if b["tainted"]:
                 return Val(bad=True)  # cl.5: las lecturas de un binding contaminado no aportan evidencia
+            self.read_origins[span(g)] = src_of_type(b["ty"])
             return Val(b["ty"])
         if k == "index":
             return self.check_index(g)
@@ -669,6 +672,8 @@ class Checker:
         g = strip(e)
         if g.k == "never":
             return
+        if g.k == "var":
+            self.continuation_roots.add(span(g))
         if st["anchor"] is None:
             # primera continuacion con evidencia valida: establece la referencia (cl.4)
             if g.k == "if":
@@ -789,6 +794,8 @@ class Checker:
             # A distributed check of a compound RHS must not lose that site
             # when it descends into a child type with its own declaration src.
             entry_origin = src_of_type(b["ty"])
+            if entry_origin in self.read_origins and entry_origin not in self.continuation_roots:
+                entry_origin = self.read_origins[entry_origin] or entry_origin
             ctx = Ctx(b["ty"], "assign", entry_origin if entry_origin is not None else "origin",
                       wit=(rhs.s, rhs.e), alias_initializer=alias_init)
             # una asignacion posterior se comprueba contra el tipo ya fijado (cl.2, L); no se redistribuye
@@ -926,6 +933,8 @@ ADR = [
      [("NX-E0102", "type_mismatch", (54, 58), "I64", "Bool", (47, 50))], "F2 N9 completacion tardia no desplaza fijador"),
     ("fn Main(){let c=[1];var q=[];let a=(if true then q else c);q=[true];}",
      [("NX-E0102", "type_mismatch", (62, 66), "I64", "Bool", (56, 57))], "F2 N11 continuacion conserva lectura"),
+    ("fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=[3];let a0=(if p then s else (if p then aar else [q,r]));q=[[ar]];}",
+     [("NX-E0102", "type_mismatch", (150, 154), "I64", "Array<Array<I64>>", (90, 93))], "F2 #13262 componente dentro de continuacion"),
 ]
 
 
