@@ -82,14 +82,20 @@ def main():
                 error = f"{exc}: {completed.stdout[-200:]} {completed.stderr[-200:]}"
             rows.append({"name": name, "bytes": len(source), "source": source,
                          "expected": expected, "actual": actual, "observed_detail": detail,
-                         "matches": actual == expected, "exit": completed.returncode,
+                         "matches": None if expected is None else actual == expected,
+                         "exit": completed.returncode,
                          "error": error})
     report = {"binary": str(binary), "binary_sha256": binary_sha256,
               "profile": args.profile, "flags": args.flags, "rows": rows}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     for row in rows:
-        print(f"{row['name']}: {'MATCH' if row['matches'] else 'DIFF'} {row['actual']}")
+        verdict = "UNADJUDICATED" if row["matches"] is None else ("MATCH" if row["matches"] else "DIFF")
+        print(f"{row['name']}: {verdict} {row['actual']}")
+    if any(row["matches"] is False for row in rows):
+        raise SystemExit(1)
+    if any(row["matches"] is None for row in rows):
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
