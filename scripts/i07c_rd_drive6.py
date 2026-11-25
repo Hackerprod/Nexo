@@ -94,7 +94,10 @@ def main():
             if covered(tag, corpus, len(rows)):
                 print(f"reuse {tag} {corpus} {len(rows)}", flush=True)
                 continue
-            existing = sweep.load(tag, corpus) if (sweep.OUT / tag).exists() and list((sweep.OUT / tag).glob(corpus + "-*.json")) else {}
+            try:
+                existing = sweep.load(tag, corpus)
+            except FileNotFoundError:
+                existing = {}
             for start in range(0, len(rows), 2000):
                 if os.environ.get("I07C_RD_LOCK_HELD") == "1" and time.monotonic() - session_started > 18 * 60:
                     print("locked batch reached 18 min; resume later", flush=True)
