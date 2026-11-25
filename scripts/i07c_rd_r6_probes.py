@@ -26,6 +26,12 @@ CASES = {
     "completion_conflict": ("fn Main(){var q=[];let a=[q,1];q=[true];}", [("NX-E0102", 28, 29)]),
     "completion_unresolved": ("fn Main(){var q=[];let a=[q,1];}", [("NX-E0103", 16, 18)]),
     "suspended_68": ("fn Main(){var q=[];var r=[];(if true then q else r);q=[1];r=[true];}", [("NX-E0102", 61, 65)]),
+    "join_record": ("fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}", [("NX-E1303", 56, 60), ("NX-E1303", 67, 70)]),
+    "ST1_equivalent": ("fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}", None),
+    "W1_atomic_compound": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}", [("NX-E0102", 99, 100), ("NX-E1303", 147, 148), ("NX-E1303", 199, 200), ("NX-E1303", 209, 212), ("NX-E0102", 216, 219)]),
+    # ADR §4.1.2.2/.4 implies E0103 [77,79) in place of main's E0102
+    # [85,86). B must still adjudicate the complete diagnostic list.
+    "W2_no_retroactive_context": ("fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}", None),
 }
 
 
@@ -54,12 +60,18 @@ def main():
                 payload = json.loads(completed.stdout)
                 actual = [(d["code"], d["primary_span"]["start"], d["primary_span"]["end"])
                           for d in payload["diagnostics"]]
+                detail = [{"code": d["code"], "subcause": d.get("subcause"),
+                           "primary": [d["primary_span"]["start"], d["primary_span"]["end"]],
+                           "related": [(r["role"], r["span"]["start"], r["span"]["end"])
+                                       for r in d.get("related_spans", [])],
+                           "data": d.get("data", {})} for d in payload["diagnostics"]]
                 error = None
             except (KeyError, TypeError, ValueError) as exc:
                 actual = None
+                detail = None
                 error = f"{exc}: {completed.stdout[-200:]} {completed.stderr[-200:]}"
             rows.append({"name": name, "bytes": len(source), "source": source,
-                         "expected": expected, "actual": actual,
+                         "expected": expected, "actual": actual, "observed_detail": detail,
                          "matches": actual == expected, "exit": completed.returncode,
                          "error": error})
     report = {"binary": str(binary), "binary_sha256": binary_sha256,
