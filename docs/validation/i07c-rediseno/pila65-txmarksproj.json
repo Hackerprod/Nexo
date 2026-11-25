@@ -1,0 +1,15 @@
+{
+  "date_utc": "2026-11-25",
+  "rustc": "1.99.1 x86_64-pc-windows-msvc",
+  "script": "scripts/f5-stack65.py",
+  "script_sha256": "79029b0446ee4b9de768ecc911e372518909d0238d879113c418c52cdc91c94a",
+  "test_exe_sha256": "239b807fc8f37dcd23cab12e673f545cbe90c3ece96e0f4d362f65bb45297f0b",
+  "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,txmarks,txmarksproj",
+  "lock_session": "i07c-rediseno",
+  "cargo_build_jobs": 4,
+  "nextest_test_threads": 4,
+  "control_16_kib_exit": "0xc00000fd",
+  "option_match126_65_kib": [0, 0, 0, 0, 0],
+  "result_match126_65_kib": [0, 0, 0, 0, 0],
+  "frame_reservation": "NO EVALUADO: esta ejecución no generó el par exe/MAP requerido por f5-frame-sizes.py"
+}
