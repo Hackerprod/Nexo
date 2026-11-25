@@ -21,6 +21,8 @@ Estado: propuesta de A, sin PASS de B. Ningún test existente se modifica aquí.
 
 ## Disposición de los 17 tests de brief §3.6
 
+Medición posterior para las preguntas 13 y 17: R5 release obtuvo 152/152 pares RD `check`/`run` y 54/54 aceptaciones idénticas en 18 fuentes por tres perfiles; mediana exploratoria de 21 ms por lanzamiento. La tabla A/B/C/D completa y sus fallos se publicaron en `I07c-rediseno-restauracion-atomica-barrido-R5-B-r1.md`. La reserva exe/MAP, el diferencial debug/release, la cota de copia y el tiempo interno del solucionador permanecen NO EVALUADOS porque R5 ya tiene A reproducibles. No se sustituye esa evidencia por un PASS de los tests.
+
 La disposición de B en `I07c-S5c-tests-B-r1.md` se conserva. «Reescribir» significa hacerlo **después** de la derivación y de la aprobación individual exigida por brief §3.6, no en esta propuesta. Todos siguen sin tocar y no acreditan PASS de R5.
 
 | Test (módulo abreviado) | Disposición |
