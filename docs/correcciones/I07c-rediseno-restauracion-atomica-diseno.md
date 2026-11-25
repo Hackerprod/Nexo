@@ -1,6 +1,58 @@
 # I07c — Rediseño de restauración atómica y ancla de unión
 
-Estado: **parada demostrada de esta realización; regla candidata no demostrada, sin PASS ni plan de implementación**. Base: `origin/main` de 2026-11-24. La familia de marcas reconstruidas no conserva los mínimos de núcleo y produce regresiones estructurales en los corpus nuevos congelados. Quince variantes medidas no autorizaron Flujo B. Las cifras y repros propios están en `I07c-rediseno-restauracion-atomica-informe.md`; la siguiente iteración requiere una representación de la transacción por ocurrencia que separe contexto previo y completación posterior.
+Estado: **rediseño de representación en curso; sin PASS ni plan de implementación**. Base: `origin/main` de 2026-11-24. La parada de la continuación 3 solo descarta quince variantes de marcas sobre la representación anterior. Sus cifras y repros están en `I07c-rediseno-restauracion-atomica-informe.md`.
+
+## Representación R1: libro de evidencias por ocurrencia
+
+La unidad semántica es la *igualdad en su ocurrencia fuente*, con un número ordinal estable en el recorrido de §4.1.2.1. El grafo monomórfico conserva identidades de variables y constructores (§4.1.1), pero **no almacena `deferred_join` ni `branch_join_scopes` como propiedades de una raíz**. Son propiedades de una igualdad que puede fallar. Una raíz unificada por otra igualdad no hereda por ello el bloqueo de contexto de la primera. El mismo mecanismo procesa anclas de `if`, homogeneidad de array, asignaciones y proyecciones. Una marca de `match` se obtiene de sus igualdades y de sus brazos conforme a F0-0003 §3.3; no tiene un circuito separado.
+
+Estructuras propuestas (los nombres son de diseño, no API final):
+
+```text
+OccurrenceId = (FactId, ordinal_de_igualdad, span_primario)
+ReadContext[NodeOccurrence] = {
+  prefix_epoch, expected_at_entry, shape_at_entry,
+  evidence_ids_visible, projection_dependencies
+}                                  // inmutable tras entrar al nodo
+EqualityRecord[OccurrenceId] = {
+  left, right, source_order, prior_epoch, status,
+  journal_of_graph_writes, dependencies, join_id?,
+  diagnostic_reservation?, completion_epoch?
+}
+status = Tentative | Suspended | Committed | Rejected
+JoinRecord[JoinId] = {
+  anchor_occurrence, anchor_witness, comparisons[],
+  context_at_entry, first_reported_occurrence?, outer_partial_witness?
+}
+Completion[OccurrenceId] = {
+  compatible_links, resolved_types, origins, resolved_diagnostics
+}                                  // vista posterior, por dependencia
+ConstructorDuty[ConstructorId] = {
+  source_span, element_variable, own_resolution, causal_suppression
+}
+```
+
+**Invariante I.** Para todo nodo `n` y ocurrencia `o`, `ReadContext[n]` es exactamente el prefijo de igualdades *comprometidas* que era visible al entrar en `n`. Una igualdad suspendida tiene `EqualityRecord`, pero su journal no forma parte de ese prefijo. `Completion[o]` puede crecer por igualdades compatibles posteriores conectadas por variables de tipo; solo decide `o`, completa datos de su diagnóstico y resuelve obligaciones de constructor. Nunca reescribe `ReadContext[n]`, cambia el sitio de `o` ni hace visible una igualdad rechazada. Un enlace solo entra en el grafo comprometido si el contraste completo, incluidos hijos de Array/Option/Result, es compatible; el rechazo revierte **todas** sus escrituras y no las de otra ocurrencia. La reserva de diagnóstico, el testigo parcial para una unión exterior y las obligaciones independientes sobreviven según su propia identidad. Esta es una sola regla de prefijo compatible y rechazo atómico (§§4.1.1, 4.1.2.2, 4.1.2.4–5, 4.1.2.7).
+
+**Alta.** Al entrar en un nodo se congela `ReadContext` antes de distribuirle contexto (§4.1.2.4). Cada contraste crea `EqualityRecord` con `prior_epoch` y journal vacío, y la unión crea `JoinRecord` con ancla de la primera continuación normal válida. El constructor de valor registra su propia `ConstructorDuty`; un `[]` o `[q]` pendiente no depende de que otra unión tenga diagnóstico (§4.1.1 y §13.17). La primera rama fallida puede proporcionar un testigo parcial a la unión exterior, sin proporcionar valor a un consumidor (§4.1.2.5 y `pending_inner` lectura B).
+
+**Compromiso y suspensión.** Si toda la igualdad es compatible se publica el journal como un epoch nuevo y se fija su procedencia fuente. Si faltan componentes, el registro pasa a `Suspended`: la obligación conoce sus operandos, dependencias, `JoinId`, constructor y sitio; el journal tentativo permanece privado. Una asignación posterior compatible puede completar sus variables y decidir la obligación, sin introducir ese tipo en el contexto previo de una lectura (§4.1.2.2, .4 y .7). El `JoinRecord` conserva exactamente una reserva de `NX-E1303` para su primera incompatibilidad, mientras otras igualdades compatibles de la unión se comprometen (§4.1.2.4–5).
+
+**Restauración y retirada.** Un contraste incompatible deshace el journal en orden inverso, incluida la estructura de nodos, origen, obligación de esa igualdad y cualquier índice de plan producido *solo* por ella. Registra `Rejected` y reserva el diagnóstico en el sitio original; un conflicto que espera serialización no vuelve a estar activo ni provoca `NX-E0103` derivado (§4.1.2.2 y .5). No revierte cuotas ni evidencia anterior o independiente. Las reservas se emiten por el orden causal de §13.9; después se retiran los journals y vistas de planificación, conservando el origen requerido por `expected_type` (procedencia A). `Never`, desconocido y contaminado son estados distintos: T5 prohíbe usar como ancla externa el nominal de una operación con condición fallida; literal-N no ofrece testigo parcial de array heterogéneo. Ambos conservan diagnósticos de hijos independientes.
+
+**Transiciones permitidas.** `Tentative → Committed | Suspended | Rejected`; `Suspended → Committed | Rejected | Suspended` al crecer solo `Completion`; `Committed` no se revierte por una incompatibilidad posterior; `Rejected` no retorna a `Suspended`. Una repetición de planning reconstruye las vistas a partir del libro y mantiene los `OccurrenceId` y el orden de emisión; no muta una instantánea previa. La eventual retirada ocurre tras fijar diagnósticos y antes de bajar IR. Una obligación recursiva se rechaza como tal; no se transforma en igualdad compatible por una asignación futura (§4.1.1, §4.1.2.2 y §13.9).
+
+| evidencia mínima | obligación que discrimina | pieza exigida |
+|---|---|---|
+| cinco fuentes `ejemplos-regresiones-base.txt`: t 2192, 3584, 3594, 3596, 7094 | sus asignaciones posteriores no hacen que una unión fallida retipifique el prefijo; en t 3584 solo `NX-E0103` `[85,87)` y `NX-E1303` `[126,128)`, sin `NX-E0102` `[146,148)` | journal por igualdad, `Rejected` final y prefijo comprometido (§4.1.2.2, .4, .7). Las otras cuatro fuentes y salidas exactas están en el blob histórico citado por el brief §6. |
+| mínimo 78 B `fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}` | solo `NX-E1303` `[52,53)`; `[r,q]` y las asignaciones posteriores completan sus propios constructores | `Completion` separado de `ReadContext` y deberes por constructor (§4.1.2.2, .4; §13.17). |
+| mínimo 97 B `fn Main(){var q=[];var r=[];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}` | solo `NX-E0103` `[16,18)`; la proyección dentro de la unión no bloquea la fijación independiente de `r` | dependencias de `EqualityRecord`, no bandera en raíz (§4.1.2.2, .4–5). |
+| mínimo 115 B `fn Main(){var s=[];let b=s[0];var q=[];var r=[];(if true then [q] else (if true then [1] else q));r=q;q=[1];s=[1];}` | solo `NX-E1303` `[85,88)`; `s[0]` no activa una marca de `q` | `projection_dependencies` y `OccurrenceId` (misma cláusula). |
+| `planned_projection_child_does_not_use_failed_branch_as_witness` y `anchored_first_branch` | una obligación suspendida mantiene su sitio; la primera continuación parcial conserva solo el testigo de unión exterior | `JoinRecord` y separación reserva/testigo (§4.1.2.4–5, `pending_inner` B). |
+| c1-nueva 4223/7417; c2-nueva 5312/6526 | `r[0]` en unión anidada no traslada `NX-E1303` a asignación posterior ni crea `NX-E0103` adicional | `ReadContext` congelado más `Completion` por dependencia (§4.1.2.4, .7). Son **validación congelada**, no muestras de ajuste. |
+| T5 y literal-N | resultado contaminado no es ancla; constructor Array conserva su deber propio sin adoptar un testigo inválido | estado de resultado separado de `JoinRecord` y `ConstructorDuty` (§4.1.2.5, T5 y lectura N). |
+
+El primer prototipo se identifica como **R1 libro de evidencias**. Sus interruptores y mediciones se consignarán en el informe; hasta alcanzar todas las puertas no se escribe plan de Flujo B. Los siguientes intentos, si R1 falla, tendrán que cambiar la **representación**, no solo filtrar sus marcas.
 
 ## Regla candidata única: compromiso por ocurrencia
 
