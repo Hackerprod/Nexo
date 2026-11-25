@@ -146,16 +146,16 @@ fn grouped_operands_keep_one_causal_primary() {
         String::from_utf8_lossy(&status.stderr)
     );
     let text = String::from_utf8_lossy(&status.stdout);
-    // The three grouped primaries (for_iteration, non-callable target, closure
-    // target) now call the single group-removal helper; none is pending.
+    // The grouped primaries call the single group-removal helper. The audit
+    // keys reviewed uses by function and expression, independent of line shifts.
     assert!(
-        text.contains("expression_primary: 3 lines=8279,12484,14797")
-            && text.contains("delegated_primary: 1 lines=7078")
-            && text.contains("argument_target_primary: 1 lines=14811")
-            && text.contains("types.rs reviewed: 14/14")
+        text.contains("expression_primary: 5 sites")
+            && text.contains("delegated_primary: 1 sites")
+            && text.contains("argument_target_primary: 1 sites")
+            && text.contains("types.rs reviewed: 17/17")
             && text.contains("names.rs reviewed: 5/5")
             && text.contains("effects.rs reviewed: 1/1")
-            && text.contains("reviewed: 20/20")
+            && text.contains("reviewed: 23/23")
             && text.contains("lowering span baseline: PASS")
             && !text.contains("pendiente_decision"),
         "{text}"

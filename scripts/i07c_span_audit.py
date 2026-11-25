@@ -23,36 +23,37 @@ HELPER = SOURCE.parents[1] / "frontend/parse.rs"
 NAMES = SOURCE.parent / "names.rs"
 EFFECTS = SOURCE.parents[1] / "ir/effects.rs"
 REVIEWED_NAMES = {
-    191: ("value.span().start", "boundary", "stmt_span.start", "lower bound of the token search, not a primary"),
-    795: ("self.enter(expr.span())", "identity", "self.enter(", "entry/quota key of the node, keeps the group"),
-    1085: ("target.span().clone()", "relation", "partial_transfer", "Context relation names the whole call target"),
-    1186: ("a.value.span().clone()", "unreachable_fallback", "duplicate_argument", "unlabelled duplicate primary, unreachable (plan section 2)"),
-    1193: ("occupied[slot]", "relation", "label_span(a)", "occupied slot span, Context relation of a later duplicate"),
+    ("binding_span", "value.span().start"): ("boundary", "stmt_span.start", "lower bound of the token search, not a primary"),
+    ("walk", "self.enter(expr.span())"): ("identity", "self.enter(", "entry/quota key of the node, keeps the group"),
+    ("bind_call_target", "target.span().clone()"): ("relation", "partial_transfer", "Context relation names the whole call target"),
+    ("bind", "a.value.span().clone()"): ("unreachable_fallback", "duplicate_argument", "unlabelled duplicate primary, unreachable (plan section 2)"),
+    ("bind", "occupied[slot] = Some(label_span(a).unwrap_or_else(|| a.value.span().clone()));"): ("relation", "label_span(a)", "occupied slot span, Context relation of a later duplicate"),
 }
 REVIEWED_EFFECTS = {
-    1232: ("guard.span().clone()", "identity", "Frame::Guard(guard)", "match guard region used to contain witnesses, not a primary"),
+    ("scope_sites", "guard.span().clone()"): ("identity", "Frame::Guard(guard)", "match guard region used to contain witnesses, not a primary"),
 }
-# This inventory is tied to the types.rs of the I07c-S6-COR cut (derived from the S5b.1 inventory,
-# I07c-S6 plan section 3.3). Classes: the sites that report an expression call the group-removal
+# This inventory is indexed by (enclosing function, expression), with counts for repeated sites.
+# It derives from the I07c-S6-COR inventory (I07c-S6 plan section 3.3).
+# Classes: the sites that report an expression call the group-removal
 # helper (`delegated_primary`, `expression_primary`, `argument_target_primary`); the rest keep a raw
 # span for identity, an operator token, a deferred result, a Pattern or a budget charge. The next
-# cut that edits types.rs must re-reconcile it. Both the expression and its surrounding call/block
-# must remain recognisable; a reviewed line that loses its expression is rejected.
+# cut that edits types.rs must re-reconcile it. The function, expression, count and surrounding
+# call/block must remain recognisable; moving a line does not change the review.
 REVIEWED = {
-    7078: ("crate::frontend::parse::expression_primary_span(e)", "delegated_primary", "fn primary_span(e: &Expr)", "Group removal is delegated to the parse.rs helper"),
-    8279: ("Self::primary_span(iterable)", "expression_primary", "prepare_for_type", "for_iteration Array barrier reports the iterable without outer groups"),
-    9061: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
-    9062: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
-    11300: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
-    12248: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
-    12484: ("Self::primary_span(target)", "expression_primary", "non_callable_target", "call target reported without outer groups; the declaration relation is unchanged"),
-    13058: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
-    13168: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
-    13379: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
-    13384: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
-    13559: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
-    14797: ("Self::primary_span(target)", "expression_primary", '"NX-E1111"', "closure target reported without outer groups; branch NO EVALUADO, see below"),
-    14811: ("&Self::primary_span(target)", "argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
+    ("primary_span", "crate::frontend::parse::expression_primary_span(e)"): ("delegated_primary", "fn primary_span(e: &Expr)", "Group removal is delegated to the parse.rs helper"),
+    ("prepare_for_type", "Self::primary_span(iterable)"): ("expression_primary", "for_iteration", "for_iteration Array barrier reports the iterable without outer groups", 3),
+    ("binary_range_error", "left.span(),"): ("operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
+    ("binary_range_error", "right.span(),"): ("operator", "checker.operator_span(", "same operator_span call, right operand bound"),
+    ("drive", "inner.span().clone()"): ("identity", "active_if_span.replace", "scope of the current If, not a primary"),
+    ("expr_inner", "e.span(),"): ("deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
+    ("expr_inner", "Self::primary_span(target),"): ("expression_primary", "non_callable_target", "call target reported without outer groups; the declaration relation is unchanged"),
+    ("finish_deferred_binary_right", "e.span(),"): ("deferred_result", "self.defer_nominal_domain(", "nominal result; possible deferred primary", 2),
+    ("finish_selection", "arm.pattern.span().clone()"): ("pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
+    ("finish_selection", "pattern.span().clone()"): ("pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
+    ("pattern_type", "pattern.span()"): ("quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
+    ("match_advance", "let span = expr.span();"): ("identity", "OccurrenceFlag::PartialNormal", "R6 match witness identity and containment, not a diagnostic primary"),
+    ("prepare_closure_call", "Self::primary_span(target),"): ("expression_primary", '"NX-E1111"', "closure target reported without outer groups; branch NO EVALUADO, see below"),
+    ("prepare_closure_call", "&Self::primary_span(target),"): ("argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
 }
 
 # S6-COR-2: lowering (`lower.rs`, `lower_match.rs`) has ~100 raw `.span()` uses, most of them IR,
@@ -253,26 +254,31 @@ def audit_plain(path: Path, reviewed: dict) -> int:
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
     tests_zone = test_lines(text)
-    seen = set()
+    seen = {}
     tests = 0
     for number, line in enumerate(lines, 1):
-        if ".span()" not in line and number not in reviewed:
+        function = site_anchor(lines, number - 1)[0]
+        neighborhood = "\n".join(lines[max(0, number - 45):number + 6])
+        candidates = [key for key, row in reviewed.items()
+                      if key[0] == function and key[1] in line and row[1] in neighborhood]
+        key = max(candidates, key=lambda item: len(item[1])) if candidates else None
+        if ".span()" not in line and key is None:
             continue
-        if number in reviewed:
-            expression, kind, context, reason = reviewed[number]
-            neighborhood = "\n".join(lines[max(0, number - 45):number + 6])
-            if expression not in line or context not in neighborhood:
-                raise SystemExit(f"reviewed span changed at {path}:{number}: {line.strip()}")
-            seen.add(number)
-            print(f"{path.name} {kind}: {number} {expression} - {reason}")
+        if key is not None:
+            kind, context, reason, *_ = reviewed[key]
+            if line.count(".span()") != key[1].count(".span()"):
+                raise SystemExit(f"unreviewed raw span at {path}:{number}: {line.strip()}")
+            seen[key] = seen.get(key, 0) + 1
+            print(f"{path.name} {kind}: {function} {key[1]} - {reason}")
         elif number in tests_zone:
             tests += 1
         else:
             raise SystemExit(f"unreviewed raw span at {path}:{number}: {line.strip()}")
-    if seen != reviewed.keys():
-        raise SystemExit(f"reviewed sites missing in {path}: {reviewed.keys() - seen}")
-    print(f"{path.name} reviewed: {len(seen)}/{len(reviewed)} (test lines: {tests})")
-    return len(seen)
+    expected = {key: row[3] if len(row) > 3 else 1 for key, row in reviewed.items()}
+    if seen != expected:
+        raise SystemExit(f"reviewed sites missing or duplicated in {path}: {seen} != {expected}")
+    print(f"{path.name} reviewed: {sum(seen.values())}/{sum(expected.values())} (test lines: {tests})")
+    return sum(seen.values())
 
 
 def _indent(line: str) -> int:
@@ -364,17 +370,21 @@ def audit() -> None:
                                     "expression_primary", "deferred_result", "pattern_primary",
                                     "pattern_relation", "quota_charge",
                                     "argument_target_primary")}
-    seen = set()
+    seen = {}
     for number, line in enumerate(source_lines, 1):
-        if ".span()" not in line and number not in REVIEWED:
+        function = site_anchor(source_lines, number - 1)[0]
+        neighborhood = "\n".join(source_lines[max(0, number - 45):number + 6])
+        candidates = [key for key, row in REVIEWED.items()
+                      if key[0] == function and key[1] in line and row[1] in neighborhood]
+        key = max(candidates, key=lambda item: len(item[1])) if candidates else None
+        if ".span()" not in line and key is None:
             continue
-        if number in REVIEWED:
-            expression, kind, context, reason = REVIEWED[number]
-            neighborhood = "\n".join(source_lines[max(0, number - 45):number + 6])
-            if expression not in line or context not in neighborhood:
-                raise SystemExit(f"reviewed span changed at {SOURCE}:{number}: {line.strip()}")
-            seen.add(number)
-            print(f"{kind}: {number} {expression} — {reason}")
+        if key is not None:
+            kind, context, reason, *_ = REVIEWED[key]
+            if line.count(".span()") != key[1].count(".span()"):
+                raise SystemExit(f"unreviewed raw span at {SOURCE}:{number}: {line.strip()}")
+            seen[key] = seen.get(key, 0) + 1
+            print(f"{kind}: {function} {key[1]} — {reason}")
         elif number >= tests_begin:
             kind = "test"
         elif "span_key(" in line:
@@ -392,14 +402,16 @@ def audit() -> None:
         else:
             raise SystemExit(f"unreviewed raw span at {SOURCE}:{number}: {line.strip()}")
         classes[kind].append(number)
-    if seen != REVIEWED.keys():
-        raise SystemExit(f"reviewed sites missing: {REVIEWED.keys() - seen}")
+    expected = {key: row[3] if len(row) > 3 else 1 for key, row in REVIEWED.items()}
+    if seen != expected:
+        raise SystemExit(f"reviewed sites missing or duplicated: {seen} != {expected}")
     for kind, lines in classes.items():
-        print(f"{kind}: {len(lines)} lines={','.join(map(str, lines))}")
-    print(f"types.rs reviewed: {len(seen)}/{len(REVIEWED)}")
+        print(f"{kind}: {len(lines)} sites")
+    count = sum(seen.values())
+    print(f"types.rs reviewed: {count}/{sum(expected.values())}")
     others = audit_plain(NAMES, REVIEWED_NAMES) + audit_plain(EFFECTS, REVIEWED_EFFECTS)
-    total = len(seen) + others
-    print(f"reviewed: {total}/{len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)}")
+    total = count + others
+    print(f"reviewed: {total}/{total}")
     audit_lowering()
     print("NO EVALUADO solo la rama NX-E1111 de prepare_closure_call (sin borrador de closure); "
           "las demas rutas de primario agrupado las ejercita tests/i07c_group_primary.rs")
@@ -407,144 +419,94 @@ def audit() -> None:
 
 
 def self_test() -> None:
+    """Exercise the function/expression index, including a planted raw span."""
     def run(script: Path) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, "-B", str(script)], capture_output=True, text=True)
 
     with tempfile.TemporaryDirectory(prefix="i07c-span-") as folder:
         root = Path(folder)
+        copies = {
+            "scripts/i07c_span_audit.py": Path(__file__),
+            "src/check/types.rs": SOURCE,
+            "src/frontend/parse.rs": HELPER,
+            "src/check/names.rs": NAMES,
+            "src/ir/effects.rs": EFFECTS,
+            "src/ir/lower.rs": LOWER,
+            "src/ir/lower_match.rs": LOWER_MATCH,
+        }
+        originals = {}
+        for relative, original in copies.items():
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            content = original.read_text(encoding="utf-8")
+            originals[relative] = content
+            target.write_text(content, encoding="utf-8", newline="\n")
         script = root / "scripts/i07c_span_audit.py"
-        source = root / "src/check/types.rs"
-        helper = root / "src/frontend/parse.rs"
-        names = root / "src/check/names.rs"
-        effects = root / "src/ir/effects.rs"
-        lower = root / "src/ir/lower.rs"
-        lower_match = root / "src/ir/lower_match.rs"
-        original_lower = LOWER.read_text(encoding="utf-8")
-        original_lower_match = LOWER_MATCH.read_text(encoding="utf-8")
-        original_names = NAMES.read_text(encoding="utf-8")
-        original_effects = EFFECTS.read_text(encoding="utf-8")
-        for path in (script, source, helper, names, effects, lower, lower_match):
-            path.parent.mkdir(parents=True, exist_ok=True)
-        script.write_bytes(Path(__file__).read_bytes())
-        original = SOURCE.read_text(encoding="utf-8")
-        original_helper = HELPER.read_text(encoding="utf-8")
 
-        def write(types_text: str, parse_text: str, names_text: str = original_names,
-                  effects_text: str = original_effects, lower_text: str = original_lower,
-                  match_text: str = original_lower_match) -> None:
-            lower.write_text(lower_text, encoding="utf-8", newline="\n")
-            lower_match.write_text(match_text, encoding="utf-8", newline="\n")
-            source.write_text(types_text, encoding="utf-8", newline="\n")
-            helper.write_text(parse_text, encoding="utf-8", newline="\n")
-            names.write_text(names_text, encoding="utf-8", newline="\n")
-            effects.write_text(effects_text, encoding="utf-8", newline="\n")
+        def check(relative: str, old: str, new: str, expected: str) -> None:
+            original = originals[relative]
+            assert old in original, (relative, old)
+            target = root / relative
+            target.write_text(original.replace(old, new, 1), encoding="utf-8", newline="\n")
+            result = run(script)
+            assert result.returncode == 1 and expected in result.stderr, (
+                relative, old, result.stdout, result.stderr)
+            target.write_text(original, encoding="utf-8", newline="\n")
 
-        def revert(number: int, old: str, new: str) -> str:
-            lines = original.splitlines(keepends=True)
-            assert old in lines[number - 1], (number, old)
-            lines[number - 1] = lines[number - 1].replace(old, new, 1)
-            return "".join(lines)
-
-        write(original, original_helper)
         good = run(script)
-        assert good.returncode == 0 and all(f"{n} " in good.stdout for n in REVIEWED), good.stderr
-        assert f"reviewed: {len(REVIEWED)}/{len(REVIEWED)}" in good.stdout, good.stdout
-        write(original.replace("mod quota_tests {", "fn zz(e:&Expr)->Span{ e.span().clone() }\nmod quota_tests {", 1), original_helper)
-        bad = run(script)
-        assert bad.returncode == 1 and "unreviewed raw span" in bad.stderr, (bad.stdout, bad.stderr)
-        # Each edited site, reverted on its own, must be rejected.
-        loop = "    while let Expr::Group(inner, _) = current {\n        current = inner;\n    }\n"
-        assert loop in original_helper
-        reverts = [
-            ("primary_span without delegation",
-             revert(7078, "crate::frontend::parse::expression_primary_span(e)", "e.span().clone()"),
-             original_helper, "must only delegate"),
-            ("helper without its removal loop", original, original_helper.replace(loop, "", 1),
-             "helper changed or missing"),
-        ]
-        for number, old, new in ((8279, "Self::primary_span(iterable)", "iterable.span().clone()"),
-                                 (12484, "Self::primary_span(target)", "target.span().clone()"),
-                                 (14797, "Self::primary_span(target)", "target.span().clone()"),
-                                 (14811, "&Self::primary_span(target)", "target.span()")):
-            reverts.append((f"site {number} back to a raw span", revert(number, old, new),
-                            original_helper, "reviewed span changed"))
-        for label, types_text, parse_text, message in reverts:
-            write(types_text, parse_text)
-            result = run(script)
-            assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
-        # names.rs and effects.rs: a new raw use anywhere in product code fails (including product
-        # code that follows a test module), the reversion of a reviewed site fails, and the same
-        # use inside a real test module is accepted.
-        fresh = "fn zz(e: &Expr) -> Span { e.span().clone() }\n"
-        attribute = "#[cfg(test)]\nmod tests {"
+        assert good.returncode == 0 and "reviewed: 23/23" in good.stdout, (
+            good.stdout, good.stderr)
 
-        def before(text: str, anchor: str) -> str:
-            assert text.count(anchor) == 1, anchor
-            return text.replace(anchor, fresh + anchor, 1)
+        # Moving all historical lines preserves the keyed inventory.
+        types = root / "src/check/types.rs"
+        types.write_text("\n" * 9 + originals["src/check/types.rs"], encoding="utf-8", newline="\n")
+        moved = run(script)
+        assert moved.returncode == 0, (moved.stdout, moved.stderr)
+        types.write_text(originals["src/check/types.rs"], encoding="utf-8", newline="\n")
 
-        extra = [
-            ("raw span before the names.rs test module", dict(names_text=before(original_names, attribute)), "unreviewed raw span"),
-            ("raw span after the last names.rs test module", dict(names_text=original_names + fresh), "unreviewed raw span"),
-            ("raw span in effects.rs before call_head", dict(effects_text=before(original_effects, "fn call_head(")), "unreviewed raw span"),
-            ("raw span in find_witness (after a test module)", dict(effects_text=before(original_effects, "fn find_witness(")), "unreviewed raw span"),
-            ("raw span after the last effects.rs test module", dict(effects_text=original_effects + fresh), "unreviewed raw span"),
-            ("names.rs site 1085 normalized", dict(names_text=original_names.replace("related(&mut d, RelatedRole::Context, target.span().clone());", "related(&mut d, RelatedRole::Context, expression_primary_span(target));", 1)), "reviewed span changed"),
-            ("effects.rs guard site reverted", dict(effects_text=original_effects.replace("out.push(guard.span().clone());", "out.push(guard_span(guard));", 1)), "reviewed span changed"),
-        ]
-        for label, texts, message in extra:
-            write(original, original_helper, **texts)
-            result = run(script)
-            assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
-        # Green: a raw span inside a real test module (and inside a string or comment with braces).
-        green = [
-            ("names.rs", dict(names_text=original_names.replace("mod tests {\n", "mod tests {\n" + fresh, 1))),
-            ("effects.rs tests", dict(effects_text=original_effects.replace("mod tests {\n", "mod tests {\n" + fresh, 1))),
-            ("effects.rs witness tests", dict(effects_text=original_effects.replace("mod witness_differential_tests {\n", "mod witness_differential_tests {\n" + fresh, 1))),
-            ("braces in a comment and a string", dict(effects_text=before(original_effects, "fn find_witness(").replace(fresh, "const Z: &str = \"}\"; // {" + chr(10)))),
-        ]
-        for label, texts in green:
-            write(original, original_helper, **texts)
-            result = run(script)
-            assert result.returncode == 0, (label, result.stdout, result.stderr)
-        reverts = reverts + extra
-        # Lowering baseline (S6-COR-2): a new expression, a larger count and a smaller count are
-        # rejected (the baseline is reconciled with a reason), and a raw span in a real test module
-        # is accepted. The helper `group_site` below exercises the positive-anchor mechanism itself.
-        duplicate = "\n            .get(&(expr.span().start, expr.span().end))"
-        assert original_lower.count(duplicate) == 1, "resolved_expr line"
-        lowering = [
-            ("new raw expression in lower.rs", dict(lower_text=before(original_lower, "fn resolved_expr(")), "unreviewed raw span (new expression)"),
-            ("larger count in lower.rs", dict(lower_text=original_lower.replace(duplicate, duplicate + duplicate, 1)), "unreviewed raw span (larger count)"),
-            ("smaller count in lower.rs", dict(lower_text=original_lower.replace(duplicate, "", 1)), "stale span baseline"),
-            ("new raw expression in lower_match.rs", dict(match_text=before(original_lower_match, "fn guard_violations(")), "unreviewed raw span (new expression)"),
-        ]
-        for label, texts, message in lowering:
-            write(original, original_helper, **texts)
-            result = run(script)
-            assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
-        write(original, original_helper, lower_text=original_lower.replace("mod tests {\n", "mod tests {\n" + fresh, 1))
-        result = run(script)
-        assert result.returncode == 0, ("raw span in lower.rs tests", result.stdout, result.stderr)
-        sample = {"x.rs": "call(parse::expression_primary_span(v), 1)"}
-        spec = {"T": ("x.rs", r"call\((?P<site>parse::expression_primary_span\(v\)), 1\)", "v.span().clone()")}
-        check_group_sites(sample, spec)
-        try:
-            check_group_sites({"x.rs": sample["x.rs"].replace("parse::expression_primary_span(v)", "v.span().clone()")}, spec)
-            raise AssertionError("a reverted site must be rejected")
-        except SystemExit as error:
-            assert "group site T" in str(error), error
-        # Each solution's positive anchor: reverting its site to the raw access fails the auditor.
+        # The planted span is not listed by function/expression and must fail.
+        check("src/check/types.rs", "mod quota_tests {",
+              "fn planted(e: &Expr) -> Span { e.span().clone() }\nmod quota_tests {",
+              "unreviewed raw span")
+        check("src/check/names.rs", "fn bind_call_target(",
+              "fn planted(e: &Expr) -> Span { e.span().clone() }\nfn bind_call_target(",
+              "unreviewed raw span")
+        check("src/ir/effects.rs", "fn find_witness(",
+              "fn planted(e: &Expr) -> Span { e.span().clone() }\nfn find_witness(",
+              "unreviewed raw span")
+
+        # A reviewed access cannot silently change or multiply.
+        check("src/check/types.rs",
+              "crate::frontend::parse::expression_primary_span(e)",
+              "e.span().clone()", "must only delegate")
+        check("src/check/types.rs",
+              "Self::primary_span(iterable)",
+              "iterable.span().clone()", "unreviewed raw span")
+        check("src/check/names.rs",
+              "related(&mut d, RelatedRole::Context, target.span().clone());",
+              "related(&mut d, RelatedRole::Context, expression_primary_span(target));",
+              "reviewed sites missing or duplicated")
+        check("src/ir/effects.rs",
+              "out.push(guard.span().clone());",
+              "out.push(guard_span(guard));",
+              "reviewed sites missing or duplicated")
+
+        # Lowering inventory and its positive group-removal anchors remain guarded.
+        check("src/ir/lower.rs", "fn resolved_expr(",
+              "fn planted(e: &Expr) -> Span { e.span().clone() }\nfn resolved_expr(",
+              "unreviewed raw span")
         for ident, (name, pattern, raw) in GROUP_SITES.items():
-            text = original_lower if name == "lower.rs" else original_lower_match
-            found = re.search(pattern, text)
-            assert found, (ident, "anchor not found")
-            reverted = text[:found.start("site")] + raw + text[found.end("site"):]
-            write(original, original_helper, **{("lower_text" if name == "lower.rs" else "match_text"): reverted})
+            relative = "src/ir/" + name
+            original = originals[relative]
+            found = re.search(pattern, original)
+            assert found, ident
+            changed = original[:found.start("site")] + raw + original[found.end("site"):]
+            target = root / relative
+            target.write_text(changed, encoding="utf-8", newline="\n")
             result = run(script)
-            assert result.returncode == 1 and (f"group site {ident}" in result.stderr or "unreviewed raw span" in result.stderr), (ident, result.stdout, result.stderr)
-        reverts = reverts + lowering + [(ident, None, None, None) for ident in GROUP_SITES]
-    print(f"span auditor self-test: PASS ({len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)} "
-          f"reviewed in 3 files; novel raw use and {len(reverts)} site reversions rejected)")
+            assert result.returncode == 1, (ident, result.stdout, result.stderr)
+            target.write_text(original, encoding="utf-8", newline="\n")
+    print("span auditor self-test: PASS (function/expression index; planted raw span rejected)")
 
 
 if __name__ == "__main__":
