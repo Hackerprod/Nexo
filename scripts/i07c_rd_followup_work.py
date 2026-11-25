@@ -38,6 +38,8 @@ def main():
     result = {"candidate_sha256": candidate_sha, "flags": FLAGS, "steps": {}}
     result["steps"]["rd152"] = call(
         ["scripts/i07c_rd_conformidad.py", "--verify", CANDIDATE], "rd152", env)
+    result["steps"]["profiles"] = call(
+        ["scripts/i07c_rd_profile_acceptance.py"], "profiles")
     for piece in ("retract", "atomic0"):
         if time.monotonic() - started > 16 * 60:
             print("bounded batch reached 16 min; remaining ablations need another lock", flush=True)
