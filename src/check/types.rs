@@ -17259,19 +17259,32 @@ mod quota_tests {
         assert!(cost > 0);
         for limit in 0..cost {
             let report = check_with_partial_limit("quota.n", source, &ast, &resolved, limit);
-            let quota = report.errors.iter().filter(|d| d.code == "NX-E0003").collect::<Vec<_>>();
+            let quota = report
+                .errors
+                .iter()
+                .filter(|d| d.code == "NX-E0003")
+                .collect::<Vec<_>>();
             assert_eq!(quota.len(), 1, "limit {limit}: {:?}", report.errors);
-            assert_eq!(quota[0].data.get("budget_kind"), Some(&DataValue::String("type_solver_steps".into())));
+            assert_eq!(
+                quota[0].data.get("budget_kind"),
+                Some(&DataValue::String("type_solver_steps".into()))
+            );
             assert_eq!(quota[0].data.get("limit"), Some(&DataValue::UInt(limit)));
-            assert_eq!(quota[0].data.get("observed"), Some(&DataValue::UInt(limit + 1)));
+            assert_eq!(
+                quota[0].data.get("observed"),
+                Some(&DataValue::UInt(limit + 1))
+            );
             for diagnostic in report.errors.iter().filter(|d| d.code != "NX-E0003") {
-                assert!(full.errors.iter().any(|baseline| {
-                    baseline.code == diagnostic.code
-                        && baseline.subcause == diagnostic.subcause
-                        && baseline.primary_span == diagnostic.primary_span
-                        && baseline.related_spans == diagnostic.related_spans
-                        && baseline.data == diagnostic.data
-                }), "limit {limit}: {diagnostic:?}");
+                assert!(
+                    full.errors.iter().any(|baseline| {
+                        baseline.code == diagnostic.code
+                            && baseline.subcause == diagnostic.subcause
+                            && baseline.primary_span == diagnostic.primary_span
+                            && baseline.related_spans == diagnostic.related_spans
+                            && baseline.data == diagnostic.data
+                    }),
+                    "limit {limit}: {diagnostic:?}"
+                );
             }
         }
     }
@@ -19893,7 +19906,8 @@ mod quota_tests {
     fn waiting_projection_candidate_replay_obeys_solver_quota_prefix() {
         // F0-0002 §11.1: the later Array candidate activates the earlier
         // projection and is rejected; its replay still consumes solver work.
-        let source = "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}";
+        let source =
+            "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}";
         let ast = crate::frontend::parse::parse("quota.n", source).unwrap();
         let resolved = names::resolve("quota.n", source, &ast).unwrap();
         let full = check_with_partial_limit("quota.n", source, &ast, &resolved, 1_000_000);
