@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r10-commit-gates-v2",
+  "schema": "i07c-r10-commit-gates-v3",
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "directed74_unique_sources": 48,
   "directed74_duplicate_rows": 26,
@@ -177,7 +177,7 @@
       "match103_main_conservation": true,
       "t5_array5_normative": false,
       "all_modeled_corpus_normative_full": false,
-      "other_fixtures": "main exact outside explicit IDs in owned_corpus_ids; no inferred cause exception",
+      "other_fixtures": "Cada fila no propia: main u oraculo completo; una fila que ya coincidia con oraculo no puede volver a main en el siguiente commit. IDs propios: esperado normativo exacto.",
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": false,
       "c1_independent_probes": [
@@ -231,7 +231,7 @@
       "match103_main_conservation": true,
       "t5_array5_normative": false,
       "all_modeled_corpus_normative_full": false,
-      "other_fixtures": "main exact outside explicit IDs in owned_corpus_ids; no inferred cause exception",
+      "other_fixtures": "Cada fila no propia: main u oraculo completo; una fila que ya coincidia con oraculo no puede volver a main en el siguiente commit. IDs propios: esperado normativo exacto.",
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": false,
       "match103_full_main": false,
@@ -295,7 +295,7 @@
       "match103_main_conservation": true,
       "t5_array5_normative": true,
       "all_modeled_corpus_normative_full": false,
-      "other_fixtures": "main exact outside explicit IDs in owned_corpus_ids; no inferred cause exception",
+      "other_fixtures": "Cada fila no propia: main u oraculo completo; una fila que ya coincidia con oraculo no puede volver a main en el siguiente commit. IDs propios: esperado normativo exacto.",
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": true,
       "match103_full_main": true,
@@ -383,7 +383,7 @@
       "match103_main_conservation": true,
       "t5_array5_normative": true,
       "all_modeled_corpus_normative_full": false,
-      "other_fixtures": "main exact outside explicit IDs in owned_corpus_ids; no inferred cause exception",
+      "other_fixtures": "Cada fila no propia: main u oraculo completo; una fila que ya coincidia con oraculo no puede volver a main en el siguiente commit. IDs propios: esperado normativo exacto.",
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": true,
       "match103_full_main": true,
@@ -534,7 +534,7 @@
       "match103_main_conservation": true,
       "t5_array5_normative": true,
       "all_modeled_corpus_normative_full": false,
-      "other_fixtures": "main exact outside explicit IDs in owned_corpus_ids; no inferred cause exception",
+      "other_fixtures": "Cada fila no propia: main u oraculo completo; una fila que ya coincidia con oraculo no puede volver a main en el siguiente commit. IDs propios: esperado normativo exacto.",
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": true,
       "match103_full_main": true,
@@ -685,14 +685,14 @@
       "match103_main_conservation": true,
       "t5_array5_normative": true,
       "all_modeled_corpus_normative_full": true,
-      "other_fixtures": "main exact outside explicit IDs in owned_corpus_ids; no inferred cause exception",
+      "other_fixtures": "Toda fila modelable: oraculo completo exacto; toda divergencia declarada respecto de main pertenece a lista cerrada por corpus_id:index y campo.",
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": true,
       "match103_full_main": true,
       "match_observations_29_expected_by_authority": true
     }
   },
-  "unowned_corpus_policy": "Fuera de los IDs declarados para el commit: salida completa identica a main; sin excepcion por causa inferida.",
+  "unowned_corpus_policy": "C0: main exacto. C1-C5: cada fila no propia en {salida completa de main, salida completa del oraculo congelado}; si el commit anterior ya daba oraculo, volver a main es regresion. C6: oraculo exacto para toda fila modelable; ninguna excepcion inferida.",
   "owned_corpus_ids": {
     "C0": {
       "directed74": [],
@@ -2230,7 +2230,17 @@
     "Checker::finish_selection",
     "Checker::require_match_pattern_shapes",
     "Checker::pattern_type",
-    "Checker::selection_type"
+    "Checker::selection_type",
+    "InferenceGraph::type_nodes (compatibility view)",
+    "Checker::require_union (compatibility entry)",
+    "ObligationKind::PatternConstructor (compatibility registration)",
+    "OccurrenceFlag::Deferred",
+    "OccurrenceFlag::Divergent",
+    "OccurrenceFlag::PendingDomain",
+    "OccurrenceFlag::PartialNormal",
+    "OccurrenceFlag::FailedJoin",
+    "InferenceGraph::expression_types (compatibility view)",
+    "OwnedCheckContext::anchor (materialized Type snapshot)"
   ],
   "main_match_shared_symbol_branch_body_untouched": [
     "Checker::branch_next",
@@ -2242,6 +2252,15 @@
     "Checker::match_advance -> Checker::unify",
     "Checker::match_advance -> Checker::finish_selection",
     "drive::resume_expression_match -> Checker::check_against_context_one",
-    "drive::resume_statement_match -> Checker::finish_selection"
+    "drive::resume_statement_match -> Checker::finish_selection",
+    "Checker::require_match_pattern_shapes -> graph.type_nodes[root].variant_children/array_child",
+    "Checker::require_match_pattern_shapes -> Checker::require_union",
+    "Checker::require_match_pattern_shapes -> graph.register(PatternConstructor)",
+    "Checker::selection_type -> graph.type_nodes[root].clone",
+    "Checker::branch_accept -> five OccurrenceFlag and graph.expression_types",
+    "Checker::match_advance -> Checker::expression_variable / record_error",
+    "Checker::pattern_type -> Checker::locals / charge_solver",
+    "capture_usage / record_unresolved_sites / reads_binding_node / cyclic_generator -> Node::Match walker traversal",
+    "Checker::drive -> Frame::MatchScrutinee / Frame::Match scheduling"
   ]
 }

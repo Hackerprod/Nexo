@@ -162,6 +162,45 @@
       }
     },
     {
+      "id": "P3_result_both_payloads_pending_reverse_completion",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];var w=[];var z=[];var x=(if true then Ok(q) else Err(r));var y=(if true then Ok(w) else Err(z));w=[1];z=[true];r=[1];q=[true];x=y;}",
+      "source_sha256": "5706707c97fb3d81ef6b23e52d1e6f286118309131bd363fed4999f2bcd10038",
+      "bytes": 159,
+      "authority": "ADR F0-0002-lagunas Origen expected_type paso 6; la ultima continuacion de Result en orden de comprobacion es Err(r), con independencia del orden de completacion de los payloads",
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              156,
+              157
+            ],
+            "expected_type": "Result<Array<Bool>,Array<I64>>",
+            "found_type": "Result<Array<I64>,Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  77,
+                  83
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  156,
+                  157
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "P4_result_err_only_pending",
       "profile": "f0-0003-b-v1",
       "source": "fn Main(){var q=[];var r=[];var w=[];var z=[];var x=(if true then Ok(q) else Err(r));var y=(if true then Ok(w) else Err(z));w=[1];z=[true];q=[1];r=[1];x=y;}",

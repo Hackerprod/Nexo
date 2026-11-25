@@ -141,10 +141,11 @@
         "related_spans",
         "data"
       ],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "Retirar límites fijos 11..=14; medir en el candidato el primer cargo denegado y verificar que el consumidor no recibe un tipo de un dominio abierto.",
       "new_cli_test_id_or_retained_id": "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "approval_required": true
     },
     {
       "source_test": "diagnostic_site_ownership_survives_distinct_causes_and_preserves_siblings",
@@ -1672,10 +1673,11 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "Retirar 3d+3 frente a d+1 de TYPE_SOLVER_WORK; medir el coste del candidato y comprobar un NX-E0003 por primer cargo denegado y prefijo no dependiente de cuota.",
       "new_cli_test_id_or_retained_id": "adr_gap_unresolved_assert_eq_charges_each_deferred_constraint",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "approval_required": true
     },
     {
       "source_test": "nested_unification_charges_each_array_pair_at_the_reduced_boundary",
@@ -1815,10 +1817,11 @@
         "code",
         "data"
       ],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "Retirar límites fijos 26..=28; barrer límites del candidato en la misma fuente, con un NX-E0003 y observed=limit+1 antes de la aceptación.",
       "new_cli_test_id_or_retained_id": "deferred_assert_eq_copyability_uses_first_operand_at_quota_boundary",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "approval_required": true
     },
     {
       "source_test": "deferred_array_selector_keeps_exact_quota_charge_site",
@@ -1887,10 +1890,11 @@
         "code",
         "primary_span"
       ],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "Retirar límites fijos [3,4,6,7]; preservar el primer cargo denegado, un solo NX-E0003 y los diagnósticos independientes anteriores.",
       "new_cli_test_id_or_retained_id": "tainted_array_stops_after_the_first_denied_charge",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "approval_required": true
     },
     {
       "source_test": "quota_does_not_hide_converged_later_capability_error",
@@ -3494,7 +3498,32 @@
       "prior_action": "conservar_sin_cambio"
     }
   ],
-  "explicit_approval_27": {
+  "private_23": [
+    "j16_direct_pattern_type_child",
+    "inout_value_delegates_one_contextual_pair_to_its_operand",
+    "contextual_all_divergent_if_retains_expected_type_and_divergence",
+    "nested_divergent_branch_contributes_no_normal_type_under_context",
+    "partial_type_table_preserves_never_and_taint_states",
+    "boundary_binary_left_quota_keeps_operator_until_context_close",
+    "boundary_frame_owner_survives_completed_calls",
+    "boundary_closure_call_restores_parent_fact",
+    "boundary_taint_edges_clear_before_local_values",
+    "boundary_array_and_index_restore_owner_before_consumers",
+    "boundary_binary_deferred_rhs_keeps_owner_until_result",
+    "deferred_selector_reentry_keeps_outer_facts_for_array_and_scalar_bindings",
+    "malformed_generator_state_cycle_is_bounded",
+    "contextual_array_charges_each_leaf_once_at_the_reduced_boundary",
+    "contextual_group_and_if_charge_only_their_value_operands",
+    "non_result_try_is_rejected_at_the_expression_boundary",
+    "solver_charges_the_final_granted_unit_and_reports_one_rejected_unit",
+    "deferred_if_join_charges_the_reduced_boundary",
+    "reduced_type_solver_profile_keeps_exact_converged_subset",
+    "i07c_survivor2_pending_operation_types_match_their_sites",
+    "i07c_survivor2_closure_restores_enclosing_result_site",
+    "i07c_survivor2_selection_depth_keeps_the_current_type",
+    "i07c_survivor4_invalid_control_condition_taints_visit"
+  ],
+  "explicit_approval_31": {
     "existing_quota_and_precedence": [
       "union_retains_earliest_concrete_origin_and_copyable_domain",
       "overlapping_type_origins_choose_the_earlier_start",
@@ -3525,31 +3554,12 @@
       "quota_does_not_hide_converged_later_capability_error",
       "generated_multifunction_quota_has_one_denied_charge_and_exact_prefix",
       "reduced_type_solver_profile_keeps_exact_converged_subset"
+    ],
+    "formerly_preserved_fixed_cost_quota": [
+      "adr_gap_unresolved_assert_eq_charges_each_deferred_constraint",
+      "deferred_assert_eq_copyability_uses_first_operand_at_quota_boundary",
+      "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
+      "tainted_array_stops_after_the_first_denied_charge"
     ]
-  },
-  "private_23": [
-    "j16_direct_pattern_type_child",
-    "inout_value_delegates_one_contextual_pair_to_its_operand",
-    "contextual_all_divergent_if_retains_expected_type_and_divergence",
-    "nested_divergent_branch_contributes_no_normal_type_under_context",
-    "partial_type_table_preserves_never_and_taint_states",
-    "boundary_binary_left_quota_keeps_operator_until_context_close",
-    "boundary_frame_owner_survives_completed_calls",
-    "boundary_closure_call_restores_parent_fact",
-    "boundary_taint_edges_clear_before_local_values",
-    "boundary_array_and_index_restore_owner_before_consumers",
-    "boundary_binary_deferred_rhs_keeps_owner_until_result",
-    "deferred_selector_reentry_keeps_outer_facts_for_array_and_scalar_bindings",
-    "malformed_generator_state_cycle_is_bounded",
-    "contextual_array_charges_each_leaf_once_at_the_reduced_boundary",
-    "contextual_group_and_if_charge_only_their_value_operands",
-    "non_result_try_is_rejected_at_the_expression_boundary",
-    "solver_charges_the_final_granted_unit_and_reports_one_rejected_unit",
-    "deferred_if_join_charges_the_reduced_boundary",
-    "reduced_type_solver_profile_keeps_exact_converged_subset",
-    "i07c_survivor2_pending_operation_types_match_their_sites",
-    "i07c_survivor2_closure_restores_enclosing_result_site",
-    "i07c_survivor2_selection_depth_keeps_the_current_type",
-    "i07c_survivor4_invalid_control_condition_taints_visit"
-  ]
+  }
 }

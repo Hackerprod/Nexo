@@ -68,12 +68,12 @@ for index in (4, 20, 44, 46):
     assert probe["source"] == matrix_match[index]["source"]
 
 f2_variants = data("r9-f2-variants.json")["rows"]
-assert len(f2_variants) == 8
+assert len(f2_variants) == 9
 for id_ in ("result_ok_before_err", "result_two_mismatches"):
     row = next(r for r in f2_variants if r["id"] == id_)
     assert row["authority"] == "class_I_revertible"
     assert "expected_adr" not in row
-for id_ in ("P3_result_both_payloads_pending", "P4_result_err_only_pending"):
+for id_ in ("P3_result_both_payloads_pending", "P3_result_both_payloads_pending_reverse_completion", "P4_result_err_only_pending"):
     row = next(r for r in f2_variants if r["id"] == id_)
     assert row["source"][77:83] == "Err(r)"
     assert row["expected_adr"]["diagnosticos"][0]["relations"][0]["span"] == [77, 83]
@@ -95,17 +95,18 @@ assert len(migration) == len({x["source_test"] for x in migration}) == 124
 assert sum(x["class"] == "former_65" for x in migration) == 65
 assert sum(x["class"] == "former_65" and x["private_checker_api"] for x in migration) == 44
 for action, count in (
-    ("conservar_sin_cambio", 11), ("sustituir_mecanismo_por_cli", 8),
+    ("conservar_sin_cambio", 7), ("sustituir_mecanismo_por_cli", 8),
     ("reescribir_precedencia_recorrido_comprobacion", 5),
-    ("reescribir_cuota_propiedad_11_1", 22),
+    ("reescribir_cuota_propiedad_11_1", 26),
     ("portar_observable_cli_y_privado_libro", 63),
     ("portar_invariante_privada_modelo_nuevo", 15),
 ):
     assert sum(x["action"] == action for x in migration) == count
-assert sum(bool(x.get("approval_required")) for x in migration) == 27
+assert sum(bool(x.get("approval_required")) for x in migration) == 31
 assert len(manifest["private_23"]) == len(set(manifest["private_23"])) == 23
 assert all(next(x for x in migration if x["source_test"] == name)["private_checker_api"]
            for name in manifest["private_23"])
-assert len(manifest["explicit_approval_27"]["existing_quota_and_precedence"]) == 17
-assert len(manifest["explicit_approval_27"]["new_fixed_cost_quota"]) == 10
+assert len(manifest["explicit_approval_31"]["existing_quota_and_precedence"]) == 17
+assert len(manifest["explicit_approval_31"]["new_fixed_cost_quota"]) == 10
+assert len(manifest["explicit_approval_31"]["formerly_preserved_fixed_cost_quota"]) == 4
 print("r10 contract structure OK")

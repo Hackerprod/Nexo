@@ -780,9 +780,17 @@ class Checker:
             alias_init = None
             if rhs.k == "var" and src_of_type(b["ty"]) is None:
                 source = self.env.get(rhs.name)
-                if source is not None:
-                    alias_init = source.get("concrete_init")
-            ctx = Ctx(b["ty"], "assign", "origin", wit=(rhs.s, rhs.e), alias_initializer=alias_init)
+                if source is not None and not source["tainted"] and not has_var(source["ty"]):
+                    # Capture the committed source origin at this equality's
+                    # entry. It can come from an earlier assignment to `[]`,
+                    # not only from the binding's declaration initializer.
+                    alias_init = src_of_type(source["ty"]) or source.get("concrete_init")
+            # ReadContext freezes a previously committed supplier at entry.
+            # A distributed check of a compound RHS must not lose that site
+            # when it descends into a child type with its own declaration src.
+            entry_origin = src_of_type(b["ty"])
+            ctx = Ctx(b["ty"], "assign", entry_origin if entry_origin is not None else "origin",
+                      wit=(rhs.s, rhs.e), alias_initializer=alias_init)
             # una asignacion posterior se comprueba contra el tipo ya fijado (cl.2, L); no se redistribuye
             # retrospectivamente y una asignacion rechazada no cambia el tipo del destino (cl.2, cl.5)
             self.check_assign_rhs(rhs, ctx)
@@ -908,6 +916,16 @@ ADR = [
      [("NX-E0102", "type_mismatch", (36, 40), "I64", "Bool", (16, 19))], "L origen Alias"),
     ("fn Main(){let c=[1];let b=c;var v=[];v=b;v=[true];}",
      [("NX-E0102", "type_mismatch", (44, 48), "I64", "Bool", (16, 19))], "L origen Alias encadenado"),
+    ("fn Main(){var c=[];c=[1];var v=[];v=c;v=[true];}",
+     [("NX-E0102", "type_mismatch", (41, 45), "I64", "Bool", (21, 24))], "F2 A2 variable fijada antes del alias"),
+    ("fn Main(){let c=[1];var v=[];var w=[];w=c;v=w;v=[true];}",
+     [("NX-E0102", "type_mismatch", (49, 53), "I64", "Bool", (16, 19))], "F2 A6 cadena mutable"),
+    ("fn Main(){var c=[];c=[1];let b=c;var v=[];v=b;v=[true];}",
+     [("NX-E0102", "type_mismatch", (49, 53), "I64", "Bool", (21, 24))], "F2 A8 alias despues de fijar variable"),
+    ("fn Main(){var c=[];var b=[];var v=[];v=b;b=c;c=[1];v=[true];}",
+     [("NX-E0102", "type_mismatch", (54, 58), "I64", "Bool", (47, 50))], "F2 N9 completacion tardia no desplaza fijador"),
+    ("fn Main(){let c=[1];var q=[];let a=(if true then q else c);q=[true];}",
+     [("NX-E0102", "type_mismatch", (62, 66), "I64", "Bool", (56, 57))], "F2 N11 continuacion conserva lectura"),
 ]
 
 
