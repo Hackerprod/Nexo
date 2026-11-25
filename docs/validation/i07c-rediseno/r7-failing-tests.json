@@ -1,0 +1,1202 @@
+{
+  "schema": "i07c-r7-failing-tests-v1",
+  "main_binary_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "prototype_binary_sha256": "0e8604c867802d9983fb200744d53c287ea2bf17e4b9cf84eccd33c2a4560328",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b",
+  "rows": [
+    {
+      "test": "ir::i07c_tests::deferred_join_has_one_diagnostic_per_source_site",
+      "source": "fn Main(){var a=(if true then {return;} else {return;});var b=(if true then {return;} else {return;});a=[b];b=[a];}",
+      "source_sha256": "d523b08f8810449131aca08dc6692bd3134cae3d78fd6959e7848fc5399770b3",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          110,
+          113,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0103",
+          null,
+          104,
+          107,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          104,
+          107,
+          null,
+          null,
+          null
+        ]
+      ],
+      "adr_clause": "§4.1.2.2, §13.9",
+      "proposal": "rewrite_requires_owner_approval"
+    },
+    {
+      "test": "i07c_causal_obligations::failed_outer_array_keeps_nested_element_cause",
+      "source": "fn Main(){let x=1;var t2=[];t2[1]=[t2[x],[t2],[x,[1]]];}",
+      "source_sha256": "a4bd91a25c859477531db2dc1d9a3a06248283997a7c25991c064b84f1df5afa",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          25,
+          27,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          41,
+          45,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          49,
+          52,
+          "I64",
+          "Array<I64>",
+          [
+            47,
+            48
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0103",
+          null,
+          25,
+          27,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          49,
+          52,
+          "I64",
+          "Array<I64>",
+          [
+            47,
+            48
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          25,
+          27,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          49,
+          52,
+          "I64",
+          "Array<I64>",
+          [
+            47,
+            48
+          ]
+        ]
+      ],
+      "adr_clause": "§4.1.2.2, §4.1.2.4–5",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_causal_obligations::failed_outer_condition_keeps_nested_join_constructor",
+      "source": "fn Main(){let x=1;let br=[true];var m0=(if 1 then [] else (if x then [1] else br))[1];}",
+      "source_sha256": "bfa65ec8a8229c04c8cd89ba5f075d4d46b937b66cc74696524db02d48a2ca80",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          43,
+          44,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          50,
+          52,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          62,
+          63,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          78,
+          80,
+          "Array<I64>",
+          "Array<Bool>",
+          [
+            69,
+            72
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          43,
+          44,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          62,
+          63,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          78,
+          80,
+          "Array<I64>",
+          "Array<Bool>",
+          [
+            50,
+            52
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          43,
+          44,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          50,
+          52,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          62,
+          63,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          78,
+          80,
+          "Array<I64>",
+          "Array<Bool>",
+          [
+            69,
+            72
+          ]
+        ]
+      ],
+      "adr_clause": "§4.1.2.2, §4.1.2.5, §13.9",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_causal_obligations::mixed_nested_join_keeps_constructor_and_shape_sites",
+      "source": "fn Main(){let b=false;let o=(if b then [[]] else (if b then [[false],[true]] else [2,3]));}",
+      "source_sha256": "f36c241d9525fe82217e48b84b07308932372222d63a83d0040ffa80cb8b9076",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          40,
+          42,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          82,
+          87,
+          "Array<Array<Bool>>",
+          "Array<I64>",
+          [
+            60,
+            76
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E1303",
+          null,
+          82,
+          87,
+          "Array<Array<Bool>>",
+          "Array<I64>",
+          [
+            39,
+            43
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E1303",
+          null,
+          82,
+          87,
+          "Array<Array<Bool>>",
+          "Array<I64>",
+          [
+            39,
+            43
+          ]
+        ]
+      ],
+      "adr_clause": "§4.1.2.2, §4.1.2.4, §4.7",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_causal_obligations::pending_inner_constructor_preserves_outer_branch_comparison",
+      "source": "fn Main(){let ar=[1];let c=true;var m1=(if true then {value:ar[0];} else (if c then [[]] else false));}",
+      "source_sha256": "b5e7582184547dbb36d7d20e2819b8d016ff86cc127757cfb14d3983176378b9",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          85,
+          87,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          94,
+          99,
+          "I64",
+          "Bool",
+          [
+            60,
+            65
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0103",
+          null,
+          85,
+          87,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          85,
+          87,
+          null,
+          null,
+          null
+        ]
+      ],
+      "adr_clause": "lagunas: continuación posterior con constructor pendiente",
+      "proposal": "rewrite_requires_owner_approval"
+    },
+    {
+      "test": "i07c_causal_obligations::unresolved_constructor_survives_failed_nested_union_condition",
+      "source": "fn Main(){var t0=[];(if true then{value:(if true then{value:(if 1 then{}else t0);}else(if true then true else true));}else([5]));}",
+      "source_sha256": "ec84ed8005cc27c379c984e2d4a8f2ffd874b9d5a8e54f3a506a595e23dbd5e2",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          64,
+          65,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          123,
+          126,
+          "Bool",
+          "Array<I64>",
+          [
+            41,
+            115
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          64,
+          65,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          100,
+          104,
+          "Array<I64>",
+          "Bool",
+          [
+            61,
+            79
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          64,
+          65,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          123,
+          126,
+          "Bool",
+          "Array<I64>",
+          [
+            41,
+            115
+          ]
+        ]
+      ],
+      "adr_clause": "§4.1.2.2, §4.1.2.5 N(d)",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_mutation_regressions::anchored_first_branch_keeps_independent_pending_join",
+      "source": "fn Main(){var r=[];var s=[];let q=(if true then{value:s;}else (if true then{value:(if true then{value:r;}else{value:[];});}else{value:s<1;}));r=[[1]];s=[[]];}",
+      "source_sha256": "9dad19885297068a2254f856c6040bfd6f90df0b0b2628dbd298c4ad17dc07df",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          63,
+          139,
+          "Array<Array<I64>>",
+          "Bool",
+          [
+            54,
+            55
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          134,
+          137,
+          "Array<Array<I64>>",
+          "Bool",
+          [
+            83,
+            120
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          136,
+          137,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            134,
+            135
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          136,
+          137,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            134,
+            135
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          136,
+          137,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            134,
+            135
+          ]
+        ]
+      ],
+      "adr_clause": "§4.1.1, §13.9",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_mutation_regressions::cyclic_constructor_errors_keep_inference_code_at_each_site",
+      "source": "fn Main(){var m1=[];AssertEq([true],[m1[7],m1]);}",
+      "source_sha256": "d4788f35a302084b80a2f22865ae05c41124b81e1cee77dbeed874e15322ecb3",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          36,
+          46,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          43,
+          45,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          36,
+          46,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          36,
+          46,
+          null,
+          null,
+          null
+        ]
+      ],
+      "adr_clause": "§4.1.2.2",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_mutation_regressions::linked_array_constructors_keep_each_causal_inference_site",
+      "source": "fn Main(){var k0=[[]];var k1=[(if false then {return;} else {return;})];var k2=[[]];k0=[k2];AssertEq(k1,k2);let w2=[k1,k0];let w5=[k0,k0];}",
+      "source_sha256": "0db15c96bb4b53580bad9343609cbaa81fd03e8cee21c3c81cde6779a9a192f6",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          80,
+          82,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          130,
+          137,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0103",
+          null,
+          80,
+          82,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          80,
+          82,
+          null,
+          null,
+          null
+        ]
+      ],
+      "adr_clause": "§4.1.2.2, §13.9",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_normative_survivors::independent_causal_sites_survive_deferred_resolution",
+      "source": "fn Main(){var q0=[];var q1=[[]];let z=(if true then q1 else q0);AssertEq([q0],[q0,true]);}",
+      "source_sha256": "4d00f73e7e45484fc233d52ce9234d491be95329d0195863d9244d4169e8fe05",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          28,
+          30,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          73,
+          77,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0103",
+          null,
+          28,
+          30,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          28,
+          30,
+          null,
+          null,
+          null
+        ]
+      ],
+      "adr_clause": "§4.1.2.2–5, §13.9",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_normative_survivors::deferred_projection_and_constructor_programs_finish_with_causal_results",
+      "source": "fn Main(){let q1=[];let a2=[q1[0],q1];}",
+      "source_sha256": "398c33179230bf88f5697ed106c554a9936f06df249d61842c722f78a644c98e",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          27,
+          37,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          34,
+          36,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          27,
+          37,
+          null,
+          null,
+          null
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0103",
+          null,
+          17,
+          19,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          27,
+          37,
+          null,
+          null,
+          null
+        ]
+      ],
+      "adr_clause": "§4.1.2.2–5, §11.1, §13.9",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_pending_nominal_domain::failed_nested_union_does_not_anchor_an_outer_pending_array",
+      "source": "fn Main(){var r=[];var q=[];let a=(if true then r else (if false then [[q]] else [[1]]));r=[3];q=[3];}",
+      "source_sha256": "6e46bb35f9ac08d91d13c1693c90ff0844b3e29e069add0ae003985c88756c38",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          70,
+          75,
+          "Array<I64>",
+          "Array<Array<Array<I64>>>",
+          [
+            48,
+            49
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E1303",
+          null,
+          81,
+          86,
+          "Array<Array<Array<I64>>>",
+          "Array<Array<I64>>",
+          [
+            48,
+            49
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          92,
+          93,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            70,
+            75
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E1303",
+          null,
+          81,
+          86,
+          "Array<Array<Array<I64>>>",
+          "Array<Array<I64>>",
+          [
+            48,
+            49
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          92,
+          93,
+          "Array<Array<I64>>",
+          "I64",
+          null
+        ]
+      ],
+      "adr_clause": "§4.1.2.4–5, §4.7",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_pending_nominal_domain::incompatible_prefix_with_unresolved_arrays_is_not_a_concrete_twin",
+      "source": "fn Main(){let x=1;let p=true;var r=[];var q=[];while [[r],q] {}q=[3];let a=(1<(if x then p else q));r=[3];}",
+      "source_sha256": "f9226de0192bf53eac641da575489d671cb4b76faf6baee7a1f42276c36954b8",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          35,
+          37,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          44,
+          46,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          58,
+          59,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            54,
+            57
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          83,
+          "Bool",
+          "I64",
+          null
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          53,
+          60,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          66,
+          67,
+          "Array<I64>",
+          "I64",
+          [
+            54,
+            57
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          83,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          96,
+          97,
+          "Bool",
+          "Array<Array<I64>>",
+          [
+            89,
+            90
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          53,
+          60,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          66,
+          67,
+          "Array<I64>",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          83,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          96,
+          97,
+          "Bool",
+          "Array<Array<I64>>",
+          [
+            89,
+            90
+          ]
+        ]
+      ],
+      "adr_clause": "§4.1.2.2, §4.1.2.7",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_pending_nominal_domain::planned_projection_child_does_not_use_failed_branch_as_witness",
+      "source": "fn Main(){let x=1;let p=true;let ar=[1];let br=[true];let aar=[[1]];var r=[];var q=[];var s=[];var i0:Array<Array<Array<I64>>>=[[[0]]];i0[0]=([s[x],(if 0 then true else q),(if x then q else s)] == x);let a1=s;while Len(q) {}r=br;q=br;s=[[true]];}",
+      "source_sha256": "8aab0f16f7e48218a63d3acb3693a8b006d90c085b140e70627dc53d27ad1552",
+      "profile": "f0-0002-b-v2",
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          152,
+          153,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          169,
+          170,
+          "Bool",
+          "Array<Bool>",
+          [
+            159,
+            163
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          176,
+          177,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          215,
+          221,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          237,
+          243,
+          "Bool",
+          "Array<Bool>",
+          [
+            183,
+            184
+          ]
+        ]
+      ],
+      "prototype_r7_flags_off": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          152,
+          153,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          169,
+          170,
+          "Bool",
+          "Array<Bool>",
+          [
+            143,
+            147
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          176,
+          177,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          183,
+          184,
+          "Bool",
+          "Array<Bool>",
+          [
+            143,
+            147
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          190,
+          191,
+          "Bool",
+          "Array<Bool>",
+          [
+            143,
+            147
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          215,
+          221,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          237,
+          243,
+          "Bool",
+          "Array<Bool>",
+          [
+            47,
+            53
+          ]
+        ]
+      ],
+      "prototype_r7_flags_on": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          152,
+          153,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          169,
+          170,
+          "Bool",
+          "Array<Bool>",
+          [
+            159,
+            163
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          176,
+          177,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          215,
+          221,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          237,
+          243,
+          "Bool",
+          "Array<Bool>",
+          [
+            183,
+            184
+          ]
+        ]
+      ],
+      "adr_clause": "§4.1.2.2–5, §4.7",
+      "proposal": "prototype_equals_main"
+    },
+    {
+      "test": "i07c_structural_invariants::grouped_operands_keep_one_causal_primary",
+      "source": [
+        "fn Main(){var v=(if true then {return;} else {return;});v=1;let x:Bool=(v);}",
+        "fn Main(){var v=(if true then {return;} else {return;});v=1;let x:Bool=((v));}",
+        "fn Main(){let x=(true)+1;}",
+        "fn Main(){let x=[1,(true)];}"
+      ],
+      "profile": "f0-0002-b-v2",
+      "main": "source audit passes at historical line",
+      "prototype_r7": "source audit points to src/check/types.rs:7078 and fails; CLI assertions passed",
+      "adr_clause": "lagunas: primario bajo agrupaciones",
+      "proposal": "rewrite_requires_owner_approval"
+    }
+  ]
+}
