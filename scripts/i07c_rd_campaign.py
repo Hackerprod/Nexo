@@ -19,6 +19,7 @@ VARIANTS = {
     "occurrence_right": "txmarks,txmarksoccurrence,txmarksright",
     "occurrence_unify": "txmarks,txmarksoccurrence,txunify",
     "projection": "txmarks,txmarksproj",
+    "r5": "r5prefix,r1t5,r5t5",
 }
 QUALIFIED = tuple(VARIANTS)
 
@@ -51,6 +52,7 @@ def main():
     parser.add_argument("--variants", default=",".join(QUALIFIED))
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int)
+    parser.add_argument("--series", default="")
     args = parser.parse_args()
     args.base_exe = str(__import__("pathlib").Path(args.base_exe).resolve())
     args.proto_exe = str(__import__("pathlib").Path(args.proto_exe).resolve())
@@ -66,7 +68,8 @@ def main():
     for role, exe in (("base", args.base_exe), ("prototype", args.proto_exe)):
         with open(exe, "rb") as stream:
             hashes[role] = hashlib.file_digest(stream, "sha256").hexdigest()
-    published = Path("docs/validation/i07c-rediseno/barrido") / ("summary-" + args.corpus + ".json")
+    label = (args.series + "-" if args.series else "") + args.corpus
+    published = Path("docs/validation/i07c-rediseno/barrido") / ("summary-" + label + ".json")
     published.parent.mkdir(parents=True, exist_ok=True)
     if published.exists():
         summary = json.loads(published.read_text(encoding="utf-8"))
@@ -84,7 +87,7 @@ def main():
         if result["n"] < end - args.start:
             raise RuntimeError(f"incomplete lot {args.corpus}: {result['n']}/{end - args.start}")
         summary["variants"][name] = result
-        path = sweep.OUT / ("summary-" + args.corpus + ".json")
+        path = sweep.OUT / ("summary-" + label + ".json")
         serialized = json.dumps(summary, ensure_ascii=False, indent=2)
         path.write_text(serialized, encoding="utf-8")
         published.write_text(serialized, encoding="utf-8")

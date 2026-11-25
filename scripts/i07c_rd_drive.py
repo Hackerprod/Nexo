@@ -18,6 +18,11 @@ BASE = "C:/nexo-work/target-rd-main/release/nexo.exe"
 PROTO = str(ROOT / ".scratch/rd-bin/txmarksproj.exe")
 PROFILE = "i07c-rediseno"
 SUMMARY = Path("docs/validation/i07c-rediseno/barrido")
+SERIES = ""
+
+
+def summary_name(corpus):
+    return f"summary-{SERIES + '-' if SERIES else ''}{corpus}.json"
 
 
 def lot_complete(corpus, start, end, variants, base_tag, proto_tag):
@@ -35,7 +40,7 @@ def lot_complete(corpus, start, end, variants, base_tag, proto_tag):
             return False
         if any(isinstance(value, dict) for value in doc["results"]):
             return False
-    summary_path = ROOT / SUMMARY / f"summary-{corpus}.json"
+    summary_path = ROOT / SUMMARY / summary_name(corpus)
     if not summary_path.exists():
         return False
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
@@ -69,7 +74,8 @@ def memory_ready():
 def run_locked(corpus, start, end, variants):
     command = [sys.executable, "-B", "scripts/heavy-lock.py", "run", "--session", PROFILE,
                "--", sys.executable, "-B", "scripts/i07c_rd_campaign.py", corpus, BASE,
-               PROTO, "--variants", variants, "--start", str(start), "--end", str(end)]
+               PROTO, "--variants", variants, "--start", str(start), "--end", str(end),
+               "--series", SERIES]
     proc = subprocess.Popen(command, cwd=ROOT)
     try:
         return proc.wait(timeout=19 * 60)
@@ -81,7 +87,7 @@ def run_locked(corpus, start, end, variants):
 
 
 def publish(corpus, start, end):
-    summary = SUMMARY / f"summary-{corpus}.json"
+    summary = SUMMARY / summary_name(corpus)
     data = json.loads((ROOT / summary).read_text(encoding="utf-8"))
     print("lot_result=" + json.dumps({name: value["core"] for name, value in data["variants"].items()}), flush=True)
     subprocess.run(["git", "add", "--", str(summary)], cwd=ROOT, check=True)
@@ -101,11 +107,16 @@ def publish(corpus, start, end):
 
 
 def main():
+    global PROTO, BASE, SERIES
     parser = argparse.ArgumentParser()
     parser.add_argument("corpora", nargs="+", help="Names accepted by i07c_rd_sweep.py")
     parser.add_argument("--batch", type=int, default=2000)
     parser.add_argument("--variants", default="right,concrete,statement,occurrence,statement_right,occurrence_right,occurrence_unify,projection")
+    parser.add_argument("--base", default=BASE)
+    parser.add_argument("--proto", default=PROTO)
+    parser.add_argument("--series", default="")
     args = parser.parse_args()
+    BASE, PROTO, SERIES = args.base, args.proto, args.series
     with open(BASE, "rb") as stream:
         base_tag = "main-" + hashlib.file_digest(stream, "sha256").hexdigest()[:12]
     with open(PROTO, "rb") as stream:

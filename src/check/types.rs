@@ -3245,14 +3245,14 @@ impl Checker<'_> {
             return false;
         };
         self.graph.expr_vars.iter().any(|(span, id)| {
-            let nested_in_join = self
+            let nested_in_union = self
                 .graph
                 .r5_projection_if_owner
                 .get(span)
                 .and_then(|owner| *owner)
-                .is_some_and(|(start, end)| start <= join.occurrence.0 && join.occurrence.0 < end);
+                .is_some();
             span.0 < scope_start
-                && !nested_in_join
+                && !nested_in_union
                 && self.graph.projection_items.contains(id)
                 && chain.contains(&self.root_no_compress(*id))
         })
@@ -14169,8 +14169,16 @@ impl Checker<'_> {
         } else {
             second_var
         };
-        let first_join = first_var.map(Type::Deferred).or_else(|| first.clone());
-        let second_join = second_var.map(Type::Deferred).or_else(|| second.clone());
+        let first_join = if xv("r5t5") && first == Some(Type::Tainted) {
+            None
+        } else {
+            first_var.map(Type::Deferred).or_else(|| first.clone())
+        };
+        let second_join = if xv("r5t5") && second == Some(Type::Tainted) {
+            None
+        } else {
+            second_var.map(Type::Deferred).or_else(|| second.clone())
+        };
         let right_source = match otherwise {
             Some(Else::Block(b)) => branch_value_expr(b),
             Some(Else::If(e)) => Some(e.as_ref()),
