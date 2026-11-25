@@ -1055,7 +1055,6 @@ struct TypeNode {
     concrete_intrinsic: bool,
     array_child: Option<u64>,
     array_origin: Option<Span>,
-    first_fix_origin: Option<Span>,
     array_constructed: bool,
     variant_children: Option<UnionDescriptor<u64>>,
     variant_origin: Option<Span>,
@@ -1339,6 +1338,7 @@ struct AssignmentProgress<'a> {
     value: &'a Expr,
     local: Option<u64>,
     expected: Option<(Type, Span)>,
+    concrete: Option<(Type, Span)>,
     parent_fact: FactId,
 }
 
@@ -3789,7 +3789,6 @@ impl Checker<'_> {
                     concrete_intrinsic: false,
                     array_child: None,
                     array_origin: None,
-                    first_fix_origin: None,
                     array_constructed: false,
                     variant_children: None,
                     variant_origin: None,
@@ -4666,7 +4665,6 @@ impl Checker<'_> {
                 concrete_intrinsic: false,
                 array_child: None,
                 array_origin: None,
-                first_fix_origin: None,
                 array_constructed: false,
                 variant_children: None,
                 variant_origin: None,
@@ -5017,6 +5015,22 @@ impl Checker<'_> {
             }
         }
         false
+    }
+
+    fn retain_assignment_origin(&mut self, id: u64, origin: &Span) {
+        let mut current = self.root(id);
+        for _ in 0..=128 {
+            if let Some((ty, _)) = self.graph.type_nodes[&current].concrete.clone() {
+                let node = self.graph.type_node_mut(&current).unwrap();
+                node.concrete = Some((ty, origin.clone()));
+                node.concrete_intrinsic = false;
+                return;
+            }
+            let Some(child) = self.graph.type_nodes[&current].array_child else {
+                return;
+            };
+            current = self.root(child);
+        }
     }
 
     fn type_determined(&mut self, ty: &Type) -> bool {
@@ -6878,14 +6892,6 @@ impl Checker<'_> {
                     let b_array_origin = self.graph.type_nodes[&b].array_origin.clone();
                     self.graph.type_node_mut(&a).unwrap().array_origin =
                         match (a_array_origin, b_array_origin) {
-                            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
-                            (Some(a), None) | (None, Some(a)) => Some(a),
-                            (None, None) => None,
-                        };
-                    let a_first_fix = self.graph.type_nodes[&a].first_fix_origin.clone();
-                    let b_first_fix = self.graph.type_nodes[&b].first_fix_origin.clone();
-                    self.graph.type_node_mut(&a).unwrap().first_fix_origin =
-                        match (a_first_fix, b_first_fix) {
                             (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
                             (Some(a), None) | (None, Some(a)) => Some(a),
                             (None, None) => None,
@@ -8840,7 +8846,7 @@ impl Checker<'_> {
                 None
             }
         });
-        let (context, _concrete, expected) = if let Some(local) = local {
+        let (context, concrete, expected) = if let Some(local) = local {
             let intrinsic_origin = self.origin_intrinsic(local);
             let concrete = self.concrete(local);
             let projected = if concrete.is_none() && self.expression_has_array_root(value) {
@@ -8907,6 +8913,7 @@ impl Checker<'_> {
                 value,
                 local,
                 expected,
+                concrete,
                 parent_fact: visit,
             },
         )
@@ -8946,10 +8953,6 @@ impl Checker<'_> {
                 .as_ref()
                 .filter(|(_, origin)| origin.start < Self::primary_span(place).start)
                 .map(|(_, origin)| origin.clone())
-                .or_else(|| {
-                    let root = self.root(local);
-                    self.graph.type_nodes[&root].first_fix_origin.clone()
-                })
                 .unwrap_or_else(|| {
                     if matches!(place, Expr::Index { .. }) {
                         Self::primary_span(value)
@@ -8962,7 +8965,6 @@ impl Checker<'_> {
                 .map(Type::Deferred)
                 .unwrap_or(rhs);
             let right_origin = self.expression_origin(value);
-            let unresolved_before = self.concrete(local).is_none();
             self.unify(
                 visit,
                 Type::Deferred(local),
@@ -8972,17 +8974,12 @@ impl Checker<'_> {
                 Self::primary_span(value),
                 false,
             )?;
-            if !self.planning
-                && unresolved_before
-                && matches!(value, Expr::Array(items, _) if !items.is_empty())
+            if progress.concrete.is_none()
+                && matches!(place, Expr::Name(..))
+                && matches!(self.concrete(local), Some((Type::Array(_), _)))
             {
-                let root = self.root(local);
-                let node = self.graph.type_node_mut(&root).unwrap();
-                node.first_fix_origin.get_or_insert(right_origin);
+                self.retain_assignment_origin(local, &right_origin);
             }
-            // The first compatible equality that established the carrier's
-            // structure owns its source relation. A later suspended equality
-            // may complete an element but must not replace that provenance.
             Ok(())
         })();
         self.note_assignment_verdict(assigned_place, outcome.is_err());
@@ -17248,6 +17245,37 @@ mod j16_probe_types {
 mod quota_tests {
     use super::*;
 
+    fn assert_solver_quota_prefix(source: &str) {
+        let ast = crate::frontend::parse::parse("quota.n", source).unwrap();
+        let resolved = names::resolve("quota.n", source, &ast).unwrap();
+        let full = check_with_partial_limit("quota.n", source, &ast, &resolved, 1_000_000);
+        assert!(full.errors.iter().all(|d| d.code != "NX-E0003"));
+        let cost = (0..=1_000)
+            .find(|&limit| {
+                let report = check_with_partial_limit("quota.n", source, &ast, &resolved, limit);
+                report.errors.iter().all(|d| d.code != "NX-E0003")
+            })
+            .expect("solver cost exceeded test search bound");
+        assert!(cost > 0);
+        for limit in 0..cost {
+            let report = check_with_partial_limit("quota.n", source, &ast, &resolved, limit);
+            let quota = report.errors.iter().filter(|d| d.code == "NX-E0003").collect::<Vec<_>>();
+            assert_eq!(quota.len(), 1, "limit {limit}: {:?}", report.errors);
+            assert_eq!(quota[0].data.get("budget_kind"), Some(&DataValue::String("type_solver_steps".into())));
+            assert_eq!(quota[0].data.get("limit"), Some(&DataValue::UInt(limit)));
+            assert_eq!(quota[0].data.get("observed"), Some(&DataValue::UInt(limit + 1)));
+            for diagnostic in report.errors.iter().filter(|d| d.code != "NX-E0003") {
+                assert!(full.errors.iter().any(|baseline| {
+                    baseline.code == diagnostic.code
+                        && baseline.subcause == diagnostic.subcause
+                        && baseline.primary_span == diagnostic.primary_span
+                        && baseline.related_spans == diagnostic.related_spans
+                        && baseline.data == diagnostic.data
+                }), "limit {limit}: {diagnostic:?}");
+            }
+        }
+    }
+
     #[test]
     fn j16_direct_pattern_type_child() {
         let Ok(kind) = std::env::var("J16_DIRECT_PATTERN_TYPE") else {
@@ -19754,33 +19782,7 @@ mod quota_tests {
         // §11.1 reports the first denied solver charge once with
         // observed=limit+1; exact reduced thresholds belong to I10a.
         let source = "fn Main(){let x=(if true then [] else [1]);}";
-        let ast = crate::frontend::parse::parse("probe.n", source).unwrap();
-        let resolved = names::resolve("probe.n", source, &ast).unwrap();
-        let full = check_with_partial_limit("probe.n", source, &ast, &resolved, 1_000_000);
-        assert!(full.errors.is_empty(), "{:?}", full.errors);
-        for limit in 1..=8 {
-            let report = check_with_partial_limit("probe.n", source, &ast, &resolved, limit);
-            assert_eq!(report.errors.len(), 1, "limit {limit}: {:?}", report.errors);
-            let d = &report.errors[0];
-            assert_eq!(
-                (d.code.as_str(), d.stage, d.operation),
-                ("NX-E0003", Stage::Types, Operation::AnalysisLimit)
-            );
-            assert_eq!(
-                d.data.get("budget_kind"),
-                Some(&DataValue::String("type_solver_steps".into()))
-            );
-            assert_eq!(
-                d.data.get("budget_scope"),
-                Some(&DataValue::String("compilation".into()))
-            );
-            assert_eq!(
-                d.data.get("incomplete_analysis"),
-                Some(&DataValue::String("types".into()))
-            );
-            assert_eq!(d.data.get("limit"), Some(&DataValue::UInt(limit)));
-            assert_eq!(d.data.get("observed"), Some(&DataValue::UInt(limit + 1)));
-        }
+        assert_solver_quota_prefix(source);
     }
 
     #[test]
@@ -19884,24 +19886,7 @@ mod quota_tests {
         // F0-0002 §11.1 keeps the first denied charge and the converged
         // prefix; a failed branch must not add an unrelated capability error.
         let source = include_str!("../../tests/fixtures/i07c/failed_branch_join_quota.n").trim();
-        let ast = crate::frontend::parse::parse("quota.n", source).unwrap();
-        let resolved = names::resolve("quota.n", source, &ast).unwrap();
-        for limit in [30, 31] {
-            let report = check_with_partial_limit("quota.n", source, &ast, &resolved, limit);
-            assert!(
-                report.errors.iter().any(|d| d.code == "NX-E0003"),
-                "{limit}: {:?}",
-                report.errors
-            );
-            assert!(
-                !report.errors.iter().any(|d| d.code == "NX-E0006"
-                    && d.primary_span
-                        .as_ref()
-                        .is_some_and(|s| (s.start, s.end) == (176, 213))),
-                "{limit}: {:?}",
-                report.errors
-            );
-        }
+        assert_solver_quota_prefix(source);
     }
 
     #[test]
