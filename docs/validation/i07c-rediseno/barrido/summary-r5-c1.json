@@ -8,23 +8,23 @@
   "variants": {
     "r5": {
       "corpus": "c1",
-      "n": 2000,
+      "n": 4000,
       "unmodeled": 0,
       "core": {
         "A": 0,
-        "B": 199,
+        "B": 425,
         "C": 0,
         "D": 0
       },
       "full": {
-        "A": 0,
-        "B": 96,
-        "C": 1194,
-        "D": 116
+        "A": 1,
+        "B": 227,
+        "C": 2311,
+        "D": 230
       },
       "ok": {
-        "core": 1801,
-        "full": 594
+        "core": 3575,
+        "full": 1231
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
