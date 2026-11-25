@@ -1,0 +1,122 @@
+{
+  "schema": "i07c-r9-f2-variants-v1",
+  "rows": [
+    {
+      "id": "result_both_pending_valid",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));q=[1];r=[true];}",
+      "source_sha256": "e316f91100957e9e4b7d9c87acd3ff7544b7546d7cc9be1aa701c08c268c9540",
+      "bytes": 83,
+      "expected_adr": {
+        "outcome": "checked",
+        "diagnosticos": []
+      }
+    },
+    {
+      "id": "result_ok_before_err",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));let y:Result<Array<Bool>,Array<I64>>=x;q=[1];r=[true];}",
+      "source_sha256": "c516e36a26e132044273f0973d3dee574fb5e0452e88bfb29ab18880a07d77c2",
+      "bytes": 122,
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              109,
+              110
+            ],
+            "Bool",
+            "I64",
+            [
+              73,
+              103
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              115,
+              119
+            ],
+            "I64",
+            "Bool",
+            [
+              73,
+              103
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "id": "result_two_mismatches",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));q=[1];r=[true];let y:Result<Array<Bool>,Array<I64>>=x;}",
+      "source_sha256": "a212a02f2bcc8e82d766eedc9f0034b0be397722ea80708fa0135f3cffe58fe1",
+      "bytes": 122,
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              119,
+              120
+            ],
+            "Result<Array<Bool>,Array<I64>>",
+            "Result<Array<I64>,Array<Bool>>",
+            [
+              88,
+              118
+            ]
+          ]
+        ],
+        "first_incompatible_component": "Result.Ok",
+        "not_selected": "Result.Err"
+      }
+    },
+    {
+      "id": "option_nested_valid",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Some(Some(q)) else Some(Some(r)));q=[1];r=[1];}",
+      "source_sha256": "b214a4933ccf9b14c38a187d27563f28acad2c6717e2d3d2142db83de8976daf",
+      "bytes": 95,
+      "expected_adr": {
+        "outcome": "checked",
+        "diagnosticos": []
+      }
+    },
+    {
+      "id": "option_nested_conflict",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Some(Some(q)) else Some(Some(r)));q=[1];r=[true];}",
+      "source_sha256": "54c2721b65d9a1ccb12f87cdbff0dac8f84fda1781f431573d2c4ff7a77e8056",
+      "bytes": 98,
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              91,
+              95
+            ],
+            "I64",
+            "Bool",
+            [
+              84,
+              87
+            ]
+          ]
+        ],
+        "path": "Option.payload/Option.payload/Array.element"
+      }
+    }
+  ]
+}

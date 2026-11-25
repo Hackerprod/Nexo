@@ -1,0 +1,3091 @@
+{
+  "schema": "i07c-r9-test-migration-v1",
+  "base": "main 31d91db",
+  "rows": [
+    {
+      "source_test": "child",
+      "line": 15825,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert!(report.errors.is_empty(), \"{family}: {:?}\", report.errors);"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "child",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "s3_types_or_checker_child",
+      "line": 15857,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(report.errors, wide.errors);",
+        "assert_eq!(",
+        "assert!(report.errors.is_empty(), \"{:?}\", report.errors);"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "s3_types_or_checker_child",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "s3_clone_selector_child",
+      "line": 15915,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(cloned, **index);"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "s3_clone_selector_child",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "parent",
+      "line": 15951,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(",
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "parent",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "j16_direct_pattern_type_child",
+      "line": 16022,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "pattern_type"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.solver_steps, 127);"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "j16_direct_pattern_type_child",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "j16_direct_pattern_type_parent",
+      "line": 16063,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "j16_direct_pattern_type_parent",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
+      "line": 16083,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(full.errors.len(), 3, \"{:?}\", full.errors);",
+        "assert_eq!(full.errors[0].code, \"NX-E0102\");",
+        "assert_eq!(full.errors[0].subcause.as_deref(), Some(\"type_mismatch\"));",
+        "assert_eq!(",
+        "assert_eq!(full.errors[1].code, \"NX-E0102\");",
+        "assert_eq!(",
+        "assert_eq!(full.errors[2].code, \"NX-E1303\");",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span",
+        "related_spans",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "diagnostic_site_ownership_survives_distinct_causes_and_preserves_siblings",
+      "line": 16139,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "record_error"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(checker.errors.len(), 3);",
+        "assert_eq!(checker.errors[0].code, \"NX-E0102\");",
+        "assert_eq!(checker.errors[1].code, \"NX-E1303\");",
+        "assert_eq!(checker.errors[2].code, \"NX-E1303\");"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "diagnostic_site_ownership_survives_distinct_causes_and_preserves_siblings",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "operand_evidence_survives_nested_pending_repartition",
+      "line": 16187,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "pending_operand_evidence",
+        "take_pending_kind"
+      ],
+      "assertion_lines": [
+        "assert_eq!(removed.len(), 1);",
+        "assert_eq!(evidence.domains, vec![(inside, \"I64\")]);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_009",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "solver_states_and_representatives_keep_their_distinct_rules",
+      "line": 16236,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Estados de solver distintos conservan aceptación y diagnóstico al completar restricciones",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "G: `suspended_68` y `planned`; mismo resultado tras ordenar restricciones"
+      },
+      "private_calls": [
+        "new_variable",
+        "representative",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(checker.representative(d), a);",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Estados de solver distintos conservan aceptación y diagnóstico al completar restricciones; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_010",
+      "fixture_family": "G: `suspended_68` y `planned`; mismo resultado tras ordenar restricciones"
+    },
+    {
+      "source_test": "right_hand_bottom_and_taint_keep_their_algebraic_states",
+      "line": 16288,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "J: `RS1_condition_contaminated` y `RS2_independent_child_errors`"
+      },
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_011",
+      "fixture_family": "J: `RS1_condition_contaminated` y `RS2_independent_child_errors`"
+    },
+    {
+      "source_test": "concrete_deferred_branch_join_reports_branch_mismatch",
+      "line": 16313,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "La unión diferida completa y acusa la rama escrita incompatible",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "J: `W1_atomic_compound`, código y primario de la rama"
+      },
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "La unión diferida completa y acusa la rama escrita incompatible; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_012",
+      "fixture_family": "J: `W1_atomic_compound`, código y primario de la rama"
+    },
+    {
+      "source_test": "union_retains_earliest_concrete_origin_and_copyable_domain",
+      "line": 16352,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "require_copyable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert!(",
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "related_spans",
+        "expected_type",
+        "data"
+      ],
+      "action": "reescribir_precedencia_equality_id",
+      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_013",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "deferred_alias_union_charges_the_written_conflict_site",
+      "line": 16398,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Un alias diferido denuncia el operando escrito y cobra su contraste",
+        "internal": "Sí: `unify`",
+        "proposed_cli": "Q: `suspended_68` con cuota y primario del RHS"
+      },
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Un alias diferido denuncia el operando escrito y cobra su contraste; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_014",
+      "fixture_family": "Q: `suspended_68` con cuota y primario del RHS"
+    },
+    {
+      "source_test": "overlapping_type_origins_choose_the_earlier_start",
+      "line": 16453,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "related_spans",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "reescribir_precedencia_equality_id",
+      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_015",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "inout_value_delegates_one_contextual_pair_to_its_operand",
+      "line": 16494,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "expr"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(checker.solver_steps, 1);",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "inout_value_delegates_one_contextual_pair_to_its_operand",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "failed_deferred_array_element_keeps_constraint_for_later_elements",
+      "line": 16533,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "expr",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(checker.errors.len(), 2, \"{:?}\", checker.errors);",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_017",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "contextual_all_divergent_if_retains_expected_type_and_divergence",
+      "line": 16582,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "expr"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "expected_type"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "contextual_all_divergent_if_retains_expected_type_and_divergence",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "nested_divergent_branch_contributes_no_normal_type_under_context",
+      "line": 16609,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "branch"
+      ],
+      "assertion_lines": [
+        "assert_eq!(normal, None);",
+        "assert!(!failed);"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "nested_divergent_branch_contributes_no_normal_type_under_context",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "conflicting_union_reports_the_earliest_concrete_origin",
+      "line": 16636,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "related_spans",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "reescribir_precedencia_equality_id",
+      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_020",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "inferred_array_depth_accepts_127_and_128_and_rejects_129",
+      "line": 16670,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnóstico de límite",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "C: generador de arrays 127/128/129 del test por CLI"
+      },
+      "private_calls": [
+        "check_one_inferred_depth",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert!(checker.check_one_inferred_depth(root, &site(0)).is_ok());",
+        "assert!(checker.check_one_inferred_depth(root, &site(0)).is_ok());",
+        "assert_eq!(error.data.get(\"observed\"), Some(&DataValue::UInt(129)));"
+      ],
+      "asserted_fields": [
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnóstico de límite; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_021",
+      "fixture_family": "C: generador de arrays 127/128/129 del test por CLI"
+    },
+    {
+      "source_test": "inferred_array_root_retains_depth_origin_after_later_constraint",
+      "line": 16713,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Una restricción posterior conserva el origen de profundidad del primer constructor",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "F: `later_completion`, relación esperada original"
+      },
+      "private_calls": [
+        "check_inferred_depth",
+        "new_variable",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.data.get(\"observed\"), Some(&DataValue::UInt(129)));"
+      ],
+      "asserted_fields": [
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Una restricción posterior conserva el origen de profundidad del primer constructor; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_022",
+      "fixture_family": "F: `later_completion`, relación esperada original"
+    },
+    {
+      "source_test": "deferred_visible_conversion_and_constructor_walk_stop_at_their_boundaries",
+      "line": 16733,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "C: `completion_unresolved` y `completion_conflict`"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable",
+        "resolved_syntax_type"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert!(checker.concrete(root).is_none());"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_023",
+      "fixture_family": "C: `completion_unresolved` y `completion_conflict`"
+    },
+    {
+      "source_test": "constructor_walk_keeps_exact_depth_boundaries",
+      "line": 16767,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Recorrido de constructor respeta 127/128/129 sin desbordar",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "C: generador de arrays 127/128/129 del test por CLI"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.concrete(root).is_some(), length <= 128);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Recorrido de constructor respeta 127/128/129 sin desbordar; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_024",
+      "fixture_family": "C: generador de arrays 127/128/129 del test por CLI"
+    },
+    {
+      "source_test": "partial_type_table_preserves_never_and_taint_states",
+      "line": 16795,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(!report.errors.is_empty());",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "partial_type_table_preserves_never_and_taint_states",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "visible_conversion_keeps_internal_states_out_of_diagnostics",
+      "line": 16815,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Diagnósticos serializados no muestran variables ni estados internos",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "G: 74 dirigidas; inspección JSON sin variables libres"
+      },
+      "private_calls": [
+        "new_variable",
+        "resolved_syntax_type"
+      ],
+      "assertion_lines": [
+        "assert_eq!(syntax_type(&internal), None);",
+        "assert_eq!(pretty(&internal), None);",
+        "assert_eq!(checker.resolved_syntax_type(&internal), None);",
+        "assert_eq!(checker.resolved_syntax_type(&array), None);",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Diagnósticos serializados no muestran variables ni estados internos; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_026",
+      "fixture_family": "G: 74 dirigidas; inspección JSON sin variables libres"
+    },
+    {
+      "source_test": "deferred_result_components_and_structural_array_elements_resolve_separately",
+      "line": 16854,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "resolved_syntax_type"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.resolved_syntax_type(&result), None);",
+        "assert_eq!(",
+        "assert_eq!(mismatch.code, \"NX-E0102\");",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_027",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "concrete_arrays_record_divergence_only_from_never_elements",
+      "line": 16911,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "expr"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "quota_error"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_028",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "solver_bind_dispatch_applies_each_fact_boundary",
+      "line": 17001,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Cada enlace de tipo se aplica en su sitio causal y no al padre",
+        "internal": "Sí: `concrete,fact_mut,type_nodes`",
+        "proposed_cli": "G: `planned` y `W1_atomic_compound`, primarios por hijo"
+      },
+      "private_calls": [
+        "bind",
+        "new_variable",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert!(checker.graph.fact(parent).tainted);",
+        "assert_eq!(",
+        "assert_eq!(checker.graph.active_count(), 0);",
+        "assert_eq!(entries.len(), 1, \"{site:?} must enter one child bind\");",
+        "assert_ne!(entry.parent, entry.child, \"{site:?}\");",
+        "assert_eq!(entry.parent_generation, entry.child_generation, \"{site:?}\");",
+        "assert_eq!(entry.child_parent, Some(entry.parent), \"{site:?}\");",
+        "assert!(entry.parent_tainted, \"{site:?}\");",
+        "assert_eq!(entry.parent_owner, Some((1, 2)), \"{site:?}\");",
+        "assert!(!entry.child_tainted, \"{site:?}\");",
+        "assert_eq!(entry.child_owner, None, \"{site:?}\");",
+        "assert_eq!(inherited.len(), 1);",
+        "assert_ne!(inherited[0].parent, inherited[0].child);",
+        "assert_eq!(inherited[0].child_parent, Some(inherited[0].parent));",
+        "assert_eq!(",
+        "assert!(inherited[0].child_tainted);",
+        "assert_eq!(inherited[0].child_owner, Some((1, 2)));"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Cada enlace de tipo se aplica en su sitio causal y no al padre; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_029",
+      "fixture_family": "G: `planned` y `W1_atomic_compound`, primarios por hijo"
+    },
+    {
+      "source_test": "s3_solver_unify_depth_child",
+      "line": 17142,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "La unificación profunda alcanza el hijo correcto sin pánico",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "C: arrays anidados del test por CLI, límite 128"
+      },
+      "private_calls": [
+        "unify_independent"
+      ],
+      "assertion_lines": [
+        "assert!(outcome.is_ok(), \"{outcome:?}\");"
+      ],
+      "asserted_fields": [
+        "outcome"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "La unificación profunda alcanza el hijo correcto sin pánico; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_030",
+      "fixture_family": "C: arrays anidados del test por CLI, límite 128"
+    },
+    {
+      "source_test": "drive_facts_close_after_successive_visits",
+      "line": 17173,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "drive",
+        "expr_with_visit_result"
+      ],
+      "assertion_lines": [
+        "assert!(first);",
+        "assert_eq!(checker.graph.active_count(), 0);",
+        ".with(|trace| assert_eq!(trace.borrow().as_slice(), &[(false, false), (true, false)]));",
+        "assert!(!second);",
+        "assert_eq!(checker.graph.active_count(), 0);",
+        "FACT_STATEMENT_TRACE.with(|trace| assert_eq!(trace.borrow().as_slice(), &[(false, false)]));",
+        "assert!(result.is_ok());",
+        "assert!(!tainted);",
+        "assert_eq!(checker.graph.active_count(), 0);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_031",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "boundary_context_owner_closes_constructor_before_comparison",
+      "line": 17207,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "El constructor se cierra antes de contrastar el contexto del padre",
+        "internal": "Sí: `fact_mut`",
+        "proposed_cli": "C: fuente CLI ya incluida en el test, mismo código/primario"
+      },
+      "private_calls": [
+        "check_against_context_one"
+      ],
+      "assertion_lines": [
+        "assert_eq!(result.unwrap(), Type::I64);",
+        "assert_eq!(result.unwrap_err().code, \"NX-E0102\");",
+        "assert_eq!(events.len(), if inherited_taint { 2 } else { 3 });",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(checker.graph.fact(parent).tainted, inherited_taint);",
+        "assert_eq!(checker.graph.active_count(), 1);",
+        "assert_eq!(checker.graph.active_count(), 0);"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "El constructor se cierra antes de contrastar el contexto del padre; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_032",
+      "fixture_family": "C: fuente CLI ya incluida en el test, mismo código/primario"
+    },
+    {
+      "source_test": "boundary_binary_context_closes_after_prepared_comparison",
+      "line": 17293,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "drive"
+      ],
+      "assertion_lines": [
+        "assert_eq!(observed, [(stage, 2)], \"{source}: {:?}\", trace.borrow());",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_033",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "boundary_binary_left_quota_keeps_operator_until_context_close",
+      "line": 17341,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "drive"
+      ],
+      "assertion_lines": [
+        "assert!(result.is_ok());",
+        "assert!(",
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "boundary_binary_left_quota_keeps_operator_until_context_close",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "boundary_frame_owner_survives_completed_calls",
+      "line": 17376,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "drive"
+      ],
+      "assertion_lines": [
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "boundary_frame_owner_survives_completed_calls",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "boundary_closure_call_restores_parent_fact",
+      "line": 17413,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(report.errors.is_empty(), \"{:?}\", report.errors);",
+        "assert!(!observed.is_empty());",
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "boundary_closure_call_restores_parent_fact",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "boundary_taint_edges_clear_before_local_values",
+      "line": 17445,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(!selected.is_empty(), \"{label}: {:?}\", trace.borrow());",
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "boundary_taint_edges_clear_before_local_values",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "boundary_array_and_index_restore_owner_before_consumers",
+      "line": 17525,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "drive"
+      ],
+      "assertion_lines": [
+        "assert!(edges.iter().any(|edge| {",
+        "assert!(edges.iter().any(|edge| {",
+        "assert!(edges.iter().any(|edge| {",
+        "assert!(events.contains(&(",
+        "assert!(events.contains(&(",
+        "assert!(trace.borrow().contains(&("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "boundary_array_and_index_restore_owner_before_consumers",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "boundary_binary_deferred_rhs_keeps_owner_until_result",
+      "line": 17592,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(trace.borrow().contains(&(",
+        "assert!(trace.borrow().contains(&("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "boundary_binary_deferred_rhs_keeps_owner_until_result",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "fact_generations_preserve_outer_values_and_reject_closed_ids",
+      "line": 17628,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Visita anidada preserva valor exterior; ID cerrado no altera diagnóstico",
+        "internal": "Sí: `fact_mut`",
+        "proposed_cli": "G: `W1_atomic_compound` y `planned`, mismo diagnóstico exterior"
+      },
+      "private_calls": [
+        "clone"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.graph.active_count(), 2);",
+        "assert!(",
+        "assert!(checker.graph.end_visit(inner));",
+        "assert_eq!(checker.graph.active_count(), 1);",
+        "assert!(checker.graph.fact(outer).tainted);",
+        "assert_eq!(checker.graph.fact(outer).numeric_domain_owner, Some((3, 4)));",
+        "assert!(",
+        "assert_ne!(aborted, replacement);",
+        "assert!(checker.graph.end_visit(outer));",
+        "assert_eq!(checker.graph.active_count(), 0);",
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Visita anidada preserva valor exterior; ID cerrado no altera diagnóstico; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_040",
+      "fixture_family": "G: `W1_atomic_compound` y `planned`, mismo diagnóstico exterior"
+    },
+    {
+      "source_test": "deferred_selector_reentry_keeps_outer_facts_for_array_and_scalar_bindings",
+      "line": 17682,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(actual, expected);",
+        "assert!(FACT_REENTRY_COUNT.with(|count| count.get()) >= 2);",
+        "FACT_REENTRY_STACK.with(|stack| assert!(stack.borrow().is_empty()));"
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "deferred_selector_reentry_keeps_outer_facts_for_array_and_scalar_bindings",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "nested_visit_quota_closes_inner_facts_without_changing_outer_cause",
+      "line": 17723,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Cuota en visita anidada conserva la causa del consumidor exterior",
+        "internal": "Sí: `fact_mut`",
+        "proposed_cli": "Q: fuente CLI del test, límites 0..coste−1"
+      },
+      "private_calls": [
+        "expr_with_visit_result"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(checker.graph.active_count(), 1);",
+        "assert!(checker.graph.fact(outer).tainted);",
+        "assert_eq!(checker.graph.fact(outer).numeric_domain_owner, Some((5, 6)));",
+        "assert!(checker.quota_error.is_some());",
+        "assert_eq!(checker.graph.active_count(), 0);"
+      ],
+      "asserted_fields": [
+        "code",
+        "quota_error"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_042",
+      "fixture_family": "Q: fuente CLI del test, límites 0..coste−1"
+    },
+    {
+      "source_test": "malformed_generator_state_cycle_is_bounded",
+      "line": 17749,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "compound_depth"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.compound_depth(&recursive), (0, 2));"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "malformed_generator_state_cycle_is_bounded",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "inferred_array_path_keeps_array_depth_priority_over_value_depth",
+      "line": 17766,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "La profundidad del constructor Array prevalece sobre la del valor",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "C: `recursive_69` y caso profundo del test"
+      },
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(error.stage, Stage::Types);",
+        "assert_eq!(error.operation, Operation::AnalysisLimit);",
+        "assert_eq!(error.primary_span, Some(site(7)));",
+        "assert_eq!(",
+        "assert_eq!(error.data.get(\"limit\"), Some(&DataValue::UInt(128)));",
+        "assert_eq!(error.data.get(\"observed\"), Some(&DataValue::UInt(129)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "La profundidad del constructor Array prevalece sobre la del valor; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_044",
+      "fixture_family": "C: `recursive_69` y caso profundo del test"
+    },
+    {
+      "source_test": "contextual_array_charges_each_leaf_once_at_the_reduced_boundary",
+      "line": 17802,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(granted.solver_steps, 3);",
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(error.data.get(\"limit\"), Some(&DataValue::UInt(2)));",
+        "assert_eq!(error.data.get(\"observed\"), Some(&DataValue::UInt(3)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "contextual_array_charges_each_leaf_once_at_the_reduced_boundary",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "contextual_group_and_if_charge_only_their_value_operands",
+      "line": 17830,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "expr"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(checker.solver_steps, 1);",
+        "assert_eq!(",
+        "assert_eq!(checker.solver_steps, 3);"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "contextual_group_and_if_charge_only_their_value_operands",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "unresolved_expected_type_waits_and_unchecked_group_preserves_its_leaf",
+      "line": 17861,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "expr",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "expected_type"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_047",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "non_result_try_is_rejected_at_the_expression_boundary",
+      "line": 17888,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "expr"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert_eq!(error.primary_span, Some(site(0)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "non_result_try_is_rejected_at_the_expression_boundary",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "union_reports_resolved_array_constructor_in_both_root_orders",
+      "line": 17907,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "El orden de representantes no cambia el conflicto Array de unión",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "J: `W1_atomic_compound` en dos órdenes de binding"
+      },
+      "private_calls": [
+        "new_variable",
+        "require_array",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span",
+        "related_spans",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "El orden de representantes no cambia el conflicto Array de unión; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_049",
+      "fixture_family": "J: `W1_atomic_compound` en dos órdenes de binding"
+    },
+    {
+      "source_test": "union_selects_earlier_origin_by_start_even_when_spans_overlap",
+      "line": 17969,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert!(error.related_spans.iter().any(|related| {"
+      ],
+      "asserted_fields": [
+        "related_spans",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "reescribir_precedencia_equality_id",
+      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_050",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "concrete_array_cache_keys_both_operands_and_charges_a_cached_constraint",
+      "line": 18012,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "La caché distingue pares y cada contraste consume cuota",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "Q: dos pares Array concretos y límites 0..coste−1"
+      },
+      "private_calls": [
+        "clone"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(checker.solver_steps, 33);",
+        "assert_eq!(checker.solver_steps, 66);"
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_051",
+      "fixture_family": "Q: dos pares Array concretos y límites 0..coste−1"
+    },
+    {
+      "source_test": "unresolved_constructor_pair_is_rechecked_after_its_child_resolves",
+      "line": 18092,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "El hijo completado reactiva el contraste pendiente entre constructores",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "C: `completion_conflict` y `completion_unresolved`"
+      },
+      "private_calls": [
+        "clone",
+        "new_variable",
+        "require_array",
+        "unify_independent"
+      ],
+      "assertion_lines": [
+        "assert!(first.is_ok(), \"{first:?}\");",
+        "assert!(second.is_ok(), \"{second:?}\");",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "El hijo completado reactiva el contraste pendiente entre constructores; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_052",
+      "fixture_family": "C: `completion_conflict` y `completion_unresolved`"
+    },
+    {
+      "source_test": "cached_arrays_charge_every_logical_pair_at_the_reduced_limit",
+      "line": 18137,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "El par Array repetido sigue cobrando cada comparación lógica",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "Q: fuente CLI del test, comprobar `observed=limit+1`"
+      },
+      "private_calls": [
+        "clone"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.solver_steps, 33);",
+        "assert_eq!(checker.solver_steps, 65);",
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(error.data.get(\"limit\"), Some(&DataValue::UInt(65)));",
+        "assert_eq!(error.data.get(\"observed\"), Some(&DataValue::UInt(66)));",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_053",
+      "fixture_family": "Q: fuente CLI del test, comprobar `observed=limit+1`"
+    },
+    {
+      "source_test": "existing_array_domain_and_occurs_walk_charge_at_the_reduced_limit",
+      "line": 18179,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "require_array",
+        "type_reaches"
+      ],
+      "assertion_lines": [
+        "assert_eq!(domain.code, \"NX-E0003\");",
+        "assert_eq!(",
+        "assert_eq!(reach.code, \"NX-E0003\");",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_054",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "adr_gap_union_charge_at_the_exact_reduced_boundary",
+      "line": 18208,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(error.data.get(\"limit\"), Some(&DataValue::UInt(limit)));",
+        "assert_eq!(",
+        "assert_eq!(granted.solver_steps, before + 1);"
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_055",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "union_preserves_bottom_marker_from_either_representative",
+      "line": 18239,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "`Never` en cualquier lado no inventa tipo ni conflicto exterior",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "J: `RS1_condition_contaminated` y retorno en rama"
+      },
+      "private_calls": [
+        "new_variable",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert!(checker.graph.type_nodes[&root].bottom_only);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "`Never` en cualquier lado no inventa tipo ni conflicto exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_056",
+      "fixture_family": "J: `RS1_condition_contaminated` y retorno en rama"
+    },
+    {
+      "source_test": "adr_gap_shape_walk_charge_per_constructor_link",
+      "line": 18266,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "require_array",
+        "type_reaches"
+      ],
+      "assertion_lines": [
+        "assert!(checker.type_reaches(first, last, &site(200)).unwrap());",
+        "assert_eq!(checker.solver_steps, before + 128);",
+        "assert_eq!(checker.solver_steps, checker.solver_limit);",
+        "assert_eq!(denied.code, \"NX-E0003\");",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_057",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "solver_charges_the_final_granted_unit_and_reports_one_rejected_unit",
+      "line": 18301,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "charge_solver"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.solver_steps, 1_000_000);",
+        "assert_eq!(checker.solver_steps, 1_000_000);",
+        "assert!(checker.analysis_exhausted);",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(d.data.get(\"limit\"), Some(&DataValue::UInt(1_000_000)));",
+        "assert_eq!(d.data.get(\"observed\"), Some(&DataValue::UInt(1_000_001)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "solver_charges_the_final_granted_unit_and_reports_one_rejected_unit",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "default_solver_limit_accepts_its_last_granted_step",
+      "line": 18342,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "default_solver_limit_accepts_its_last_granted_step",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "measured_solver_test_stack_minimum_still_accepts_last_granted_step",
+      "line": 18354,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(",
+        "assert!(report.errors.is_empty(), \"{:?}\", report.errors);",
+        "assert_eq!((array_step, scalar_step), (101, 1));",
+        "assert!(default.errors.is_empty(), \"{:?}\", default.errors);",
+        "assert_eq!(shortened.errors.len(), 1, \"{:?}\", shortened.errors);",
+        "assert_eq!(shortened.errors[0].code, \"NX-E0003\");",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "measured_solver_test_stack_minimum_still_accepts_last_granted_step",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "adr_gap_unresolved_assert_eq_charges_each_deferred_constraint",
+      "line": 18412,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "adr_gap_unresolved_assert_eq_charges_each_deferred_constraint",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "nested_unification_charges_each_array_pair_at_the_reduced_boundary",
+      "line": 18448,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Cada nivel Array anidado consume cargo de solver",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "Q: fuente CLI del test con arrays anidados"
+      },
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(granted.solver_steps, 32);",
+        "assert_eq!(denied.solver_steps, 32);",
+        "assert_eq!(error.code, \"NX-E0003\");",
+        "assert_eq!(",
+        "assert_eq!(error.data.get(\"observed\"), Some(&DataValue::UInt(33)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_062",
+      "fixture_family": "Q: fuente CLI del test con arrays anidados"
+    },
+    {
+      "source_test": "deferred_if_join_charges_the_reduced_boundary",
+      "line": 18504,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(full.errors.is_empty(), \"{:?}\", full.errors);",
+        "assert_eq!(report.errors.len(), 1, \"limit {limit}: {:?}\", report.errors);",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(d.data.get(\"limit\"), Some(&DataValue::UInt(limit)));",
+        "assert_eq!(d.data.get(\"observed\"), Some(&DataValue::UInt(limit + 1)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "deferred_if_join_charges_the_reduced_boundary",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "nested_array_value_keeps_one_global_quota_error",
+      "line": 18539,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(quotas.len(), 1, \"limit {limit}: {:?}\", reduced.errors);",
+        "assert_eq!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span",
+        "data",
+        "quota_error"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "nested_array_value_keeps_one_global_quota_error",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "nested_copyable_check_charges_each_recursive_child",
+      "line": 18573,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(quota.len(), 1, \"{:?}\", report.errors);",
+        "assert_eq!(",
+        "assert_eq!(quota[0].data.get(\"limit\"), Some(&DataValue::UInt(6)));",
+        "assert_eq!(quota[0].data.get(\"observed\"), Some(&DataValue::UInt(7)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "nested_copyable_check_charges_each_recursive_child",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "deferred_assert_eq_copyability_uses_first_operand_at_quota_boundary",
+      "line": 18593,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(quota.len(), 1, \"limit {limit}: {:?}\", report.errors);",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "deferred_assert_eq_copyability_uses_first_operand_at_quota_boundary",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "deferred_array_selector_keeps_exact_quota_charge_site",
+      "line": 18616,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(quota.data.get(\"observed\"), Some(&DataValue::UInt(34)));"
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "deferred_array_selector_keeps_exact_quota_charge_site",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "failed_branch_join_keeps_reduced_quota_error_prefix",
+      "line": 18635,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span",
+        "quota_error"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "failed_branch_join_keeps_reduced_quota_error_prefix",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "tainted_array_stops_after_the_first_denied_charge",
+      "line": 18660,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "tainted_array_stops_after_the_first_denied_charge",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "quota_does_not_hide_converged_later_capability_error",
+      "line": 18687,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(quota.len() <= 1, \"{limit}: {:?}\", report.errors);",
+        "assert_eq!(",
+        "assert!(observed_with_quota);"
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "quota_does_not_hide_converged_later_capability_error",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "generated_multifunction_quota_has_one_denied_charge_and_exact_prefix",
+      "line": 18721,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span",
+        "related_spans",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "generated_multifunction_quota_has_one_denied_charge_and_exact_prefix",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "reduced_type_solver_profile_keeps_exact_converged_subset",
+      "line": 18783,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(unlimited.errors.len(), 2);",
+        "assert_eq!(reduced.errors.len(), 2);",
+        "assert_eq!(",
+        "assert_eq!(prior.data.len(), 2);",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(prior.related_spans.len(), 1);",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(prior.profile_id, \"f0-0002-b-test-types-32-v2\");",
+        "assert_eq!(",
+        "assert_eq!(quota.subcause, None);",
+        "assert_eq!(quota.operation, Operation::AnalysisLimit);",
+        "assert_eq!(quota.data.len(), 5);",
+        "assert!(quota.related_spans.is_empty());",
+        "assert_eq!(quota.profile_id, \"f0-0002-b-test-types-32-v2\");",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(quota.data.get(\"limit\"), Some(&DataValue::UInt(32)));",
+        "assert_eq!(quota.data.get(\"observed\"), Some(&DataValue::UInt(33)));",
+        "assert!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span",
+        "related_spans",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "reduced_type_solver_profile_keeps_exact_converged_subset",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "monomorphic_solution_is_invariant_under_constraint_permutations",
+      "line": 18902,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Permutar restricciones compatibles conserva tipo y aceptación",
+        "internal": "Sí: `concrete`",
+        "proposed_cli": "G: dos órdenes de `q=r;q=[1];r=[1]` por CLI"
+      },
+      "private_calls": [
+        "bind_independent",
+        "concrete",
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert_eq!(rejected, contradictory, \"{permutation:?}\");",
+        "assert_eq!(checker.concrete(a).map(|v| v.0), Some(Type::I64));",
+        "assert_eq!(checker.concrete(b).map(|v| v.0), Some(Type::I64));"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Permutar restricciones compatibles conserva tipo y aceptación; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_073",
+      "fixture_family": "G: dos órdenes de `q=r;q=[1];r=[1]` por CLI"
+    },
+    {
+      "source_test": "generated_constraint_orders_have_the_same_acceptance",
+      "line": 18955,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "bind_independent",
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0102\", \"case {case}, order {order}\");",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_074",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor_refuted_binary_and_guarded_results",
+      "line": 19055,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(graph.refuted_result_sites().contains(&binary));",
+        "assert!(graph.refuted_result_sites().contains(&guarded));"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "i07c_survivor_refuted_binary_and_guarded_results",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor_conditional_bindings_follow_their_result_sites",
+      "line": 19078,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "i07c_survivor_conditional_bindings_follow_their_result_sites",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor2_nested_shape_hints_reach_the_leaf",
+      "line": 19142,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [],
+      "assertion_lines": [
+        "assert!(",
+        "assert!(Checker::shape_hints_conflict(&left, &right));",
+        "assert!(!Checker::shape_hints_conflict(&left, &left));"
+      ],
+      "asserted_fields": [],
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_077",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor2_pending_operation_types_match_their_sites",
+      "line": 19155,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "pending_operation_type"
+      ],
+      "assertion_lines": [
+        "assert!(",
+        "assert!(checker.pending_operation_type(&Expr::Bool(true, guarded)) == Some(Type::Bool));",
+        "assert!("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "i07c_survivor2_pending_operation_types_match_their_sites",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor2_pending_nominal_requires_live_domain",
+      "line": 19212,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Nominal pendiente solo se activa con dominio vivo y acreditado",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "G: `waiting_projection_valid`/`waiting_projection_refuted`"
+      },
+      "private_calls": [
+        "new_variable",
+        "pending_nominal_available"
+      ],
+      "assertion_lines": [
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Nominal pendiente solo se activa con dominio vivo y acreditado; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_079",
+      "fixture_family": "G: `waiting_projection_valid`/`waiting_projection_refuted`"
+    },
+    {
+      "source_test": "i07c_survivor2_solver_preserves_constructor_identity",
+      "line": 19256,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "El constructor inicial conserva su sitio tras unificación",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "C: `recursive_69` y `CD1_independent_constructor`"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert!(checker.require_array(root, &site(3)).is_err());",
+        "assert!(checker.concrete(root).is_some());",
+        "assert!(checker.concrete(root).is_none());",
+        "assert!(checker.require_array(scalar, &site(7)).is_err());",
+        "assert!(checker.concrete(scalar).is_none());"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "El constructor inicial conserva su sitio tras unificación; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_080",
+      "fixture_family": "C: `recursive_69` y `CD1_independent_constructor`"
+    },
+    {
+      "source_test": "i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf",
+      "line": 19297,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Hijo Array nuevo empieza libre y hoja existente conserva su evidencia",
+        "internal": "Sí: `concrete,concrete_plan,seed_planned_shape,shape_plan,type_nodes`",
+        "proposed_cli": "C: `fn Main(){var q=[];let a=[q,1];q=[1];}`; comparar aceptación y tipo final"
+      },
+      "private_calls": [
+        "new_variable",
+        "seed_planned_shape"
+      ],
+      "assertion_lines": [
+        "assert!(!checker.graph.type_nodes[&child].failed_constructor);",
+        "assert!(!checker.graph.type_nodes[&child].deferred_join);",
+        "assert!(checker.graph.type_nodes[&child].concrete == Some((Type::Bool, site(3))));"
+      ],
+      "asserted_fields": [],
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_081",
+      "fixture_family": "C: `fn Main(){var q=[];let a=[q,1];q=[1];}`; comparar aceptación y tipo final"
+    },
+    {
+      "source_test": "i07c_survivor2_closure_restores_enclosing_result_site",
+      "line": 19325,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "closure_begin",
+        "closure_finish"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.graph.result, Type::Bool);",
+        "assert_eq!(checker.graph.result_span, Some(enclosing_site));"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "i07c_survivor2_closure_restores_enclosing_result_site",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor2_concrete_closure_result_does_not_bind_pending_return",
+      "line": 19356,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Resultado concreto del closure no fija retorno pendiente de otro contexto",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "L: fuente CLI del test; comparar aceptación y diagnóstico del retorno"
+      },
+      "private_calls": [
+        "closure_begin",
+        "closure_body_advance",
+        "new_variable",
+        "with_independent_fact"
+      ],
+      "assertion_lines": [
+        "assert!(matches!(action, ClosureAction::Done(Ok(()))));",
+        "assert!(checker.graph.type_nodes[&unresolved].concrete.is_none());"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Resultado concreto del closure no fija retorno pendiente de otro contexto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_083",
+      "fixture_family": "L: fuente CLI del test; comparar aceptación y diagnóstico del retorno"
+    },
+    {
+      "source_test": "i07c_survivor2_pending_selector_keeps_independent_taint",
+      "line": 19405,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "require_array",
+        "resolve_pending_projections"
+      ],
+      "assertion_lines": [
+        "assert_eq!(flag, Some((true, true)));"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_084",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor2_selection_depth_keeps_the_current_type",
+      "line": 19465,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "selection_type"
+      ],
+      "assertion_lines": [
+        "assert!(checker.selection_type(&Type::I64, 129) == Type::I64);",
+        "assert!(checker.selection_type(&nested, 128) == nested);"
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "i07c_survivor2_selection_depth_keeps_the_current_type",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor2_resolved_join_rebuilds_option_payload",
+      "line": 19479,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Una unión completada conserva payload `Option` correcto",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "R: programa `match Option` con brazos compatibles y contraparte incompatible"
+      },
+      "private_calls": [
+        "new_variable",
+        "resolved_join_side"
+      ],
+      "assertion_lines": [
+        "assert!(checker.resolved_join_side(side) == Some(Type::option(Arc::new(Type::I64))));"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Una unión completada conserva payload `Option` correcto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_086",
+      "fixture_family": "R: programa `match Option` con brazos compatibles y contraparte incompatible"
+    },
+    {
+      "source_test": "i07c_survivor2_expression_dependencies_cover_branch_children",
+      "line": 19494,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "capture_expression_dependencies"
+      ],
+      "assertion_lines": [
+        "fn assert_child(checker: &mut Checker<'_>, parent: &Expr, child: &Expr) {",
+        "assert!(",
+        "assert_child(&mut checker, &call, target);",
+        "assert_child(&mut checker, &branch, condition);",
+        "assert_child(",
+        "assert_child(&mut checker, &branch, branch_value_expr(otherwise).unwrap());",
+        "assert_child(&mut checker, &selection, &selection_parts.scrutinee);",
+        "assert_child(",
+        "assert_child("
+      ],
+      "asserted_fields": [],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "i07c_survivor2_expression_dependencies_cover_branch_children",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor2_root_compresses_the_entire_parent_chain",
+      "line": 19602,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Cadena de alias conserva tipo final y termina",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "G: `q=r;r=s;s=[1]`; aceptación y coste; compresión exacta sigue interna"
+      },
+      "private_calls": [
+        "new_variable",
+        "root"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.root(leaf), root);",
+        "assert_eq!(checker.graph.type_nodes[&leaf].parent, root);"
+      ],
+      "asserted_fields": [],
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_088",
+      "fixture_family": "G: `q=r;r=s;s=[1]`; aceptación y coste; compresión exacta sigue interna"
+    },
+    {
+      "source_test": "i07c_survivor2_result_shape_conflict_keeps_payload_identity",
+      "line": 19620,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Conflicto Result no cambia identidad del payload previo",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "R: `Result<Array<I64>,I64>` con RHS incompatible y uso posterior"
+      },
+      "private_calls": [
+        "new_variable",
+        "result_shape_conflict"
+      ],
+      "assertion_lines": [
+        "assert!(checker.result_shape_conflict(root, &Type::I64, 0));",
+        "assert!(checker.result_shape_conflict(",
+        "assert!(checker.result_shape_conflict(root, &Type::option(Arc::new(Type::I64)), 0));",
+        "assert!(!checker.result_shape_conflict(root, &Type::Never, 0));",
+        "assert!(!checker.result_shape_conflict(root, &Type::I64, 129));"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Conflicto Result no cambia identidad del payload previo; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_089",
+      "fixture_family": "R: `Result<Array<I64>,I64>` con RHS incompatible y uso posterior"
+    },
+    {
+      "source_test": "i07c_survivor2_shape_conflicts_continue_past_irrelevant_children",
+      "line": 19655,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Un hijo irrelevante no oculta conflicto de otro hijo",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "C: array con tres hijos, segundo compatible y tercero incompatible"
+      },
+      "private_calls": [
+        "new_variable",
+        "result_shape_conflict"
+      ],
+      "assertion_lines": [
+        "assert!(checker.result_shape_conflict(root, &expected, 0));",
+        "assert_eq!(diagnostic.code, \"NX-E0102\");",
+        "assert_eq!(diagnostic.subcause.as_deref(), Some(\"constructor_shape\"));",
+        "assert_eq!(diagnostic.primary_span.as_ref().map(span_key), Some((7, 8)));",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Un hijo irrelevante no oculta conflicto de otro hijo; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_090",
+      "fixture_family": "C: array con tres hijos, segundo compatible y tercero incompatible"
+    },
+    {
+      "source_test": "i07c_survivor2_pattern_shape_chooses_first_conflicting_child",
+      "line": 19710,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Patrón compuesto señala el primer hijo incompatible",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "R: `match Option`/`Result` con patrón inválido y primario del primer hijo"
+      },
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(diagnostic.related_spans[0].span, site(7));"
+      ],
+      "asserted_fields": [
+        "related_spans",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Patrón compuesto señala el primer hijo incompatible; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_091",
+      "fixture_family": "R: `match Option`/`Result` con patrón inválido y primario del primer hijo"
+    },
+    {
+      "source_test": "i07c_survivor3_shape_walk_checks_later_result_payload",
+      "line": 19759,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "El recorrido Result comprueba el payload posterior al primero",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "R: Result con Ok compatible y Err incompatible"
+      },
+      "private_calls": [
+        "new_variable",
+        "result_shape_conflict"
+      ],
+      "assertion_lines": [
+        "assert!(checker.result_shape_conflict(root, &expected, 0));",
+        "assert_eq!(diagnostic.code, \"NX-E0102\");",
+        "assert_eq!(diagnostic.subcause.as_deref(), Some(\"constructor_shape\"));",
+        "assert_eq!(diagnostic.related_spans[0].span, site(5));"
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "related_spans"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "El recorrido Result comprueba el payload posterior al primero; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_092",
+      "fixture_family": "R: Result con Ok compatible y Err incompatible"
+    },
+    {
+      "source_test": "i07c_survivor3_require_union_moves_concrete_payloads_to_children",
+      "line": 19805,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "La restricción de Result/Option distribuye el tipo concreto a los payloads",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "R: `Ok`/`Err` y `Some` anotados, luego RHS incompatible"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert!(checker.graph.type_nodes[&root].concrete.is_none());",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(payloads.len(), 2);",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "La restricción de Result/Option distribuye el tipo concreto a los payloads; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_093",
+      "fixture_family": "R: `Ok`/`Err` y `Some` anotados, luego RHS incompatible"
+    },
+    {
+      "source_test": "i07c_survivor3_union_transfers_single_sided_shape_and_origin",
+      "line": 19843,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Un solo lado estructurado transfiere forma y primer origen",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "F: `omitted_relation`, relación del primer operando"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(root, checker.root(plain));",
+        "assert!(checker.graph.type_nodes[&root].variant_constructed);",
+        "assert_eq!(",
+        "assert_eq!(checker.concrete(payload).map(|(ty, _)| ty), Some(Type::I64));",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Un solo lado estructurado transfiere forma y primer origen; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_094",
+      "fixture_family": "F: `omitted_relation`, relación del primer operando"
+    },
+    {
+      "source_test": "i07c_survivor3_failed_union_restores_both_constructor_roots",
+      "line": 19885,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Unión rechazada deja intactos ambos constructores para usos posteriores",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "J: `W1_atomic_compound` y `planned`"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert_eq!(checker.root(left), left);",
+        "assert_eq!(checker.root(right), right);",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert!(checker.solver_steps > before_steps);"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Unión rechazada deja intactos ambos constructores para usos posteriores; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_095",
+      "fixture_family": "J: `W1_atomic_compound` y `planned`"
+    },
+    {
+      "source_test": "i07c_survivor3_unify_concrete_union_kinds_and_payloads",
+      "line": 19932,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Option/Result incompatibles rechazan tipo de variante y payload correctos",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "R: `Some(1)` frente a `Ok(1)` y payload tipado"
+      },
+      "private_calls": [],
+      "assertion_lines": [
+        "assert_eq!(mismatch.code, \"NX-E0102\");",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!(same, option_i64);",
+        "assert_eq!(nested.code, \"NX-E0102\");",
+        "assert!(nested.related_spans.iter().any(|related| {"
+      ],
+      "asserted_fields": [
+        "code",
+        "related_spans",
+        "expected_type",
+        "found_type",
+        "data"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Option/Result incompatibles rechazan tipo de variante y payload correctos; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_096",
+      "fixture_family": "R: `Some(1)` frente a `Ok(1)` y payload tipado"
+    },
+    {
+      "source_test": "i07c_survivor3_shape_requirements_reject_incompatible_roots",
+      "line": 20010,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_097",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor3_failed_single_sided_union_keeps_preexisting_shape",
+      "line": 20052,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Rechazo con forma solo a un lado conserva la forma previa",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "J: `completion_conflict` y `W1_atomic_compound`"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert_eq!(checker.root(shaped), shaped);",
+        "assert_eq!(checker.root(plain), plain);",
+        "assert_eq!(checker.concrete(child).map(|(ty, _)| ty), Some(Type::Bool));"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Rechazo con forma solo a un lado conserva la forma previa; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_098",
+      "fixture_family": "J: `completion_conflict` y `W1_atomic_compound`"
+    },
+    {
+      "source_test": "i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind",
+      "line": 20082,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Rechazo de Result revierte enlace tentativo de primer payload",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert!(checker.concrete(first).is_none());",
+        "assert_eq!(checker.concrete(second).map(|(ty, _)| ty), Some(Type::I64));",
+        "assert_eq!(checker.root(shaped), shaped);",
+        "assert_eq!(checker.root(plain), plain);"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Rechazo de Result revierte enlace tentativo de primer payload; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_099",
+      "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
+    },
+    {
+      "source_test": "i07c_survivor3_union_prefers_larger_component_before_id",
+      "line": 20118,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Orden interno por tamaño no altera tipo ni diagnóstico",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "G: mismo Result/Array con dos órdenes de bindings; comparar JSON"
+      },
+      "private_calls": [
+        "new_variable",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(checker.root(smaller_id), larger_id);",
+        "assert_eq!(checker.graph.type_nodes[&larger_id].size, 4);"
+      ],
+      "asserted_fields": [],
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_100",
+      "fixture_family": "G: mismo Result/Array con dos órdenes de bindings; comparar JSON"
+    },
+    {
+      "source_test": "i07c_survivor3_never_payload_keeps_later_result_bind",
+      "line": 20135,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Payload `Never` deja que otro payload complete Result",
+        "internal": "Sí: `concrete`",
+        "proposed_cli": "R: Result con `return` en un brazo y valor posterior"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Payload `Never` deja que otro payload complete Result; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_101",
+      "fixture_family": "R: Result con `return` en un brazo y valor posterior"
+    },
+    {
+      "source_test": "i07c_survivor3_cached_array_child_rebuilds_outer_shape",
+      "line": 20164,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Hijo Array cacheado no pierde forma exterior",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "C: arrays anidados repetidos y asignación posterior"
+      },
+      "private_calls": [
+        "clone"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, left_outer);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Hijo Array cacheado no pierde forma exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_102",
+      "fixture_family": "C: arrays anidados repetidos y asignación posterior"
+    },
+    {
+      "source_test": "i07c_survivor3_failed_atomic_union_preserves_quota_error",
+      "line": 20200,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Rechazo atómico no revierte ni oculta NX-E0003 de cuota",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "Q: `W1_atomic_compound` con límites inferiores al coste"
+      },
+      "private_calls": [
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.operation, Operation::AnalysisLimit);",
+        "assert!(checker.quota_error.is_some());",
+        "assert_eq!(checker.solver_steps, checker.solver_limit);",
+        "assert_eq!(checker.graph.active_count(), 0);"
+      ],
+      "asserted_fields": [
+        "quota_error"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_103",
+      "fixture_family": "Q: `W1_atomic_compound` con límites inferiores al coste"
+    },
+    {
+      "source_test": "i07c_survivor3_completed_option_uses_binding_origin",
+      "line": 20226,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Option completado usa el origen del binding inicial",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "F: ADR Firma/Alias y `later_completion` con Option"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Option completado usa el origen del binding inicial; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_104",
+      "fixture_family": "F: ADR Firma/Alias y `later_completion` con Option"
+    },
+    {
+      "source_test": "i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind",
+      "line": 20258,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Fallo de payload Result no altera vínculo diferido anterior",
+        "internal": "Sí: `concrete`",
+        "proposed_cli": "R: Result diferido, segundo payload inválido, uso posterior del primero"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert!(checker.concrete(pending).is_none());"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Fallo de payload Result no altera vínculo diferido anterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_105",
+      "fixture_family": "R: Result diferido, segundo payload inválido, uso posterior del primero"
+    },
+    {
+      "source_test": "i07c_survivor3_union_rejects_variant_against_array_in_both_orders",
+      "line": 20280,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "require_array",
+        "root",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert_eq!(checker.root(variant), variant);",
+        "assert_eq!(checker.root(array), array);"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_106",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor3_require_union_quota_propagates_through_bind",
+      "line": 20310,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.operation, Operation::AnalysisLimit);",
+        "assert!(checker.quota_error.is_some());"
+      ],
+      "asserted_fields": [
+        "quota_error"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "todas las aserciones observables originales de esta prueba; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_107",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor3_rebinding_known_union_keeps_first_shape_origin",
+      "line": 20337,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Reenlace de unión conocida conserva primer origen",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "F: `rejected_assignment` y `later_completion`"
+      },
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!("
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Reenlace de unión conocida conserva primer origen; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_108",
+      "fixture_family": "F: `rejected_assignment` y `later_completion`"
+    },
+    {
+      "source_test": "i07c_survivor3_failed_result_bind_restores_first_payload",
+      "line": 20361,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Fallo de enlace Result conserva el primer payload",
+        "internal": "Sí: `concrete`",
+        "proposed_cli": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert!(checker.concrete(payloads[0]).is_none());"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Fallo de enlace Result conserva el primer payload; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_109",
+      "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
+    },
+    {
+      "source_test": "i07c_survivor3_noncopyable_second_payload_restores_first_bind",
+      "line": 20394,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Payload no copiable rechaza la operación sin alterar primer enlace",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "R: Result con segundo payload de recurso y uso posterior del primero"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(",
+        "assert!(checker.concrete(payloads[0]).is_none());"
+      ],
+      "asserted_fields": [
+        "code"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Payload no copiable rechaza la operación sin alterar primer enlace; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_110",
+      "fixture_family": "R: Result con segundo payload de recurso y uso posterior del primero"
+    },
+    {
+      "source_test": "i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span",
+      "line": 20430,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Spans con mismo inicio eligen origen causal izquierdo estable",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "F: variante de `rejected_assignment` con grupos de igual inicio"
+      },
+      "private_calls": [
+        "new_variable",
+        "union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert!("
+      ],
+      "asserted_fields": [
+        "code",
+        "related_spans"
+      ],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Spans con mismo inicio eligen origen causal izquierdo estable; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_111",
+      "fixture_family": "F: variante de `rejected_assignment` con grupos de igual inicio"
+    },
+    {
+      "source_test": "i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion",
+      "line": 20467,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Formas pendientes incompatibles terminan con C, sin recursión infinita",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "J: `suspended_68` y `recursive_69`, sin timeout"
+      },
+      "private_calls": [
+        "new_variable",
+        "pending_join_count",
+        "require_array",
+        "root"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, Type::Deferred(variant));",
+        "assert_eq!(checker.root(variant), variant);",
+        "assert_eq!(checker.root(array), array);",
+        "assert!(!checker.graph.type_nodes[&variant].recursive_join);",
+        "assert_eq!(checker.pending_join_count(), 1);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Formas pendientes incompatibles terminan con C, sin recursión infinita; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_112",
+      "fixture_family": "J: `suspended_68` y `recursive_69`, sin timeout"
+    },
+    {
+      "source_test": "i07c_survivor3_union_child_allocation_propagates_quota_errors",
+      "line": 20499,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Asignar hijo de unión propaga NX-E0003 sin publicar tipo parcial",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "Q: Result/Option anidado con límite bajo"
+      },
+      "private_calls": [
+        "new_variable",
+        "require_union"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.operation, Operation::AnalysisLimit);",
+        "assert!(checker.quota_error.is_some());",
+        "assert!(checker.graph.type_nodes[&root].variant_children.is_none());"
+      ],
+      "asserted_fields": [
+        "quota_error"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_113",
+      "fixture_family": "Q: Result/Option anidado con límite bajo"
+    },
+    {
+      "source_test": "i07c_survivor3_late_result_payload_quota_rolls_back_first_bind",
+      "line": 20518,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Cuota en payload tardío no deja primer enlace tentativo",
+        "internal": "Sí: `concrete`",
+        "proposed_cli": "Q: Result de dos payloads, barrido de límites"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.operation, Operation::AnalysisLimit);",
+        "assert!(checker.concrete(pending).is_none());",
+        "assert!(checker.quota_error.is_some());"
+      ],
+      "asserted_fields": [
+        "quota_error"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_114",
+      "fixture_family": "Q: Result de dos payloads, barrido de límites"
+    },
+    {
+      "source_test": "i07c_survivor3_partial_union_allocation_rolls_back_on_quota",
+      "line": 20539,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Cuota durante creación parcial de unión no deja estructura publicada",
+        "internal": "Sí: `type_nodes`",
+        "proposed_cli": "Q: Option/Result anidado, barrido de límites"
+      },
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.operation, Operation::AnalysisLimit);",
+        "assert_eq!(checker.graph.next_variable, before_nodes);",
+        "assert!(checker.graph.type_nodes[&root].variant_children.is_none());",
+        "assert!(checker.quota_error.is_some());"
+      ],
+      "asserted_fields": [
+        "quota_error"
+      ],
+      "action": "reescribir_cuota_propiedad_11_1",
+      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_115",
+      "fixture_family": "Q: Option/Result anidado, barrido de límites"
+    },
+    {
+      "source_test": "i07c_survivor3_equal_start_array_origins_choose_left_diagnostic_span",
+      "line": 20567,
+      "class": "former_65",
+      "private_checker_api": true,
+      "previous_inventory": null,
+      "private_calls": [
+        "new_variable",
+        "require_array",
+        "root",
+        "union",
+        "unresolved_constructor_diagnostic"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.code, \"NX-E0103\");",
+        "assert_eq!(error.primary_span, Some(first));"
+      ],
+      "asserted_fields": [
+        "code",
+        "primary_span"
+      ],
+      "action": "reescribir_precedencia_equality_id",
+      "destination_assertions": "mismos outcome, código, subcausa, primario, tipos y relaciones de la fuente CLI; el desempate se prueba por EqualityId, no Span.start",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_116",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    },
+    {
+      "source_test": "i07c_survivor3_failed_concrete_union_expansion_restores_root",
+      "line": 20597,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Expansión concreta fallida conserva raíz y diagnóstico posterior",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "J: `W1_atomic_compound` y caso Result incompatible"
+      },
+      "private_calls": [
+        "new_variable"
+      ],
+      "assertion_lines": [
+        "assert_eq!(error.operation, Operation::AnalysisLimit);",
+        "assert_eq!(",
+        "assert!(checker.graph.type_nodes[&root].variant_children.is_none());"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Expansión concreta fallida conserva raíz y diagnóstico posterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_117",
+      "fixture_family": "J: `W1_atomic_compound` y caso Result incompatible"
+    },
+    {
+      "source_test": "i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands",
+      "line": 20629,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Un enlace diferido relaciona los operandos escritos originales",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "F: `rejected_assignment`, relación por bytes"
+      },
+      "private_calls": [
+        "new_variable",
+        "pending_joins",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, Type::Deferred(root));",
+        "assert_eq!(pending.left, Type::Deferred(root));",
+        "assert_eq!(pending.right, Type::I64);",
+        "assert_eq!(pending.left_origin, site(3));",
+        "assert!(!pending.branch);",
+        "assert!(pending.related_expected);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Un enlace diferido relaciona los operandos escritos originales; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_118",
+      "fixture_family": "F: `rejected_assignment`, relación por bytes"
+    },
+    {
+      "source_test": "i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands",
+      "line": 20660,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Unión hija diferida conserva relación con el operando padre correcto",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "J: M1 anidado y 4363, relaciones completas"
+      },
+      "private_calls": [
+        "new_variable",
+        "pending_joins",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, Type::Deferred(shaped));",
+        "assert_eq!(pending.left, Type::Deferred(shaped));",
+        "assert_eq!(pending.right, Type::Deferred(concrete));",
+        "assert_eq!(pending.left_origin, site(6));",
+        "assert!(pending.branch);",
+        "assert!(!pending.related_expected);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Unión hija diferida conserva relación con el operando padre correcto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_119",
+      "fixture_family": "J: M1 anidado y 4363, relaciones completas"
+    },
+    {
+      "source_test": "i07c_survivor3_partial_result_conflict_defers_join",
+      "line": 20702,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Conflicto parcial Result espera evidencia antes de emitir unión",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "R: Result con payload pendiente y asignación completadora"
+      },
+      "private_calls": [
+        "concrete",
+        "new_variable",
+        "pending_join_count"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, Type::Deferred(partial));",
+        "assert!(checker.concrete(payloads[0]).is_none());",
+        "assert_eq!(checker.pending_join_count(), 1);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Conflicto parcial Result espera evidencia antes de emitir unión; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_120",
+      "fixture_family": "R: Result con payload pendiente y asignación completadora"
+    },
+    {
+      "source_test": "i07c_survivor3_array_join_wraps_pending_operand_shapes",
+      "line": 20744,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Unión Array con operandos pendientes conserva constructor exterior",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "C: `completion_unresolved` y `T5_constructor_equivalent`"
+      },
+      "private_calls": [
+        "clone",
+        "new_variable",
+        "pending_joins",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, left);",
+        "assert_eq!(pending.left, Type::Array(Arc::new(Type::Deferred(root))));",
+        "assert_eq!(pending.right, right);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Unión Array con operandos pendientes conserva constructor exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_121",
+      "fixture_family": "C: `completion_unresolved` y `T5_constructor_equivalent`"
+    },
+    {
+      "source_test": "i07c_survivor3_nested_partial_result_deferral_keeps_array_shape",
+      "line": 20774,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Result parcial anidado conserva Array exterior sin falso C",
+        "internal": "Sí: `concrete,type_nodes`",
+        "proposed_cli": "R: `Result<Array<I64>,I64>` anidado con payload pendiente"
+      },
+      "private_calls": [
+        "new_variable",
+        "pending_join_count"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, Type::Array(Arc::new(Type::Deferred(partial))));",
+        "assert_eq!(checker.pending_join_count(), 1);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Result parcial anidado conserva Array exterior sin falso C; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_122",
+      "fixture_family": "R: `Result<Array<I64>,I64>` anidado con payload pendiente"
+    },
+    {
+      "source_test": "i07c_survivor4_deferred_bind_keeps_branch_policy",
+      "line": 20818,
+      "class": "previous_59",
+      "private_checker_api": true,
+      "previous_inventory": {
+        "observable": "Enlace diferido conserva política de denuncia única por rama",
+        "internal": "Sí: método de unificación o estado privado",
+        "proposed_cli": "J: `W1_atomic_compound` y `M2_partial_witness_chain`"
+      },
+      "private_calls": [
+        "new_variable",
+        "pending_joins",
+        "require_array"
+      ],
+      "assertion_lines": [
+        "assert_eq!(joined, Type::Deferred(root));",
+        "assert_eq!(pending.left, Type::Deferred(root));",
+        "assert_eq!(pending.right, Type::I64);",
+        "assert_eq!(pending.left_origin, site(3));",
+        "assert!(pending.branch);",
+        "assert!(!pending.related_expected);"
+      ],
+      "asserted_fields": [],
+      "action": "portar_mismas_aserciones_a_cli",
+      "destination_assertions": "Enlace diferido conserva política de denuncia única por rama; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_123",
+      "fixture_family": "J: `W1_atomic_compound` y `M2_partial_witness_chain`"
+    },
+    {
+      "source_test": "i07c_survivor4_invalid_control_condition_taints_visit",
+      "line": 20852,
+      "class": "former_65",
+      "private_checker_api": false,
+      "previous_inventory": null,
+      "private_calls": [
+        "drive"
+      ],
+      "assertion_lines": [
+        "assert!(visit, \"{source}\");",
+        "assert_eq!(checker.errors.len(), 1, \"{source}\");",
+        "assert_eq!(error.code, \"NX-E0102\");",
+        "assert_eq!(error.subcause.as_deref(), Some(\"type_mismatch\"));",
+        "assert_eq!(&source[span.start as usize..span.end as usize], condition);",
+        "assert!(!visit, \"{source}\");",
+        "assert!(checker.errors.is_empty(), \"{source}\");"
+      ],
+      "asserted_fields": [
+        "code",
+        "subcause",
+        "primary_span"
+      ],
+      "action": "conservar_sin_cambio",
+      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
+      "new_cli_test_id_or_retained_id": "i07c_survivor4_invalid_control_condition_taints_visit",
+      "fixture_family": "source from original test; preserve all positive and negative programs"
+    }
+  ]
+}
