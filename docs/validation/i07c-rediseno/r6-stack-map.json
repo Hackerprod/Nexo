@@ -1,0 +1,106 @@
+{
+  "test_exe_sha256": "bebd3069d17b52d19d621f402f43a1e21db3f4fd0a6911be065dc2b7e274d622",
+  "map_sha256": "c80b66494b1f453a4180bf689ca2eb74df7f6002bf868a11c94c5b18ae5e66e5",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+  "frame_output": [
+    "executable_sha256=bebd3069d17b52d19d621f402f43a1e21db3f4fd0a6911be065dc2b7e274d622 map_sha256=c80b66494b1f453a4180bf689ca2eb74df7f6002bf868a11c94c5b18ae5e66e5",
+    "drive\t27536\t_RNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB5_7Checker5drive",
+    "resume_non_match\t33080\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive16resume_non_match",
+    "expr_inner\t13408\t_RNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB5_7Checker10expr_inner",
+    "match_advance\t3640\t_RNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB5_7Checker13match_advance",
+    "selection_type\t2656\t_RNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB5_7Checker14selection_type",
+    "check_against_context_one\t6784\t_RNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB5_7Checker25check_against_context_one",
+    "enter_assignment\t496\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive16enter_assignment",
+    "enter_neg_not\t848\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive13enter_neg_not",
+    "enter_binary\t1904\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive12enter_binary",
+    "for_range_error\t104\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive15for_range_error",
+    "index_range_error\t120\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive17index_range_error",
+    "binary_range_error\t184\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive18binary_range_error",
+    "resume_statement_match\t1776\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive22resume_statement_match",
+    "resume_expression_match\t3152\t_RNvNvMs4_NtNtCsd3Stkrgkk6U_4nexo5check5typesNtB7_7Checker5drive23resume_expression_match",
+    "pair=60616 margin=5944",
+    "drive->resume_expression_match->match_advance->selection_type=36984",
+    "drive->resume_statement_match->selection_type=31968",
+    "drive->resume_expression_match->check_against_context_one->expr_inner=50880",
+    "drive->resume_non_match->check_against_context_one->expr_inner=80808"
+  ],
+  "probes": [
+    {
+      "case": "option_match126",
+      "repeat": 1,
+      "exit": 0,
+      "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "option_match126",
+      "repeat": 2,
+      "exit": 0,
+      "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "option_match126",
+      "repeat": 3,
+      "exit": 0,
+      "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "option_match126",
+      "repeat": 4,
+      "exit": 0,
+      "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "option_match126",
+      "repeat": 5,
+      "exit": 0,
+      "stdout": "option_match126 TYPES 65 KiB sha256=9d702f634956ba899926253718fce6f6e47c99c35ef48367d975996d611c7312 exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "result_match126",
+      "repeat": 1,
+      "exit": 0,
+      "stdout": "result_match126 TYPES 65 KiB sha256=c15e432a269f65c625d6b17b613039ee004839a8328febd698f3442d8144b45c exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "result_match126",
+      "repeat": 2,
+      "exit": 0,
+      "stdout": "result_match126 TYPES 65 KiB sha256=c15e432a269f65c625d6b17b613039ee004839a8328febd698f3442d8144b45c exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "result_match126",
+      "repeat": 3,
+      "exit": 0,
+      "stdout": "result_match126 TYPES 65 KiB sha256=c15e432a269f65c625d6b17b613039ee004839a8328febd698f3442d8144b45c exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "result_match126",
+      "repeat": 4,
+      "exit": 0,
+      "stdout": "result_match126 TYPES 65 KiB sha256=c15e432a269f65c625d6b17b613039ee004839a8328febd698f3442d8144b45c exit=0",
+      "stderr": ""
+    },
+    {
+      "case": "result_match126",
+      "repeat": 5,
+      "exit": 0,
+      "stdout": "result_match126 TYPES 65 KiB sha256=c15e432a269f65c625d6b17b613039ee004839a8328febd698f3442d8144b45c exit=0",
+      "stderr": ""
+    }
+  ],
+  "prior_failed_run": {
+    "case": "option_match126",
+    "repeat": 3,
+    "exit": 3221225725,
+    "context": "first 5/5 attempt; subsequent isolated repetitions also failed intermittently"
+  }
+}

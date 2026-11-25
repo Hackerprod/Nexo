@@ -1,0 +1,2009 @@
+{
+  "binary_sha256": {
+    "debug": "3835b09ca9b6cae218f560115eb66b9a36b1a209e8b6b67c4b1f0d55ef515d60",
+    "release": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd"
+  },
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+  "rows": [
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t2192",
+      "source_sha256": "784e527b40813f0fc331aaea25b3239f4c51471b7cddb667e2be531320c31e33",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.908,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.088,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.893,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.91,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3584",
+      "source_sha256": "ab4c3c769879777bd7ec9f59677f6ea3a851a27df54a5f65f61b41d18ace0265",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.203,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.055,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.977,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.039,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3584_min",
+      "source_sha256": "41012ff6f44e6eb3ecd669c1c2c03c26ae4b28392be5f685cf196177a1ba7a9e",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.234,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.335,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.875,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.325,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "w0_min",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.865,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.041,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.312,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.046,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "projection_unrelated",
+      "source_sha256": "040410d957e528382d27df3623fd25d9e4e42aa6f265a09cf66ff4ac7abc7dd7",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.057,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.092,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.225,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.037,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "projection_nested_c1_1976",
+      "source_sha256": "7f927e09d8483a06c908e0f5dddfcd0bcbef91f30078ed36502a5c38503426b2",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.91,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.248,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.989,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.112,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "projection_union_97",
+      "source_sha256": "26d32b2e987506c9603483fcdce41f4e6a902d871f388cc0250b1a9750a5ee06",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.089,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.198,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.946,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.904,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3594",
+      "source_sha256": "6b97763899415bbe0848b3844509285416f4c0be9c17390e702acdbd10ee6d62",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.104,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.536,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.972,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.035,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3596",
+      "source_sha256": "31d4d350dba3365cd17b829a4d899654fd3bda631f0173e5446b6b741b0323d6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.249,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.994,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.297,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.71,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t7094",
+      "source_sha256": "09f11163f6c53d66a0830f45877184a7950f6981c68836c6eb48dc3439e63cf6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.977,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.926,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.824,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.343,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "planned",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 28.082,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.986,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.027,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.863,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "planned_full",
+      "source_sha256": "8aab0f16f7e48218a63d3acb3693a8b006d90c085b140e70627dc53d27ad1552",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.941,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.847,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.358,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.102,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "incompatible_prefix",
+      "source_sha256": "f9226de0192bf53eac641da575489d671cb4b76faf6baee7a1f42276c36954b8",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.006,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.992,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.886,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.263,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "anchored_first_branch",
+      "source_sha256": "9dad19885297068a2254f856c6040bfd6f90df0b0b2628dbd298c4ad17dc07df",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.95,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.32,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.136,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.129,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "recursive",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.442,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.893,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.973,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.182,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "positive",
+      "source_sha256": "4aebc3e14c2d8e77a263e8ed0189701466e284bfd1f49ecad3beaa4024e71bc2",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.256,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.222,
+            "accepted": true
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 20.869,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.185,
+            "accepted": true
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "M1",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.092,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.376,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.171,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.863,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "M2",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.151,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.134,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.297,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.839,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t2192",
+      "source_sha256": "784e527b40813f0fc331aaea25b3239f4c51471b7cddb667e2be531320c31e33",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.833,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.002,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.212,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.962,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3584",
+      "source_sha256": "ab4c3c769879777bd7ec9f59677f6ea3a851a27df54a5f65f61b41d18ace0265",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.176,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.962,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.195,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.077,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3584_min",
+      "source_sha256": "41012ff6f44e6eb3ecd669c1c2c03c26ae4b28392be5f685cf196177a1ba7a9e",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.892,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.013,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.204,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.046,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "w0_min",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.25,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.356,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.861,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.185,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "projection_unrelated",
+      "source_sha256": "040410d957e528382d27df3623fd25d9e4e42aa6f265a09cf66ff4ac7abc7dd7",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.111,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.285,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.06,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 28.395,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "projection_nested_c1_1976",
+      "source_sha256": "7f927e09d8483a06c908e0f5dddfcd0bcbef91f30078ed36502a5c38503426b2",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.083,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.311,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.788,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.202,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "projection_union_97",
+      "source_sha256": "26d32b2e987506c9603483fcdce41f4e6a902d871f388cc0250b1a9750a5ee06",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.299,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.289,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.95,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.974,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3594",
+      "source_sha256": "6b97763899415bbe0848b3844509285416f4c0be9c17390e702acdbd10ee6d62",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.894,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.125,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.09,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.734,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3596",
+      "source_sha256": "31d4d350dba3365cd17b829a4d899654fd3bda631f0173e5446b6b741b0323d6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.083,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.33,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.273,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.975,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t7094",
+      "source_sha256": "09f11163f6c53d66a0830f45877184a7950f6981c68836c6eb48dc3439e63cf6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.091,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.945,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.972,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.281,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "planned",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.054,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.092,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.175,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.877,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "planned_full",
+      "source_sha256": "8aab0f16f7e48218a63d3acb3693a8b006d90c085b140e70627dc53d27ad1552",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.851,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.842,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.105,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.218,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "incompatible_prefix",
+      "source_sha256": "f9226de0192bf53eac641da575489d671cb4b76faf6baee7a1f42276c36954b8",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.999,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.232,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.423,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.113,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "anchored_first_branch",
+      "source_sha256": "9dad19885297068a2254f856c6040bfd6f90df0b0b2628dbd298c4ad17dc07df",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.991,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.964,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.957,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.883,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "recursive",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.265,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.127,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.289,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.0,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "positive",
+      "source_sha256": "4aebc3e14c2d8e77a263e8ed0189701466e284bfd1f49ecad3beaa4024e71bc2",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.075,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.163,
+            "accepted": true
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.271,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.58,
+            "accepted": true
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "M1",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.231,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.305,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.434,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.22,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "M2",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.23,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.241,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 28.304,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.493,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t2192",
+      "source_sha256": "784e527b40813f0fc331aaea25b3239f4c51471b7cddb667e2be531320c31e33",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.897,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.824,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.98,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.011,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3584",
+      "source_sha256": "ab4c3c769879777bd7ec9f59677f6ea3a851a27df54a5f65f61b41d18ace0265",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.276,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.408,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.402,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.987,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3584_min",
+      "source_sha256": "41012ff6f44e6eb3ecd669c1c2c03c26ae4b28392be5f685cf196177a1ba7a9e",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.841,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.031,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.059,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.042,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "w0_min",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.564,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.334,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.163,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.973,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "projection_unrelated",
+      "source_sha256": "040410d957e528382d27df3623fd25d9e4e42aa6f265a09cf66ff4ac7abc7dd7",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.168,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.049,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.989,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.928,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "projection_nested_c1_1976",
+      "source_sha256": "7f927e09d8483a06c908e0f5dddfcd0bcbef91f30078ed36502a5c38503426b2",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.087,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 24.827,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.465,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.037,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "projection_union_97",
+      "source_sha256": "26d32b2e987506c9603483fcdce41f4e6a902d871f388cc0250b1a9750a5ee06",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.219,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.082,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.199,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.057,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3594",
+      "source_sha256": "6b97763899415bbe0848b3844509285416f4c0be9c17390e702acdbd10ee6d62",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.144,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.92,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.915,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.956,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3596",
+      "source_sha256": "31d4d350dba3365cd17b829a4d899654fd3bda631f0173e5446b6b741b0323d6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.268,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.273,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.12,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.971,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t7094",
+      "source_sha256": "09f11163f6c53d66a0830f45877184a7950f6981c68836c6eb48dc3439e63cf6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.283,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.845,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.887,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.399,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "planned",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.912,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.024,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.186,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.915,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "planned_full",
+      "source_sha256": "8aab0f16f7e48218a63d3acb3693a8b006d90c085b140e70627dc53d27ad1552",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.841,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.003,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.091,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.219,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "incompatible_prefix",
+      "source_sha256": "f9226de0192bf53eac641da575489d671cb4b76faf6baee7a1f42276c36954b8",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.239,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 28.493,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.189,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.684,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "anchored_first_branch",
+      "source_sha256": "9dad19885297068a2254f856c6040bfd6f90df0b0b2628dbd298c4ad17dc07df",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.378,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.083,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.825,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.09,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "recursive",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 23.786,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.124,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.179,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.029,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "positive",
+      "source_sha256": "4aebc3e14c2d8e77a263e8ed0189701466e284bfd1f49ecad3beaa4024e71bc2",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 20.911,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 20.911,
+            "accepted": true
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.152,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.16,
+            "accepted": true
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "M1",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.831,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.064,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.28,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.82,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "M2",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "readings": {
+        "debug": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.9,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 20.818,
+            "accepted": false
+          }
+        },
+        "release": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.023,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.125,
+            "accepted": false
+          }
+        }
+      },
+      "debug_release_same": true,
+      "check_run_same": true
+    }
+  ],
+  "debug_release_failures": [],
+  "check_run_failures": []
+}

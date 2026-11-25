@@ -1,0 +1,3482 @@
+{
+  "base_tag": "main-44bef37452e4",
+  "candidate_tag": "proto-66c2cf310e7a-r6",
+  "distribution": {
+    "b-projections-2026112401": {
+      "core_a": 0,
+      "full_a": 16,
+      "full_a_types": 0,
+      "full_a_relation_only": 16
+    },
+    "b-projections-t5-2026112402": {
+      "core_a": 5,
+      "full_a": 15,
+      "full_a_types": 0,
+      "full_a_relation_only": 14
+    },
+    "b-projections-2026112403": {
+      "core_a": 0,
+      "full_a": 21,
+      "full_a_types": 0,
+      "full_a_relation_only": 21
+    },
+    "owner-projections-771412": {
+      "core_a": 0,
+      "full_a": 0,
+      "full_a_types": 0,
+      "full_a_relation_only": 0
+    },
+    "c1": {
+      "core_a": 0,
+      "full_a": 17,
+      "full_a_types": 0,
+      "full_a_relation_only": 17
+    },
+    "c2": {
+      "core_a": 0,
+      "full_a": 3,
+      "full_a_types": 0,
+      "full_a_relation_only": 3
+    },
+    "c2@f0-0003-b-v1": {
+      "core_a": 7,
+      "full_a": 12,
+      "full_a_types": 0,
+      "full_a_relation_only": 5
+    },
+    "b": {
+      "core_a": 0,
+      "full_a": 3,
+      "full_a_types": 0,
+      "full_a_relation_only": 3
+    },
+    "perm": {
+      "core_a": 0,
+      "full_a": 18,
+      "full_a_types": 0,
+      "full_a_relation_only": 18
+    },
+    "t": {
+      "core_a": 0,
+      "full_a": 0,
+      "full_a_types": 0,
+      "full_a_relation_only": 0
+    },
+    "s7021993": {
+      "core_a": 0,
+      "full_a": 2,
+      "full_a_types": 0,
+      "full_a_relation_only": 2
+    },
+    "s4417061": {
+      "core_a": 0,
+      "full_a": 2,
+      "full_a_types": 0,
+      "full_a_relation_only": 2
+    },
+    "s9908255": {
+      "core_a": 0,
+      "full_a": 1,
+      "full_a_types": 0,
+      "full_a_relation_only": 1
+    },
+    "dirigido5": {
+      "core_a": 0,
+      "full_a": 0,
+      "full_a_types": 0,
+      "full_a_relation_only": 0
+    },
+    "c1-nueva": {
+      "core_a": 0,
+      "full_a": 0,
+      "full_a_types": 0,
+      "full_a_relation_only": 0
+    },
+    "c2-nueva": {
+      "core_a": 0,
+      "full_a": 2,
+      "full_a_types": 0,
+      "full_a_relation_only": 2
+    },
+    "c2-nueva@f0-0003-b-v1": {
+      "core_a": 3,
+      "full_a": 6,
+      "full_a_types": 0,
+      "full_a_relation_only": 3
+    },
+    "c1-nueva2": {
+      "core_a": 0,
+      "full_a": 4,
+      "full_a_types": 0,
+      "full_a_relation_only": 4
+    },
+    "c2-nueva2": {
+      "core_a": 0,
+      "full_a": 1,
+      "full_a_types": 0,
+      "full_a_relation_only": 1
+    },
+    "c2-nueva2@f0-0003-b-v1": {
+      "core_a": 5,
+      "full_a": 7,
+      "full_a_types": 0,
+      "full_a_relation_only": 2
+    }
+  },
+  "records": [
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 295,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "68a5d0e0ded21dad62f8f16f278ae389096d49f4c26f040139ae411494c256a7",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 799,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e4d93c406ff27e44d59185c62d124ab33d209c52e487883c0a869047b35eb518",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1082,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "d6f691bcca371b0d9e52725a88e04bbef27e794e1e2301231ab6574292b72d3b",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1131,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "493e6879d6c41585d19a07b2a5addb82a3a2f10fd47f6454b56c49fb94a93607",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1354,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "c0b5ca8c9d748899db43b897a949d8544934c12f9654f59105c5b7d329c1cbce",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1556,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "8af9fa889dfc5be0127fd8c1918b1ed889faa895d7764bb2a3f1e40d9df280fd",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1794,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "aca6eab90e7b14ccbf858dd64ddc489353dd8e339da24700f3ede6776f778895",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1945,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "9c0b7ee84bfa0747818f0fbaf36d0bda326600e916fe492ef24385ee3f6a5485",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1951,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "dd8e79a975175d65280b813976df1dd5552baf3d242924f09269d8aaf1b57cc0",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1966,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "b0c2b33cb7c935f53fda02e05a6ffcd43259a98b2bba0ffdc6c74454766b0556",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 1983,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "90ca746b50159660f399ffdaa76d865c2977de5baf8e5b13cc44e40db9050db9",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 2007,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "86f1d19d9e9b6579480c6ae10b2b3c46b4b8d53afa483524b876ad455da0f361",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 2072,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "93f8222975b42358d9fad59da3257420075aab51071ff1516459897cc0854e9f",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 2676,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "be7bd5a38b4016e1fce7e3398061a333d00ce3d13da66ec99d1f16c9b079ad73",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 2684,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "4c0beea46f842aa782ff70c04b23202fde9c4cc9ff8c67c1e84ecff74d423504",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112401",
+      "index": 2887,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "6319fd1fe31e03b088ac35b1067ccbf73650602df597d821fd3fa956600ae5f8",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 61,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "f159e5f092f4ba400ffa78619bd311382bd39dd484d447f31b6d557d7842f1ac",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 76,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e2bf7d7bfe6c74b4538004df1972318355b0b8815ebb07c07dadc081ba4e3349",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 116,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "4e02c173de2b51f2a4013e99edac15cfee33d494c849fcb11759c461ead584ae",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 198,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "684769632ab209699205ffb204518a6d5b9c487573a6ee636de2e2f087dc501f",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 774,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "7306ad3d6922464b5f38dfba216bf26ee8b8f002ea2d525282b95536b53c7af2",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1012,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e5e9994552f7f4c24e7d464c88d8fd402c9868af26918f383d1585cf34739b78",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1077,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "bf573e565c0020c8712e2b83621d80f23279da764384c660f96def4894e5a77c",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1089,
+      "kind": "core",
+      "core_a": true,
+      "full_a": false,
+      "source_sha256": "6bd976a47571edd7b7253c806a757a5d3f9b3d98990da6699d2e06873f34f01c",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let a0=[(if p then (if q then (if p then r[0] else r[0]) else (if p then aar else r[0])) else s),r];}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          "",
+          "",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          null,
+          null,
+          null
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1172,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "dbe018c4ee1bd72d10c4a0d4a814f03610078cf275520d71374ba0ad73f78881",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1206,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "3cdb6c06d757d723a268c292797830df0b622ed8a97f0873e93d9d2739908b73",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1217,
+      "kind": "core",
+      "core_a": true,
+      "full_a": false,
+      "source_sha256": "e69a867c65bb07b44acfee8d129c0a2b932c7638d6e31303f5a4f2c0f9604b2e",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let b1=q[0];let a0=[(if p then (if 1 then aar else aar) else q),r];let a1=r;s=[[true]];s=r;q=ar;}",
+      "oracle": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          122,
+          123,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          180,
+          182,
+          "Array<Array<Bool>>",
+          "Array<I64>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          122,
+          123,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          180,
+          182,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            119,
+            141
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          122,
+          123,
+          "Bool",
+          "I64",
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1373,
+      "kind": "core",
+      "core_a": true,
+      "full_a": false,
+      "source_sha256": "bda0d0d0cec8b14b1189103780477713b2d519e856de714cfd9ab868bb9fb8c7",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then (if ar then r else ar) else (if p then q[0] else s)),r];let a1=[r];q=ar;}",
+      "oracle": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          96,
+          98,
+          "Bool",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          161,
+          163,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            141,
+            142
+          ]
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          96,
+          98,
+          "Bool",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          161,
+          163,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            93,
+            113
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          96,
+          98,
+          "Bool",
+          "Array<I64>",
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1421,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "ea8c6129e2fba8fa4dc739009d9594f6dfd210316fe9b6f8dcd85c7704cf0bf7",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let b1=(q[0]);let a0=[(if p then (if q then (if ar then q[0] else aar) else [r]) else s),r];r=[3];q=[1];}",
+      "oracle": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          124,
+          125,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          135,
+          137,
+          "Bool",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          188,
+          189,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            153,
+            156
+          ]
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          124,
+          125,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          135,
+          137,
+          "Bool",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          188,
+          189,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            153,
+            156
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          124,
+          125,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          135,
+          137,
+          "Bool",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          188,
+          189,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            153,
+            156
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1559,
+      "kind": "core",
+      "core_a": true,
+      "full_a": false,
+      "source_sha256": "f11950ae3bf212d1e083bb662347a31211686379ec332ec11df0abbb9dc30a9b",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=r[0];let a0=[(if p then (if 1 then (if p then r[0] else s[0]) else (if 1 then q else [q])) else ar),r];let a1=q;}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          "",
+          "",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          108,
+          109,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          151,
+          152,
+          "Bool",
+          "I64",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          108,
+          109,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          151,
+          152,
+          "Bool",
+          "I64",
+          null
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          61,
+          63,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          108,
+          109,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          151,
+          152,
+          "Bool",
+          "I64",
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1666,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "9f394ab38779cf6cb5a61b9371eaa2f9b8d4840e546c1ddabd0f316401156b94",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 1909,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "8d851d4661a7bd6a57c7cfb9a8747b95c13f67e63ed6269cd220d9bc92066694",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 2379,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "9c00beeb2cdb0e8ac43afd3e26e21b7c35a0170b936103104b4c278e73fbda6f",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 2581,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e9e4a61574e7d9a3307b247fd801ed369855765dbfb1287634e24664cfdccfd1",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-t5-2026112402",
+      "index": 2839,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "7a79b74ee8aa5bff762b08bb1877ffecf3983e5dab555a0e180a281349a0b8a7",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 116,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "68992cbfea59ea9a526758caba8c57925ffd81434123d3c3304e8f2b6c3f88b3",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 278,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "89dda5cc695750bbc77dc72e6e6fb721045d8e40f1d8900ebb65df312b825d91",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 462,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "bf3dc0bc8527a61b6c859d045a55bac90b633d82dfab9a92db2048c331a71044",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 666,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "969380a36a48fb3c5a12d3127baf7a5b01fe9b20f1d11205169e59d573ded08a",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 918,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "61907a39467f1004481c509e5fe58e1b46ca97cd474daf71034b2d10e5bad1c5",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 1061,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "370c49fe08ef86ef355b1d7e69f2511deb0a629a1b6680caf30a1326799a3d3f",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 1284,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "6d55f141ebfceff444a7def6b35ab1467d9cbfa75db6841ceaff8c1d097c06df",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 1339,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "665a3a64e300095a4b3520c0e3aefab70515b3c03975c18658d1b8fc4d408755",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 1769,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e3a6a37a3820b1b609e2babd20dc6d6e8b97203809c8274bc2d7caf04069d2bc",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 1831,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "b8f0d12ca22e3f65366dc96b61bbf90930116f29ec87f7a3f022f3f63c2aadfc",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 1883,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "5953ba185f792b1631f75c10c95299879c831cb3e26b6d32639faf1ac220e514",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2109,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "eed8a73a1b1a18c9c3bf1cd64efe454c377fbdf70bd7b24bb5da2f2df9bf7ea3",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2322,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "62a8527d9149cf47e93b720392e2a1199e7db3be08f3a363918ba9baf621a315",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2364,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "d4934148b28c83feb0aa6b4f74e62450969df24b83945316cdb42c8a527ee6f0",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2616,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "77ed92df1958d9d121bcf33896d4b91f52a374b0255b54dd3f6805a8d4d8e1e6",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2640,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "c6c33c5a28c6600dabe0a93c23249ecbed859fe4b7da2a2c0f8556e89cb4932d",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2674,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "6413b6a6cef07cc4a2cf291753424f15a63f1082da839a4bb2c8ff9655ee5338",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2675,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "b560e6fc042bce7154020cce1f05f339aad4fd2b6c5739b8387c6dfc553f3fcf",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2752,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "5f8e903e4e095d76516be90c9e86b801d8108a0960ad3d02b548c1487cfb62b4",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2805,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "6b5b823c372805d051fdbf424fa0d477f696d4c9ac3625a906277d85ca37d3c3",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b-projections-2026112403",
+      "index": 2858,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "307f6cd0651ed014dddd856efb6677cf14c55834e6351bcb2aea3bc6b214f443",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 2882,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "5926665c1c9e1fd32be57ae4026555ea659a0d6249b936268a1ea9c1b70b5b6b",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 5916,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "48fc65483869802698e0195b7e7bd639bf581877564bbfb0c723f6af0ebc0878",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 8477,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "16df2ef6b522962afb4b5c231d02c4f84b54a8a2e3d1cf1f66015060b047eb71",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 9423,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "eeade24603dd84848f251c05388c4cb6089368dc5d701cb7f22b5b889d64470d",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 10272,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "0f0035d2c7ad71fc025494f8e86b8d036476cbdbddef37514aae1bd7f6b678be",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 10768,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "4f2d326aa57e1063feb2c378b56dae3b0d8b8990cf3ea98a614007268a9adfc4",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 11606,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "2037ea4b30f14f620b7ad246f3bc79fc17fd0137f14207c614e21f487d03ff28",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 11639,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "1393ffaebb9d0c43c5eba0b9a191eff382d4b62c9227c9afd6003161138960c3",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 11902,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "ca514bd3febe93961e3d0797768e1eabb67b7ac80115601fba8545f469c399e7",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 13262,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e5036fc49f61b75870a5eeddb0493b76c467d16fe3e0f84d5bba8ca4635d0a89",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 14315,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "edc53cded6d175ead9e34efcabf2378690a94a91a03eed09624f32d44715edb9",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 16433,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "f9ba54e9efc9177b7f973495afff6d3a88385faac715af24899ec4de5f1eddcd",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 18788,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "ee5c852a58133d4aea24446f2c582cf10f8ec9394c9ab15e8d614803310fb4b6",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 19671,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "c125c0d62e90d8897ab19e982667e97db45f1b7e9db2f6ca5e5456aec1f8f07e",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 21775,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "00b191c78327db2103dc3a99c8fe6ea09ac549482e1f3da862735be9ecddc65b",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 21915,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "7fcdc4b81379ca1d7c8b08bc0e5c6d3cec4bfe847c5d8185cf2ae0520c96701b",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1",
+      "index": 22074,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "24d6258581db5c9c0a3d243d1aebd780b481c0daa3529263adab004de9e55127",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2",
+      "index": 6017,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "aa249874700850024754bd24ea647297f0fddf0ab156e4bdf0d25c5f633f3fe2",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2",
+      "index": 11568,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "b827b03cbc5470d47dfd3519f0e99207e016766386ba716e5394828106ebd8e5",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2",
+      "index": 11901,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "961f97308ca4e5ce7964ebf9990316beaa56d4d0f699ab1d4314aaa36cb5f39b",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 1047,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "59798c69995aadf80ca0cea913ee6de824477564d73e6c18b3aa81fe811c98fe",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 1727,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "1d877f008df0b2ba6e16b6e1bc70c84d702b717090ec8b925591a721ac7f8b67",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then q else 2) else 1);},None=>{value: [q,r];}};}",
+      "oracle": [
+        [
+          "NX-E1303",
+          null,
+          176,
+          177,
+          "Array<I64>",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          184,
+          185,
+          "Array<I64>",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          203,
+          208,
+          "Array<I64>",
+          "Array<Array<I64>>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          176,
+          177,
+          "Array<I64>",
+          "I64",
+          [
+            169,
+            170
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          184,
+          185,
+          "Array<I64>",
+          "I64",
+          [
+            159,
+            177
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          203,
+          208,
+          "Array<I64>",
+          "Array<Array<I64>>",
+          [
+            148,
+            185
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E1303",
+          null,
+          176,
+          177,
+          "Array<I64>",
+          "I64",
+          [
+            169,
+            170
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          184,
+          185,
+          "Array<I64>",
+          "I64",
+          [
+            159,
+            177
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 3516,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "b319fcb715ee699a7147b7625e9d219571508f8fd7f7198386423be6167d3809",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then true else [q,r]) else (if p then r else q)) else s);},None=>{value: aar;}};r=[[ar]];q=[[ar]];}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          194,
+          199,
+          "Bool",
+          "Array<Array<Array<Array<I64>>>>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          217,
+          218,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          252,
+          255,
+          "Bool",
+          "Array<Array<I64>>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          194,
+          199,
+          "Bool",
+          "Array<Array<Array<Array<I64>>>>",
+          [
+            184,
+            188
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          217,
+          218,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          [
+            174,
+            199
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          252,
+          255,
+          "Bool",
+          "Array<Array<I64>>",
+          [
+            152,
+            234
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          194,
+          199,
+          "Bool",
+          "Array<Array<Array<Array<I64>>>>",
+          [
+            184,
+            188
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          217,
+          218,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          [
+            174,
+            199
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 4929,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "fc839813d71dd3ca5ecc2d17be57b20d29c511a28dbf757111b42a6871c3582a",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 6017,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "aa249874700850024754bd24ea647297f0fddf0ab156e4bdf0d25c5f633f3fe2",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 6257,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "10388ee548ab0cb64753ea85f9b7fac688c30b1a371a9c8f017790e2af9161fa",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];q=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then 1 else ar) else r);},None=>{value: [q];}};q=[3];}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          185,
+          187,
+          "I64",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          213,
+          216,
+          "I64",
+          "Array<Array<I64>>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          185,
+          187,
+          "I64",
+          "Array<I64>",
+          [
+            178,
+            179
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          213,
+          216,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            157,
+            195
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          185,
+          187,
+          "I64",
+          "Array<I64>",
+          [
+            178,
+            179
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 7266,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "3de8b24e4f9826e6721b2036d076316705a78012a6f8af30ceb0ab4d145a3eb1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];q=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then 1 else 2) else s) else r);},None=>{value: [q];}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          231,
+          234,
+          "I64",
+          "Array<Array<I64>>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          231,
+          234,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            157,
+            213
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 8614,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "cbc2759eb2e64cf77b69a2c0ab4f92e276f7bc0d580bb85ecd2fb4cfd59d6ffb",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then true else [q]) else q);},None=>{value: aar;}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          217,
+          220,
+          "Bool",
+          "Array<Array<I64>>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          217,
+          220,
+          "Bool",
+          "Array<Array<I64>>",
+          [
+            157,
+            199
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 11187,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "c92f9bfff5badaaf240e36f425713115cc0266ecbbeda09852810b9b4d9f9d5c",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else 1) else 1);},None=>{value: aar;}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          171,
+          172,
+          "Array<Array<I64>>",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          179,
+          180,
+          "Array<Array<I64>>",
+          "I64",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          171,
+          172,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            164,
+            165
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          179,
+          180,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            154,
+            172
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 11568,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "b827b03cbc5470d47dfd3519f0e99207e016766386ba716e5394828106ebd8e5",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 11901,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "961f97308ca4e5ce7964ebf9990316beaa56d4d0f699ab1d4314aaa36cb5f39b",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2@f0-0003-b-v1",
+      "index": 14160,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "2bc77dfa6c01a68c09baa6e6270811d2fde8141f62bd2d5d27d2115fd53d4623",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then 2 else [q]) else r);},None=>{value: aar;}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          209,
+          212,
+          "I64",
+          "Array<Array<I64>>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          209,
+          212,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            152,
+            191
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "b",
+      "index": 480,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "21a90f57b674878120640bc90a3178d20a7f4f10f2c77487c731f34b1dd3c96a",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b",
+      "index": 1640,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "faa94a5a86331a17158f06ca4abe61f7ce00b1814f48ffed4b342c35cc7ee608",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "b",
+      "index": 3373,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "cf91e9b8b88a2b0e12fda39c87192c3955b353303d52107932dd0685426e0f02",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 460,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "631835f9a9aff1a4382acdf78e34e6adcfb013ed073b0f4afbfa263e96e6a0ed",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 612,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "c42a32fd2990c4447f5e2ed363a86e6c8eb74da3b5337e69d96f14b61f8254d0",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 616,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "1f6f1ea261bf3c8d705bba23d0060a9707baff4e2443a1c93097616fa71d0a27",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 620,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "1b487eec0295c0f170bed519952eb744accee0f9f2cc40536ed34f646bfedbea",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 888,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "5eee80c5580c28ef3a3584323ba7209f6300d9834b9f77d42c95c3f9297fc1b4",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 892,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "06407b59eaaec76236df196edd9fd1875423b18c4c3b7d526452f01690612a37",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 896,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "388fd85b15ee8bc8af583165688550c338347af0a40583b989bbc1cd322d0de9",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 900,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "bce2316a39ce872135ae34dc553b10c33a221a39963da86ee2f46f4df81c1938",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 904,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "0cefa2d0d29ff0f7acbf4745d054268d9e7c2437a21bed35cd16b0d5b93307ce",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 908,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "73fb8c1e35206179547e7e85d9c3d9cbc7f07ba00b2e866a5f2c139aa21f4273",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 1256,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "eb6acce178796f86d2ee5e8d0ca60e29429247343d71a3588d0d783ff21a9e7c",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 3158,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "54a8283707832f25e797a58d983ea4d5dc384af91cae3e4c845431926cd74578",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 3290,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e564ac7d11c2525707afe3d73092ec81d5039d7a9ba34cf992225e0ac4bdb618",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 3291,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "a71f96ecca5319f2cdbafc45b1ab5122c729331739bd1c22e10c8009bf41c712",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 3680,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "c6ff86106e3922b3d7551dbd749e67a9162d07f124a1bf52b64fe4f303d31fa4",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 3681,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e99345d103144fb392c117236897ddcf23e5870f7eafe0a564c4307373b945d4",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 3954,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "07b85d723f6dbe67bfdfbe972a175815ba27b35550cefed76cfb1028e7f4327f",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "perm",
+      "index": 3957,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "037a198afdb0914df3bf9ccddf3d7264df97f6b3575138888c1a599b45532a9f",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "s7021993",
+      "index": 2195,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "cf50d088724c0a44ea73e84b6a9f7361fc6bda4916f9b628da8127c1495cc083",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "s7021993",
+      "index": 3582,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "0f92cbeb0e38e30ff52d3309537970812a9e22520a57239210f736e53daa6cf1",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "s4417061",
+      "index": 1092,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "e77c589328f17d4ce1320a088a12a2a2fd0d9daa140d648012a295cb7bda115b",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "s4417061",
+      "index": 4421,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "ebefb749c4f6af69244ce014c3299821b669fdad8464dd4ad2b1302589c1fb23",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "s9908255",
+      "index": 4260,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "aaac1d530f71a5f4955006bbce94c72561f988df1a3651210a095e98bef3867d",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva",
+      "index": 3019,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "1651beb1d96fe9d25126ded2909284be96d4d513bdc185c78bcabf947efde40a",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva",
+      "index": 7114,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "06d59f928e146010bde0b5d028734171dab3c4161e9022754e3d75842e927c78",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 2483,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "61ea80c3f00be15185a70b51e8ac6b2b2955d3ea8043ef3aaa2658f134589d59",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then ar else 2) else [q]);},None=>{value: true;}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          172,
+          173,
+          "Array<I64>",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          201,
+          205,
+          "Array<I64>",
+          "Bool",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          172,
+          173,
+          "Array<I64>",
+          "I64",
+          [
+            164,
+            166
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          201,
+          205,
+          "Array<I64>",
+          "Bool",
+          [
+            143,
+            183
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          172,
+          173,
+          "Array<I64>",
+          "I64",
+          [
+            164,
+            166
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 3019,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "1651beb1d96fe9d25126ded2909284be96d4d513bdc185c78bcabf947efde40a",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 3542,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "07c967c4979a28b1b43540715436bbc503efe2b5794dfcb7156c6602f1e1b022",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 5897,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "9434d553bf89f3446a64b6b7083670beca98f7f65c44ee38cd04fa2ac268f2b2",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then true else 2) else q);},None=>{value: ar;}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          174,
+          175,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          201,
+          203,
+          "Bool",
+          "Array<I64>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          174,
+          175,
+          "Bool",
+          "I64",
+          [
+            164,
+            168
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          201,
+          203,
+          "Bool",
+          "Array<I64>",
+          [
+            143,
+            183
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          174,
+          175,
+          "Bool",
+          "I64",
+          [
+            164,
+            168
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 7114,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "06d59f928e146010bde0b5d028734171dab3c4161e9022754e3d75842e927c78",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva@f0-0003-b-v1",
+      "index": 7479,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "97b4fa84b0ebd0e53ae5e0636a277637e5f4f1bd8f51cd65ebcc7d3fbecdc386",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=[3];r=[[ar]];let a0=match move o{Some(n)=>{value: (if p then (if p then r[0] else aar) else [q,r]);},None=>{value: ar;}};}",
+      "oracle": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          114,
+          118,
+          "I64",
+          "Array<Array<I64>>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          189,
+          192,
+          "I64",
+          "Array<Array<I64>>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          199,
+          204,
+          "I64",
+          "Array<Array<I64>>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          222,
+          224,
+          "I64",
+          "Array<I64>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          114,
+          118,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            107,
+            110
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          189,
+          192,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            179,
+            183
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          199,
+          204,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            169,
+            192
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          222,
+          224,
+          "I64",
+          "Array<I64>",
+          [
+            158,
+            204
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          114,
+          118,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            107,
+            110
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          189,
+          192,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            179,
+            183
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          199,
+          204,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            169,
+            192
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "c1-nueva2",
+      "index": 1329,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "120eac013089ca0063c49591c6a6c3677a70ee453f419a21bfdb6053faafb0d2",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1-nueva2",
+      "index": 3309,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "f22845c273fe53556d70742a64a02df3f215765c96cb3a8a8992f5a7ecebbbe0",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1-nueva2",
+      "index": 4160,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "a8d527542e5ebc47c69d3963a0f29d5726fef5b4632d7456f73e06466c96dbdd",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c1-nueva2",
+      "index": 5689,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "bcb279ed02f989a15ab19f0c9df6703313e984083fe16e6458a11be558437f6d",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva2",
+      "index": 3463,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "88d62b5c4bc2ac523122a783968f31b3c815f610e53a2c5d0f8648567e60ff11",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 67,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "93db6861bc3cf3128715f57ae822ceb0f384883f8626acf67a2eaaf3aade6dc5",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 1488,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "a164ca539c86c57ea7848e764629a077cd992f1d6969d8e4feafd4a789dbea28",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r[0] else r) else r);},None=>{value: 2;}};r=q;}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          183,
+          184,
+          "I64",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          191,
+          192,
+          "I64",
+          "Array<I64>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          183,
+          184,
+          "I64",
+          "Array<I64>",
+          [
+            173,
+            177
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          191,
+          192,
+          "I64",
+          "Array<I64>",
+          [
+            163,
+            184
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 1552,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "f4f1a186e0617393821c3e8fd5555ff86d6ede4b29936d71c4de114bd8e49115",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else 1) else 1);},None=>{value: r3;}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          171,
+          172,
+          "Array<Array<Array<I64>>>",
+          "I64",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          179,
+          180,
+          "Array<Array<Array<I64>>>",
+          "I64",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          171,
+          172,
+          "Array<Array<Array<I64>>>",
+          "I64",
+          [
+            164,
+            165
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          179,
+          180,
+          "Array<Array<Array<I64>>>",
+          "I64",
+          [
+            154,
+            172
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 3463,
+      "kind": "relation_only",
+      "core_a": false,
+      "full_a": true,
+      "source_sha256": "88d62b5c4bc2ac523122a783968f31b3c815f610e53a2c5d0f8648567e60ff11",
+      "source": null,
+      "oracle": null,
+      "main": null,
+      "r6": null
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 3489,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "6f7a7865df9d778d6cd4791313cbc06b615ea56b1af8d46053e53c6e06f919cf",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then 1 else aar) else q);},None=>{value: r3;}};r=[true];}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          180,
+          183,
+          "I64",
+          "Array<Array<I64>>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          209,
+          211,
+          "I64",
+          "Array<Array<Array<I64>>>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          180,
+          183,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            173,
+            174
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          209,
+          211,
+          "I64",
+          "Array<Array<Array<I64>>>",
+          [
+            152,
+            191
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          111,
+          113,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          180,
+          183,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            173,
+            174
+          ]
+        ]
+      ]
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 5847,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "2c6c764202034810db9e590423ade5cd7630a7b04ec2a6c61dec78c09005ae5e",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then [q,r] else r[0]) else ar);},None=>{value: r3;}};}",
+      "oracle": [
+        [
+          "NX-E1303",
+          null,
+          175,
+          179,
+          "Array<Array<Array<I64>>>",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E1303",
+          null,
+          186,
+          188,
+          "Array<Array<Array<I64>>>",
+          "Array<I64>",
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          175,
+          179,
+          "Array<Array<Array<I64>>>",
+          "Array<I64>",
+          [
+            164,
+            169
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          186,
+          188,
+          "Array<Array<Array<I64>>>",
+          "Array<I64>",
+          [
+            154,
+            179
+          ]
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "corpus": "c2-nueva2@f0-0003-b-v1",
+      "index": 7970,
+      "kind": "core",
+      "core_a": true,
+      "full_a": true,
+      "source_sha256": "b3913413cc0a865c7b9de790de97351653421bee14c556d7ee417a493aa4919c",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then 1 else q) else [q]);},None=>{value: r[0];}};}",
+      "oracle": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ]
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ]
+      ],
+      "r6": [
+        [
+          "NX-E0103",
+          null,
+          93,
+          95,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          102,
+          104,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  ]
+}

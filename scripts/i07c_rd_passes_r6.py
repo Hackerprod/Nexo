@@ -48,6 +48,13 @@ def one(args):
         stdout.seek(0)
         stderr.seek(0)
         out, err = stdout.read(), stderr.read()
+    try:
+        outcome = json.loads(out)["outcome"]
+    except (ValueError, KeyError, TypeError):
+        return {"inconclusive": "unparseable_output", "exit": proc.returncode, "stderr": err[-200:]}
+    if outcome.get("kind") == "driver_error":
+        return {"driver_error": outcome.get("reason"), "exit": proc.returncode,
+                "stderr": err[-200:]}
     if proc.returncode not in (0, 1) or "InvalidIr" in out + err or "internal_error" in out + err:
         return {"inconclusive": "abnormal_result", "exit": proc.returncode, "stderr": err[-200:]}
     try:
@@ -69,15 +76,18 @@ def main():
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     with ThreadPoolExecutor(max_workers=4) as pool:
         results = list(pool.map(one, ((exe, args.corpus, row) for row in rows)))
-    inconclusive = [(i, value) for i, value in enumerate(results) if isinstance(value, dict)]
+    inconclusive = [(i, value) for i, value in enumerate(results)
+                    if isinstance(value, dict) and "inconclusive" in value]
+    driver_errors = [(i, value) for i, value in enumerate(results)
+                     if isinstance(value, dict) and "driver_error" in value]
     histogram = Counter(value for value in results if isinstance(value, int))
     doc = {"corpus": args.corpus, "rows": len(rows), "binary_sha256": digest,
            "flags": FLAGS + ",passes",
            "max_passes": max(histogram, default=None), "histogram": sorted(histogram.items()),
-           "inconclusive": inconclusive}
+           "inconclusive": inconclusive, "driver_errors": driver_errors}
     path = Path("docs/validation/i07c-rediseno") / f"r6-pasadas-{args.corpus}.json"
     path.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"completed={path} max={doc['max_passes']} inconclusive={len(inconclusive)} histogram={doc['histogram']}", flush=True)
+    print(f"completed={path} max={doc['max_passes']} inconclusive={len(inconclusive)} driver_errors={len(driver_errors)} histogram={doc['histogram']}", flush=True)
     if inconclusive:
         raise RuntimeError("INCONCLUSIVE: repeat own failed children")
 

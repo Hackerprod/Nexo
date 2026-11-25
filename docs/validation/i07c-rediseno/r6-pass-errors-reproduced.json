@@ -1,0 +1,247 @@
+{
+  "base_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "candidate_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+  "rows": [
+    {
+      "index": 52,
+      "bytes": 195,
+      "sha256": "455e7900fed6a9e06af8fe853090798daeb4262cc0aec2626a0338ed4720034d",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else q);},None=>{value: r;}};r=ar;q=ar;}",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "checked"
+            }
+          },
+          "run": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "unit"
+            }
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        },
+        "r6_pass_counter": {
+          "check": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        }
+      }
+    },
+    {
+      "index": 12050,
+      "bytes": 192,
+      "sha256": "ef5b1398cc3536c5db1b1935d69ab882a90e2948814cfa782d1e25330fd80a00",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else q);},None=>{value: q;}};q=[ar];}",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "checked"
+            }
+          },
+          "run": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "unit"
+            }
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        },
+        "r6_pass_counter": {
+          "check": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        }
+      }
+    },
+    {
+      "index": 14018,
+      "bytes": 193,
+      "sha256": "02fc23cef26992f31f71d1b06845c96ef1c242d0d2c54dccdfbca0036c1d4393",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r else q);},None=>{value: r;}};q=[[3]];}",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "checked"
+            }
+          },
+          "run": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "unit"
+            }
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        },
+        "r6_pass_counter": {
+          "check": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        }
+      }
+    },
+    {
+      "index": 15631,
+      "bytes": 222,
+      "sha256": "46036770967e3b62a99f735efb1c3347dab80e4c8cc1d58ddceda3268c2895ab",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then s else (if p then q else r));},None=>{value: s;}};r=[[ar]];}",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "checked"
+            }
+          },
+          "run": {
+            "exit": 0,
+            "stderr": "",
+            "outcome": {
+              "kind": "unit"
+            }
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        },
+        "r6_pass_counter": {
+          "check": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          },
+          "run": {
+            "exit": 2,
+            "stderr": "PASSES 2\n",
+            "outcome": {
+              "kind": "driver_error",
+              "reason": "internal_error"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

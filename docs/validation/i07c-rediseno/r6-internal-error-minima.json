@@ -1,0 +1,189 @@
+{
+  "rows": [
+    {
+      "name": "a",
+      "bytes": 146,
+      "source_sha256": "bd810501bc3ade7d019c6cef27db8210551d6a89828b2b7f76945c8365b29cf9",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];var r=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:r;}};r=[1];q=[1];}",
+      "main": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "r6": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    {
+      "name": "b",
+      "bytes": 140,
+      "source_sha256": "c5166cae39bdb2f7aefb105ac2e23e4ecb75f461a29f52d3211410965a915c19",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];var r=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:r;}};r=[1];}",
+      "main": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "r6": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    {
+      "name": "c",
+      "bytes": 140,
+      "source_sha256": "1f640c9d82547194840d700a6d8feb8a573f0ba9d69706d545d2df922a6a4846",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];var r=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:r;}};q=[1];}",
+      "main": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "r6": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    {
+      "name": "d",
+      "bytes": 134,
+      "source_sha256": "c2190bfdd2905f18f5b7c44487b4a9ba67cccbb83765682d4fb6071edf87f24a",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];var r=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:r;}};}",
+      "main": {
+        "exit": 1,
+        "stderr": "",
+        "outcome": {
+          "kind": "rejected"
+        }
+      },
+      "r6": {
+        "exit": 1,
+        "stderr": "",
+        "outcome": {
+          "kind": "rejected"
+        }
+      }
+    },
+    {
+      "name": "e",
+      "bytes": 142,
+      "source_sha256": "a8375488e87f1baa9f5d1d0923eccb5c148a2b5f164ee6724b18042026e23143",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];var r=[];let a=match move o{Some(n)=>{value:(if true then q else r);},None=>{value:q;}};q=[[1]];}",
+      "main": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "r6": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    {
+      "name": "f",
+      "bytes": 134,
+      "source_sha256": "22ca72ccf1ac15bb7815814900a797bcbd52ca911b8d485c30f3e79bf5d22c0b",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];var r=[];let a=match move o{Some(n)=>{value:(if true then q else r);},None=>{value:q;}};}",
+      "main": {
+        "exit": 1,
+        "stderr": "",
+        "outcome": {
+          "kind": "rejected"
+        }
+      },
+      "r6": {
+        "exit": 1,
+        "stderr": "",
+        "outcome": {
+          "kind": "rejected"
+        }
+      }
+    },
+    {
+      "name": "g",
+      "bytes": 131,
+      "source_sha256": "c7594733c1e53faa78763464b8c83c4c616e9ee0ce143bffae5fba23b439be35",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:q;}};q=[1];}",
+      "main": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "r6": {
+        "exit": 2,
+        "stderr": "",
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        }
+      }
+    },
+    {
+      "name": "h",
+      "bytes": 133,
+      "source_sha256": "99498dfdca290880e4d1712a4566d00960eaeb7636dd2bc06ef98ddc7f6aedb7",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:[1];}};q=[1];}",
+      "main": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "r6": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      }
+    },
+    {
+      "name": "i",
+      "bytes": 127,
+      "source_sha256": "bb9d6d0e2ef206a683a86991e3777df43226f57d301abd087eaf78dbde72f286",
+      "source": "fn Main(){let o:Option<I64>=Some(1);var q=[];let a=match move o{Some(n)=>{value:(if true then q else q);},None=>{value:[1];}};}",
+      "main": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      },
+      "r6": {
+        "exit": 0,
+        "stderr": "",
+        "outcome": {
+          "kind": "checked"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1774 @@
+{
+  "scope": "B3 35, W1a, M2, B r4 new10; overlaps allowed across pieces",
+  "base_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "candidate_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+  "pieces": {
+    "EqualityRecord": {
+      "counts": {
+        "B": 1,
+        "OK": 4
+      },
+      "rows": [
+        {
+          "name": "B3_13",
+          "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ],
+            [
+              "NX-E1303",
+              52,
+              53
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E1303",
+              52,
+              53
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E1303",
+              52,
+              53
+            ]
+          ]
+        },
+        {
+          "name": "B3_14",
+          "source_sha256": "b03085eda2e31a386387474ac59bebf07310685838991e5f3873faffe1355fab",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              28,
+              29
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              28,
+              29
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              28,
+              29
+            ]
+          ]
+        },
+        {
+          "name": "B3_15",
+          "source_sha256": "2ee21f6ad09677a701b274ff262dbb07b0b11c02326567d7d5266fb36ce1b155",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ]
+        },
+        {
+          "name": "B3_23",
+          "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E1303",
+              76,
+              79
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E1303",
+              76,
+              79
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E1303",
+              76,
+              79
+            ]
+          ]
+        },
+        {
+          "name": "B3_24",
+          "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ]
+        }
+      ]
+    },
+    "ReadContext": {
+      "counts": {
+        "OK": 6,
+        "B": 3
+      },
+      "rows": [
+        {
+          "name": "B3_17",
+          "source_sha256": "a704dfa7f6f74bc83f0161b409be1b4259ec5f56b996c7f97f5dbd808935a5e5",
+          "category": "OK",
+          "base": [],
+          "candidate": [],
+          "oracle": []
+        },
+        {
+          "name": "B3_18",
+          "source_sha256": "b712b8d4073bb4542171857c2b654d3f92b9481ad936aa02ea66c0a33335af7b",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              73,
+              74
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              73,
+              74
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              73,
+              74
+            ]
+          ]
+        },
+        {
+          "name": "B3_19",
+          "source_sha256": "6ac2c72e6a68b9c16e5900c4b12f4da113608014d98067eacc6e2c695982e507",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              65,
+              66
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              65,
+              66
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              65,
+              66
+            ]
+          ]
+        },
+        {
+          "name": "B3_22",
+          "source_sha256": "9e4249b80a98328151f9f2b4661e8b876042daaaea2f8ff66f9723b4d65d4b28",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              85,
+              86
+            ],
+            [
+              "NX-E1303",
+              140,
+              145
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              77,
+              79
+            ],
+            [
+              "NX-E1303",
+              140,
+              145
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              77,
+              79
+            ],
+            [
+              "NX-E1303",
+              140,
+              145
+            ]
+          ]
+        },
+        {
+          "name": "B3_25",
+          "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              52,
+              53
+            ],
+            [
+              "NX-E1303",
+              69,
+              70
+            ],
+            [
+              "NX-E0102",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              106,
+              112
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              52,
+              53
+            ],
+            [
+              "NX-E1303",
+              69,
+              70
+            ],
+            [
+              "NX-E0102",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              106,
+              112
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              52,
+              53
+            ],
+            [
+              "NX-E1303",
+              69,
+              70
+            ],
+            [
+              "NX-E0102",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              106,
+              112
+            ]
+          ]
+        },
+        {
+          "name": "B3_28",
+          "source_sha256": "7c7189a366fc11363cb10732cddc6fe4f0429b34538aa866d6a6eec83a49e53e",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              45,
+              48
+            ],
+            [
+              "NX-E0102",
+              68,
+              71
+            ],
+            [
+              "NX-E0102",
+              77,
+              78
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E1303",
+              68,
+              71
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E1303",
+              68,
+              71
+            ]
+          ]
+        },
+        {
+          "name": "RC1_read_context_variable",
+          "source_sha256": "638eb888f111ff356adec48f499270f67fa8f177052bcf16c3c7fd072c82e03b",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              52,
+              56
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E1303",
+              52,
+              56
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E1303",
+              52,
+              56
+            ]
+          ]
+        },
+        {
+          "name": "RC2_read_context_committed",
+          "source_sha256": "dba4d3c51d0aac7b728c72fcf2f97e3c00f9f31d4d63af9e05557c31fad112ec",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              58,
+              62
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              58,
+              62
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              58,
+              62
+            ]
+          ]
+        },
+        {
+          "name": "RC3_read_context_no_retroactive",
+          "source_sha256": "e0c7fc81f5850d900f59a899bd2a5beb5e2900d109c9329af5271b73a093f66f",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E1303",
+              52,
+              56
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E1303",
+              52,
+              56
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E1303",
+              52,
+              56
+            ]
+          ]
+        }
+      ]
+    },
+    "ResultStatus/JoinRecord/T5": {
+      "counts": {
+        "OK": 12,
+        "B": 8
+      },
+      "rows": [
+        {
+          "name": "B3_01",
+          "source_sha256": "5c52c09bb3e86922606992abbee6cdf2d2b880f84aebc3c66bab66b001c92680",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              45,
+              46
+            ],
+            [
+              "NX-E0102",
+              52,
+              56
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              45,
+              46
+            ],
+            [
+              "NX-E0102",
+              52,
+              56
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              45,
+              46
+            ],
+            [
+              "NX-E0102",
+              52,
+              56
+            ]
+          ]
+        },
+        {
+          "name": "B3_02",
+          "source_sha256": "9fb8165bb97ad46284451d2d63ca841cafffb8aeef157ebc53ccca42d358fc1a",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              54,
+              55
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              54,
+              55
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              54,
+              55
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ]
+        },
+        {
+          "name": "B3_03",
+          "source_sha256": "f76f95a34da6ad66a3e59b12fd0aeb84d8807f84ee80c1060734cbbbda1c1e4d",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              55,
+              56
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              55,
+              56
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              55,
+              56
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ]
+        },
+        {
+          "name": "B3_04",
+          "source_sha256": "66e25dc225a59f6c797b67f1cd62c6f00d3b41d6d0a7a6d572f56d53ed1cc39d",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              44,
+              45
+            ],
+            [
+              "NX-E0102",
+              51,
+              55
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              44,
+              45
+            ],
+            [
+              "NX-E0102",
+              51,
+              55
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              44,
+              45
+            ],
+            [
+              "NX-E0102",
+              51,
+              55
+            ]
+          ]
+        },
+        {
+          "name": "B3_05",
+          "source_sha256": "0050646daea59240cb099108a458cdc2d3a75fd71a2658ab3609e124e2c83858",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              43,
+              44
+            ],
+            [
+              "NX-E0102",
+              50,
+              54
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              43,
+              44
+            ],
+            [
+              "NX-E0102",
+              50,
+              54
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              43,
+              44
+            ],
+            [
+              "NX-E0102",
+              50,
+              54
+            ]
+          ]
+        },
+        {
+          "name": "B3_06",
+          "source_sha256": "20c74f1c1c50b3df32ec7657e9769884cedb850ba86bb0e5c09cc5eeed6d7407",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              67,
+              68
+            ],
+            [
+              "NX-E0102",
+              74,
+              78
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              67,
+              68
+            ],
+            [
+              "NX-E0102",
+              74,
+              78
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              67,
+              68
+            ],
+            [
+              "NX-E0102",
+              74,
+              78
+            ]
+          ]
+        },
+        {
+          "name": "B3_07",
+          "source_sha256": "64fc2c0e749ca0644438644ae0c0df6648fc417a8b293363697cc107e1d1b1dd",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              24,
+              25
+            ],
+            [
+              "NX-E0102",
+              31,
+              35
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              24,
+              25
+            ],
+            [
+              "NX-E0102",
+              31,
+              35
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              24,
+              25
+            ],
+            [
+              "NX-E0102",
+              31,
+              35
+            ],
+            [
+              "NX-E0102",
+              62,
+              66
+            ]
+          ]
+        },
+        {
+          "name": "B3_08",
+          "source_sha256": "0d30bf5293097e37817ebd84c16b5f7e1fae621d0e8a4b959ee587ecfb37d94b",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              41,
+              42
+            ],
+            [
+              "NX-E1303",
+              48,
+              51
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              41,
+              42
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              41,
+              42
+            ]
+          ]
+        },
+        {
+          "name": "B3_09",
+          "source_sha256": "f5dbfdbc45961f64fffe18e5ed4187e6943f627d167cd3058b7859d222544cde",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              29,
+              30
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              29,
+              30
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              29,
+              30
+            ]
+          ]
+        },
+        {
+          "name": "B3_20",
+          "source_sha256": "7d3ac793fd6a3c0ae56a0759d0938a581de29dd60d00da9933f9eff6ae301586",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E1303",
+              56,
+              60
+            ],
+            [
+              "NX-E1303",
+              67,
+              70
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E1303",
+              56,
+              60
+            ],
+            [
+              "NX-E1303",
+              67,
+              70
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E1303",
+              56,
+              60
+            ],
+            [
+              "NX-E1303",
+              67,
+              70
+            ]
+          ]
+        },
+        {
+          "name": "B3_21",
+          "source_sha256": "f047fb6dda3f49a187818428f18203ddd2f888c2ecaf122d83adb265b258d900",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              99,
+              100
+            ],
+            [
+              "NX-E1303",
+              147,
+              148
+            ],
+            [
+              "NX-E1303",
+              167,
+              172
+            ],
+            [
+              "NX-E1303",
+              199,
+              200
+            ],
+            [
+              "NX-E0102",
+              216,
+              219
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              99,
+              100
+            ],
+            [
+              "NX-E1303",
+              147,
+              148
+            ],
+            [
+              "NX-E1303",
+              199,
+              200
+            ],
+            [
+              "NX-E1303",
+              209,
+              212
+            ],
+            [
+              "NX-E0102",
+              216,
+              219
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              99,
+              100
+            ],
+            [
+              "NX-E1303",
+              147,
+              148
+            ],
+            [
+              "NX-E1303",
+              199,
+              200
+            ],
+            [
+              "NX-E1303",
+              209,
+              212
+            ],
+            [
+              "NX-E0102",
+              216,
+              219
+            ]
+          ]
+        },
+        {
+          "name": "B3_26",
+          "source_sha256": "74a675a009a9e7fc9591b0c6de6e0a18ddf75d7fac2a44d17e1a03a3f2dd84af",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              72,
+              74
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              47,
+              49
+            ],
+            [
+              "NX-E0102",
+              72,
+              74
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              47,
+              49
+            ],
+            [
+              "NX-E0102",
+              72,
+              74
+            ]
+          ]
+        },
+        {
+          "name": "B3_30",
+          "source_sha256": "7bf2d0e6fd1965c82d33db5a5189b69ab36b822e470bf37323743396e4ac20f3",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              72,
+              74
+            ],
+            [
+              "NX-E0102",
+              102,
+              106
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              72,
+              74
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              72,
+              74
+            ]
+          ]
+        },
+        {
+          "name": "B3_31",
+          "source_sha256": "41725199dd15f78558c81e10c03bc53c9901f07443dc46996a47cd282b8279c3",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              101,
+              105
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              101,
+              105
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              101,
+              105
+            ]
+          ]
+        },
+        {
+          "name": "B3_32",
+          "source_sha256": "c6344762dc1fc3cfdac6dea7990767467f37e82d8d4153a913fb536bd0cd7eb1",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              79,
+              81
+            ],
+            [
+              "NX-E0102",
+              102,
+              106
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              79,
+              81
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              79,
+              81
+            ]
+          ]
+        },
+        {
+          "name": "W1a_without_later_assignment",
+          "source_sha256": "cfde3b87cb290f372468389476e786f5a0e46a0e1fa45f9103eddcdc373133da",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              99,
+              100
+            ],
+            [
+              "NX-E1303",
+              147,
+              148
+            ],
+            [
+              "NX-E1303",
+              167,
+              172
+            ],
+            [
+              "NX-E1303",
+              199,
+              200
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              99,
+              100
+            ],
+            [
+              "NX-E1303",
+              147,
+              148
+            ],
+            [
+              "NX-E1303",
+              199,
+              200
+            ],
+            [
+              "NX-E1303",
+              209,
+              212
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              99,
+              100
+            ],
+            [
+              "NX-E1303",
+              147,
+              148
+            ],
+            [
+              "NX-E1303",
+              199,
+              200
+            ],
+            [
+              "NX-E1303",
+              209,
+              212
+            ]
+          ]
+        },
+        {
+          "name": "M2_partial_witness_chain",
+          "source_sha256": "49b5ec47e8219f59703376fde934eb92a9fbc9c1cc74344459697dbe6d48d280",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              81,
+              82
+            ],
+            [
+              "NX-E1303",
+              131,
+              132
+            ],
+            [
+              "NX-E1303",
+              140,
+              148
+            ],
+            [
+              "NX-E1303",
+              155,
+              158
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              81,
+              82
+            ],
+            [
+              "NX-E1303",
+              131,
+              132
+            ],
+            [
+              "NX-E1303",
+              155,
+              158
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              81,
+              82
+            ],
+            [
+              "NX-E1303",
+              131,
+              132
+            ],
+            [
+              "NX-E1303",
+              155,
+              158
+            ]
+          ]
+        },
+        {
+          "name": "RS1_condition_contaminated",
+          "source_sha256": "e9847402a2f744df8da45ec97f900a6a9437354a4e97b8b5332efd86fe695fe2",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0102",
+              34,
+              35
+            ],
+            [
+              "NX-E1303",
+              63,
+              64
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              34,
+              35
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              34,
+              35
+            ]
+          ]
+        },
+        {
+          "name": "RS2_independent_child_errors",
+          "source_sha256": "7442c940f10d5da66fb7ec6adbe5b426f2368132c73e11543017af4f00bab621",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              30,
+              34
+            ],
+            [
+              "NX-E1303",
+              63,
+              67
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              30,
+              34
+            ],
+            [
+              "NX-E1303",
+              63,
+              67
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              30,
+              34
+            ],
+            [
+              "NX-E1303",
+              63,
+              67
+            ]
+          ]
+        },
+        {
+          "name": "RS3_partial_in_array",
+          "source_sha256": "0819ae2e95b85e0ec74d9ed06f10bc9c60c24a1f29858ee947b550ce84906fb7",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E1303",
+              38,
+              42
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E1303",
+              38,
+              42
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E1303",
+              38,
+              42
+            ]
+          ]
+        }
+      ]
+    },
+    "ConstructorDuty": {
+      "counts": {
+        "B": 3,
+        "OK": 5
+      },
+      "rows": [
+        {
+          "name": "B3_10",
+          "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0103",
+              66,
+              67
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              60,
+              63
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              60,
+              63
+            ]
+          ]
+        },
+        {
+          "name": "B3_11",
+          "source_sha256": "8ddc4379a3661eea14846c25bb406b8873f69948a336caeab6fced22cb3e9eef",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              75,
+              76
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              69,
+              72
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              69,
+              72
+            ]
+          ]
+        },
+        {
+          "name": "B3_12",
+          "source_sha256": "6c62e3bb7c1b00e81a269317a6157eee1037c0b1def49f7b877ddf1fdafa2940",
+          "category": "B",
+          "base": [
+            [
+              "NX-E0103",
+              66,
+              67
+            ],
+            [
+              "NX-E0103",
+              124,
+              125
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              60,
+              63
+            ],
+            [
+              "NX-E0103",
+              118,
+              121
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              60,
+              63
+            ],
+            [
+              "NX-E0103",
+              118,
+              121
+            ]
+          ]
+        },
+        {
+          "name": "B3_14",
+          "source_sha256": "b03085eda2e31a386387474ac59bebf07310685838991e5f3873faffe1355fab",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              28,
+              29
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              28,
+              29
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              28,
+              29
+            ]
+          ]
+        },
+        {
+          "name": "B3_15",
+          "source_sha256": "2ee21f6ad09677a701b274ff262dbb07b0b11c02326567d7d5266fb36ce1b155",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ]
+        },
+        {
+          "name": "B3_27",
+          "source_sha256": "da9c81faa585f7b715801493243335fed4319f02ac8857dba1c73369dab61678",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0103",
+              36,
+              38
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              36,
+              38
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              36,
+              38
+            ]
+          ]
+        },
+        {
+          "name": "CD1_independent_constructor",
+          "source_sha256": "0f1795f8231b6b1fb9245090edbde1a6b884ae1ca6d0f2b1898be19bce2fa2b0",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ]
+          ]
+        },
+        {
+          "name": "CD2_independent_error_and_duties",
+          "source_sha256": "43adfe86b3f1c8bb453c0717a4bad75ed0704abe4cdfc4c3f170be46c3e7b73d",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              25,
+              27
+            ],
+            [
+              "NX-E0102",
+              58,
+              62
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              25,
+              27
+            ],
+            [
+              "NX-E0102",
+              58,
+              62
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0103",
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              25,
+              27
+            ],
+            [
+              "NX-E0102",
+              58,
+              62
+            ]
+          ]
+        }
+      ]
+    },
+    "Waiting/Suspended": {
+      "counts": {
+        "OK": 9
+      },
+      "rows": [
+        {
+          "name": "B3_16",
+          "source_sha256": "74a68784cc993dce20df1e260c4ac6b8e230bed51869ffa94088f024f68fce61",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              61,
+              65
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              61,
+              65
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              61,
+              65
+            ]
+          ]
+        },
+        {
+          "name": "B3_17",
+          "source_sha256": "a704dfa7f6f74bc83f0161b409be1b4259ec5f56b996c7f97f5dbd808935a5e5",
+          "category": "OK",
+          "base": [],
+          "candidate": [],
+          "oracle": []
+        },
+        {
+          "name": "B3_18",
+          "source_sha256": "b712b8d4073bb4542171857c2b654d3f92b9481ad936aa02ea66c0a33335af7b",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              73,
+              74
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              73,
+              74
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              73,
+              74
+            ]
+          ]
+        },
+        {
+          "name": "B3_19",
+          "source_sha256": "6ac2c72e6a68b9c16e5900c4b12f4da113608014d98067eacc6e2c695982e507",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              65,
+              66
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              65,
+              66
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              65,
+              66
+            ]
+          ]
+        },
+        {
+          "name": "B3_33",
+          "source_sha256": "b57a5a79edb68a814c7414f4a1f6d83458bce5f06b3fbfb053fb2c00f4e4b5a9",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              36,
+              40
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              36,
+              40
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              36,
+              40
+            ]
+          ]
+        },
+        {
+          "name": "B3_34",
+          "source_sha256": "d1ea050e3154ff2d2f8061eee17d9a5e1210e681f5532afc4d94230dab3b2554",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0113",
+              16,
+              21
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0113",
+              16,
+              21
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0113",
+              16,
+              21
+            ]
+          ]
+        },
+        {
+          "name": "B3_35",
+          "source_sha256": "5afb7bb22897a5326014de40d7ed11ed53f6fe53464205534b1a0259b088032e",
+          "category": "OK",
+          "base": [],
+          "candidate": [],
+          "oracle": []
+        },
+        {
+          "name": "SU1_suspended_order",
+          "source_sha256": "360e0ad7f41ba9558dec6e0f1698fa0c662f9200b25f774039002734476f5e02",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              64,
+              65
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              64,
+              65
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              64,
+              65
+            ]
+          ]
+        },
+        {
+          "name": "SU2_suspended_chain",
+          "source_sha256": "4c6f0d26cb29e3a59412bc70417e86602c416443777e29f354c620620b891153",
+          "category": "OK",
+          "base": [
+            [
+              "NX-E0102",
+              94,
+              98
+            ]
+          ],
+          "candidate": [
+            [
+              "NX-E0102",
+              94,
+              98
+            ]
+          ],
+          "oracle": [
+            [
+              "NX-E0102",
+              94,
+              98
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}
