@@ -3,3 +3,7 @@
 {"id": "M00253", "pid": 9544, "reason": "commit de proceso 6.9 GB (nexo-ae65c584bd3eb2e6.exe)", "commit_gb": 6.9, "time": "2026-11-24 11:05:38"}
 {"id": "M00253", "pid": 9544, "reason": "commit del arbol 11.4 GB", "commit_gb": 6.9, "time": "2026-11-24 11:05:38"}
 {"id": "M00253", "pid": 12228, "reason": "commit de proceso 6.3 GB (nexo-ae65c584bd3eb2e6.exe)", "commit_gb": 6.3, "time": "2026-11-24 11:05:49"}
+{"id": "M00249", "pid": 16400, "reason": "commit de proceso 8.0 GB (nexo-ae65c584bd3eb2e6.exe)", "commit_gb": 8.0, "time": "2026-11-24 15:32:11"}
+{"id": "M00249", "pid": 6252, "reason": "commit de proceso 6.2 GB (nexo-ae65c584bd3eb2e6.exe)", "commit_gb": 6.2, "time": "2026-11-24 15:32:33"}
+{"id": "M00249", "pid": 17332, "reason": "commit de proceso 6.5 GB (nexo-ae65c584bd3eb2e6.exe)", "commit_gb": 6.5, "time": "2026-11-24 16:16:24"}
+{"id": "M00306", "pid": 13096, "reason": "commit del arbol 12.0 GB", "commit_gb": 4.0, "time": "2026-11-24 16:17:18"}
