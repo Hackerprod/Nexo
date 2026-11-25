@@ -2,6 +2,8 @@
 
 Estado: propuesta de A después del FAIL de B r2. No autoriza implementación de C ni afirma PASS. Base de código: `src/check/types.rs` de `i07c-rediseno` 52fcde5. Esta revisión sustituye las transiciones contradictorias de la sección R6 del diseño anterior; no altera `docs/baseline/`. El informe final de B es `.scratch/val-rediseno/b-informe-2.md` del repositorio de coordinación, no la copia previa.
 
+**Actualización tras B r3:** `I07c-rediseno-restauracion-atomica-R6-r3-precision.md` precisa las identidades, estados, replay y puertas; registra 34/35 y el bloqueo W1. El estado histórico de §5 de este documento no es el estado actual. No se entrega a C/Luna.
+
 ## 1. Autoridad y decisiones normativas
 
 La regla derivada de F0-0002 §§4.1.1, 4.1.2.1–.4, .7 y 13.9 es: **cada igualdad tiene ordinal fuente y sitio propio; si es compatible, entra entera en el prefijo en ese ordinal, y si es incompatible no entra ninguna de sus escrituras; una lectura conserva el prefijo que recibió al entrar; la evidencia posterior solo completa obligaciones pendientes**. Una igualdad compuesta de Array/Option/Result se acepta entera o se rechaza entera, incluidos sus hijos y su procedencia. Un constructor conserva su deber por ocurrencia (§4.1.2.2/§13.17). El grafo y el orden de fuente, no la contención de spans ni la mera pertenencia a una raíz, definen dependencia.

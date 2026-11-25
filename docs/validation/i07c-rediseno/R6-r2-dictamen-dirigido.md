@@ -23,3 +23,9 @@ La puerta impuesta por el encargo exige todas las sondas dirigidas y las 45 fila
 ## Decisión de este intento
 
 Se detiene el intento parcial R6 en su puerta dirigida. Corregir cada salida mediante un filtro o una flag reproduciría el mecanismo que B rechazó en R5. La próxima implementación tendría que sustituir conjuntamente la identidad de visita, la planificación retrospectiva y la contaminación de resultados por los dominios y transiciones del contrato `I07c-rediseno-restauracion-atomica-R6-r2.md`, y repetir esta puerta desde un binario nuevo. La especificación sigue siendo **propuesta de A**; B decidirá su validez semántica, incluida la adjudicación W2. Este dictamen **no** afirma que cinco representaciones completas hayan agotado el espacio de diseño.
+
+## Corrección tras B r3, 2026-11-25
+
+B r3 corrigió el oráculo SB: la salida de la tabla histórica **era la esperada**, no un defecto del prototipo. E0103 `[47,49)` corresponde al `[]` de `s`; E0102 `[72,74)` corresponde a `ar`. El texto anterior que dice «solo E0102» queda invalidado. B publicó además ST1 completo y las 35 fuentes/esperados de aceptación en `b-informe-3.md` §4; la afirmación anterior de que ST1 y esas fuentes no estaban disponibles ya no rige. Se transcribieron en la fixture versionada `b3-acceptance.json`.
+
+El release de la rama prototipo, SHA-256 `a06f16268fe6c99b29c5e1cf203228dcdfb2c026ccc0fd249e975ccc04085e58`, con `noshape` produce **34/35** de B (solo falla 21/W1 por E1303 `[209,212)` ausente), ST1 y SB correctos y **45/45** en la matriz. Los JSON de observaciones están en la rama `i07c-rediseno-proto`; el documento `I07c-rediseno-restauracion-atomica-R6-r3-precision.md` registra el contraejemplo y el bloqueo normativo. La puerta sigue roja: no hay barrido amplio ni PASS. Estos resultados no reemplazan los de la versión histórica sin `noshape` indicada arriba.
