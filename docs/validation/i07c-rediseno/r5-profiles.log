@@ -1,0 +1,1 @@
+{"rows": 54, "check_run_failures": [], "main_r5_failures": [], "timing": {"main": {"check": {"median_ms": 21.057, "n": 54}, "run": {"median_ms": 21.051, "n": 54}}, "r5": {"check": {"median_ms": 21.12, "n": 54}, "run": {"median_ms": 21.033, "n": 54}}}}

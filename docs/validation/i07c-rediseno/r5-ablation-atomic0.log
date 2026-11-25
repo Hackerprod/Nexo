@@ -1,0 +1,17 @@
+{"piece": "atomic0", "corpus": "c1", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "c2", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "c2@f0-0003-b-v1", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "b", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "perm", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "t", "inspected": 0, "difference": false}
+{"piece": "atomic0", "corpus": "s7021993", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "s4417061", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "s9908255", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "dirigido5", "inspected": 0, "difference": false}
+{"piece": "atomic0", "corpus": "c1-nueva", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "c2-nueva", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "c2-nueva@f0-0003-b-v1", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "c1-nueva2", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "c2-nueva2", "inspected": 300, "difference": false}
+{"piece": "atomic0", "corpus": "c2-nueva2@f0-0003-b-v1", "inspected": 300, "difference": false}
+no discriminating source found within the bounded scan

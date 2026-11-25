@@ -1,0 +1,40 @@
+{
+  "candidate_sha256": "82729b1f2b6c21300974a455614c2c12ad0d20a48c4f3da00456ae9cfc4890eb",
+  "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r5prefix,r1t5,r5t5",
+  "steps": {
+    "rd152": {
+      "exit": 0,
+      "log_sha256": "01f44cf18d2eab6f15ad2308d5598c061809b78835389c4f1eb53b37c6b9dda3",
+      "last_lines": [
+        "RD filter self-test: PASS (missing C, vocabulary, lexical sites, duplicates, types, relations)",
+        "RD snapshot differences: 0 (informative)",
+        "RD normative: 152/152 check/run pairs"
+      ]
+    },
+    "profiles": {
+      "exit": 0,
+      "log_sha256": "4bb310e1388683a5bb88f6bc56f064c5e70f99d6d18f05d7fa42e712cb451ee9",
+      "last_lines": [
+        "{\"rows\": 54, \"check_run_failures\": [], \"main_r5_failures\": [], \"timing\": {\"main\": {\"check\": {\"median_ms\": 21.057, \"n\": 54}, \"run\": {\"median_ms\": 21.051, \"n\": 54}}, \"r5\": {\"check\": {\"median_ms\": 21.12, \"n\": 54}, \"run\": {\"median_ms\": 21.033, \"n\": 54}}}}"
+      ]
+    },
+    "retract": {
+      "exit": 1,
+      "log_sha256": "ab012d832e6457aabf0489a04a6a55bfeb491fc54c398d957e0fd6eea70b5530",
+      "last_lines": [
+        "{\"piece\": \"retract\", \"corpus\": \"c2-nueva2\", \"inspected\": 300, \"difference\": false}",
+        "{\"piece\": \"retract\", \"corpus\": \"c2-nueva2@f0-0003-b-v1\", \"inspected\": 300, \"difference\": false}",
+        "no discriminating source found within the bounded scan"
+      ]
+    },
+    "atomic0": {
+      "exit": 1,
+      "log_sha256": "9d6e67e0b60d7765c19142d2f32ead7512038f0ab33d1e9908f0bcd197a78f92",
+      "last_lines": [
+        "{\"piece\": \"atomic0\", \"corpus\": \"c2-nueva2\", \"inspected\": 300, \"difference\": false}",
+        "{\"piece\": \"atomic0\", \"corpus\": \"c2-nueva2@f0-0003-b-v1\", \"inspected\": 300, \"difference\": false}",
+        "no discriminating source found within the bounded scan"
+      ]
+    }
+  }
+}

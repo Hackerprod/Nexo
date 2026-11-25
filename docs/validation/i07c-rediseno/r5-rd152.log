@@ -1,0 +1,3 @@
+RD filter self-test: PASS (missing C, vocabulary, lexical sites, duplicates, types, relations)
+RD snapshot differences: 0 (informative)
+RD normative: 152/152 check/run pairs
