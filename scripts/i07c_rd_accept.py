@@ -27,6 +27,8 @@ def invoke(args):
     env = os.environ.copy()
     if flags is not None:
         env["NEXO_XV"] = flags
+    else:
+        env.pop("NEXO_XV", None)
     with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stdout, tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr:
         proc = subprocess.Popen([exe, command, "--format", "json", "--profile", profile, str(source)],
                                 stdout=stdout, stderr=stderr, env=env)

@@ -107,7 +107,10 @@ def run_one(args):
     path = Path(THREAD.dir.name) / "source.n"
     path.write_bytes(source(row).encode("utf-8"))
     env = os.environ.copy()
-    if flags is not None: env["NEXO_XV"] = flags
+    if flags is not None:
+        env["NEXO_XV"] = flags
+    else:
+        env.pop("NEXO_XV", None)
     with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stdout, tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr:
         proc = subprocess.Popen([exe, "check", "--format", "json", "--profile", prof, str(path)],
                                 stdout=stdout, stderr=stderr, env=env)
