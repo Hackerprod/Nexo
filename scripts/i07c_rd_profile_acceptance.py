@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import statistics
 import subprocess
 import tempfile
 import time
@@ -25,6 +26,7 @@ def inspect(binary, command, profile, source, flags):
             env["NEXO_XV"] = flags
         with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stdout, \
              tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr:
+            started = time.perf_counter()
             child = subprocess.Popen(
                 [binary, command, "--format", "json", "--profile", profile, str(path)],
                 stdout=stdout, stderr=stderr, env=env,
@@ -47,11 +49,12 @@ def inspect(binary, command, profile, source, flags):
             stdout.seek(0)
             stderr.seek(0)
             output, error = stdout.read(), stderr.read()
+            elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
     if error:
         raise RuntimeError(f"INCONCLUSO stderr: {error[-300:]}")
     document = json.loads(output)
     outcome = document["outcome"]["kind"]
-    return {"exit": child.returncode, "outcome": outcome,
+    return {"exit": child.returncode, "outcome": outcome, "elapsed_ms": elapsed_ms,
             "accepted": outcome in ("checked", "unit")}
 
 
@@ -74,9 +77,14 @@ def main():
                                                readings[label]["run"]["accepted"]
                                                for label in ("main", "r5")),
                          "main_r5_same": main_accept == r5_accept})
+    timing = {label: {command: {"median_ms": round(statistics.median(
+                                  row["readings"][label][command]["elapsed_ms"] for row in rows), 3),
+                                "n": len(rows)}
+                      for command in ("check", "run")}
+              for label in ("main", "r5")}
     result = {"main_sha256": hashlib.sha256(Path(BASE).read_bytes()).hexdigest(),
               "r5_sha256": hashlib.sha256(Path(CANDIDATE).read_bytes()).hexdigest(),
-              "flags": FLAGS, "rows": rows,
+              "flags": FLAGS, "rows": rows, "timing": timing,
               "check_run_failures": [r["profile"] + "/" + r["name"] for r in rows
                                      if not r["check_run_same"]],
               "main_r5_failures": [r["profile"] + "/" + r["name"] for r in rows
@@ -85,7 +93,8 @@ def main():
     dest.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"rows": len(rows),
                       "check_run_failures": result["check_run_failures"],
-                      "main_r5_failures": result["main_r5_failures"]}))
+                      "main_r5_failures": result["main_r5_failures"],
+                      "timing": timing}))
 
 
 if __name__ == "__main__":
