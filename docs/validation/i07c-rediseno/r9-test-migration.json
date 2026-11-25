@@ -158,10 +158,13 @@
       "asserted_fields": [
         "code"
       ],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
-      "new_cli_test_id_or_retained_id": "diagnostic_site_ownership_survives_distinct_causes_and_preserves_siblings",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "Reservas C de dos OccurrenceId con causa distinta materializan ambos diagnosticos; sibling independiente conserva codigo, primario y relaciones. Positivo y negativo CLI preservan todos los campos observables del test original.",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_008",
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_new_model": "Reservas C de dos OccurrenceId con causa distinta materializan ambos diagnosticos; sibling independiente conserva codigo, primario y relaciones.",
+      "owner_commit": "C4",
+      "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
     {
       "source_test": "operand_evidence_survives_nested_pending_repartition",
@@ -180,10 +183,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "mismo diagnóstico del operando anidado y conservación de las causas independientes tras completar el padre; código, subcausa, primario, data y relaciones idénticos",
+      "destination_assertions": "mismo diagnÃ³stico del operando anidado y conservaciÃ³n de las causas independientes tras completar el padre; cÃ³digo, subcausa, primario, data y relaciones idÃ©nticos",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_009",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "mismo diagnóstico del operando anidado y conservación de las causas independientes tras completar el padre; código, subcausa, primario, data y relaciones idénticos"
+      "private_invariant_destination": "mismo diagnÃ³stico del operando anidado y conservaciÃ³n de las causas independientes tras completar el padre; cÃ³digo, subcausa, primario, data y relaciones idÃ©nticos",
+      "private_invariant_new_model": "OriginFact del operando anidado permanece en su componente tras Completion del padre; EqualityRecord de otros hijos no lo sustituye.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "solver_states_and_representatives_keep_their_distinct_rules",
@@ -191,8 +196,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Estados de solver distintos conservan aceptación y diagnóstico al completar restricciones",
-        "internal": "Sí: método de unificación o estado privado",
+        "observable": "Estados de solver distintos conservan aceptaciÃ³n y diagnÃ³stico al completar restricciones",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
         "proposed_cli": "G: `suspended_68` y `planned`; mismo resultado tras ordenar restricciones"
       },
       "private_calls": [
@@ -211,10 +216,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Estados de solver distintos conservan aceptación y diagnóstico al completar restricciones; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Estados de solver distintos conservan aceptaciÃ³n y diagnÃ³stico al completar restricciones; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_010",
       "fixture_family": "G: `suspended_68` y `planned`; mismo resultado tras ordenar restricciones",
-      "private_invariant_destination": "Estados de solver distintos conservan aceptación y diagnóstico al completar restricciones"
+      "private_invariant_destination": "Estados de solver distintos conservan aceptaciÃ³n y diagnÃ³stico al completar restricciones",
+      "private_invariant_new_model": "Cada EqualityRecord conserva Suspended/Committed/Rejected y el representante final solo incorpora aristas de Committed.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "right_hand_bottom_and_taint_keep_their_algebraic_states",
@@ -223,7 +230,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente",
-        "internal": "Sí: método de unificación o estado privado",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
         "proposed_cli": "J: `RS1_condition_contaminated` y `RS2_independent_child_errors`"
       },
       "private_calls": [],
@@ -233,10 +240,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_011",
       "fixture_family": "J: `RS1_condition_contaminated` y `RS2_independent_child_errors`",
-      "private_invariant_destination": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente"
+      "private_invariant_destination": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente",
+      "private_invariant_new_model": "ResultStatus Never/Contaminated del RHS no publica OriginFact ni cambia el representante del destino; C independientes sobreviven.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "concrete_deferred_branch_join_reports_branch_mismatch",
@@ -244,9 +253,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "La unión diferida completa y acusa la rama escrita incompatible",
-        "internal": "Sí: método de unificación o estado privado",
-        "proposed_cli": "J: `W1_atomic_compound`, código y primario de la rama"
+        "observable": "La uniÃ³n diferida completa y acusa la rama escrita incompatible",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
+        "proposed_cli": "J: `W1_atomic_compound`, cÃ³digo y primario de la rama"
       },
       "private_calls": [
         "new_variable"
@@ -260,10 +269,12 @@
         "primary_span"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "La unión diferida completa y acusa la rama escrita incompatible; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "La uniÃ³n diferida completa y acusa la rama escrita incompatible; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_012",
-      "fixture_family": "J: `W1_atomic_compound`, código y primario de la rama",
-      "private_invariant_destination": "La unión diferida completa y acusa la rama escrita incompatible"
+      "fixture_family": "J: `W1_atomic_compound`, cÃ³digo y primario de la rama",
+      "private_invariant_destination": "La uniÃ³n diferida completa y acusa la rama escrita incompatible",
+      "private_invariant_new_model": "JoinRecord espera Completion de la rama y su EqualityRecord rechazada reserva E1303 en la continuacion escrita.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "union_retains_earliest_concrete_origin_and_copyable_domain",
@@ -288,10 +299,14 @@
         "expected_type",
         "data"
       ],
-      "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "misma aceptación, dominio Copyable y relación del primer EqualityId compatible en ambos órdenes de unión; mismo JSON observable",
+      "action": "reescribir_precedencia_recorrido_comprobacion",
+      "destination_assertions": "E0102 Bool tras I64: expected_type=[10,11); dominio Copyable rechaza MockResource; comprobar ademas positivo y ausencia de origen del intento rechazado.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_013",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "E0102 Bool tras I64: expected_type=[10,11); dominio Copyable rechaza MockResource",
+      "target_output": "E0102 Bool tras I64: expected_type=[10,11); dominio Copyable rechaza MockResource",
+      "target_reason_adr": "I64 se fija primero en recorrido; union posterior no reemplaza OriginFact. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
+      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "deferred_alias_union_charges_the_written_conflict_site",
@@ -300,7 +315,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Un alias diferido denuncia el operando escrito y cobra su contraste",
-        "internal": "Sí: `unify`",
+        "internal": "SÃ­: `unify`",
         "proposed_cli": "Q: `suspended_68` con cuota y primario del RHS"
       },
       "private_calls": [
@@ -320,10 +335,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Un alias diferido denuncia el operando escrito y cobra su contraste; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Un alias diferido denuncia el operando escrito y cobra su contraste; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_014",
       "fixture_family": "Q: `suspended_68` con cuota y primario del RHS",
-      "private_invariant_destination": "Un alias diferido denuncia el operando escrito y cobra su contraste"
+      "private_invariant_destination": "Un alias diferido denuncia el operando escrito y cobra su contraste",
+      "private_invariant_new_model": "EqualityRecord del alias conserva OccurrenceId del operando escrito y charge_solver se ejecuta antes del contraste.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "overlapping_type_origins_choose_the_earlier_start",
@@ -346,10 +363,14 @@
         "found_type",
         "data"
       ],
-      "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismo JSON de conflicto con spans solapados; relación elegida por EqualityId, sin ordenar por Span.start",
+      "action": "reescribir_precedencia_recorrido_comprobacion",
+      "destination_assertions": "E0102: I64/Bool, expected_type=[6,7); comprobar ademas positivo y ausencia de origen del intento rechazado.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_015",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "E0102: Bool/I64, expected_type=[2,12)",
+      "target_output": "E0102: I64/Bool, expected_type=[6,7)",
+      "target_reason_adr": "El hijo I64 se comprueba antes del resultado exterior Bool aunque [2,12) empiece antes. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
+      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "inout_value_delegates_one_contextual_pair_to_its_operand",
@@ -403,10 +424,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "el primer elemento rechazado no fija al posterior; mismos diagnósticos por elemento y mismo tipo final de las hojas compatibles",
+      "destination_assertions": "el primer elemento rechazado no fija al posterior; mismos diagnÃ³sticos por elemento y mismo tipo final de las hojas compatibles",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_017",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "el primer elemento rechazado no fija al posterior; mismos diagnósticos por elemento y mismo tipo final de las hojas compatibles"
+      "private_invariant_destination": "el primer elemento rechazado no fija al posterior; mismos diagnÃ³sticos por elemento y mismo tipo final de las hojas compatibles",
+      "private_invariant_new_model": "El EqualityRecord rechazado del primer elemento revierte su journal; ConstructorDuty del elemento posterior sigue activo.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "contextual_all_divergent_if_retains_expected_type_and_divergence",
@@ -470,10 +493,14 @@
         "found_type",
         "data"
       ],
-      "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismo E1303, tipos completos y relaciones al primer EqualityId compatible; ningún origen del intento rechazado",
+      "action": "reescribir_precedencia_recorrido_comprobacion",
+      "destination_assertions": "E0102: I64/Bool, expected_type=[5,6); comprobar ademas positivo y ausencia de origen del intento rechazado.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_020",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "E0102: I64/Bool, expected_type=[5,6)",
+      "target_output": "E0102: I64/Bool, expected_type=[5,6)",
+      "target_reason_adr": "El hecho I64 precede a Bool en recorrido; rechazo no publica origen. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
+      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "inferred_array_depth_accepts_127_and_128_and_rejects_129",
@@ -481,8 +508,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnóstico de límite",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnÃ³stico de lÃ­mite",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "C: generador de arrays 127/128/129 del test por CLI"
       },
       "private_calls": [
@@ -498,10 +525,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnóstico de límite; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnÃ³stico de lÃ­mite; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_021",
       "fixture_family": "C: generador de arrays 127/128/129 del test por CLI",
-      "private_invariant_destination": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnóstico de límite"
+      "private_invariant_destination": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnÃ³stico de lÃ­mite",
+      "private_invariant_new_model": "ConstructorDuty de cada enlace Array mide profundidad final del representante; 127/128 son validos y 129 reserva limite.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "inferred_array_root_retains_depth_origin_after_later_constraint",
@@ -509,9 +538,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Una restricción posterior conserva el origen de profundidad del primer constructor",
-        "internal": "Sí: `concrete,type_nodes`",
-        "proposed_cli": "F: `later_completion`, relación esperada original"
+        "observable": "Una restricciÃ³n posterior conserva el origen de profundidad del primer constructor",
+        "internal": "SÃ­: `concrete,type_nodes`",
+        "proposed_cli": "F: `later_completion`, relaciÃ³n esperada original"
       },
       "private_calls": [
         "check_inferred_depth",
@@ -525,10 +554,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Una restricción posterior conserva el origen de profundidad del primer constructor; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Una restricciÃ³n posterior conserva el origen de profundidad del primer constructor; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_022",
-      "fixture_family": "F: `later_completion`, relación esperada original",
-      "private_invariant_destination": "Una restricción posterior conserva el origen de profundidad del primer constructor"
+      "fixture_family": "F: `later_completion`, relaciÃ³n esperada original",
+      "private_invariant_destination": "Una restricciÃ³n posterior conserva el origen de profundidad del primer constructor",
+      "private_invariant_new_model": "OriginFact del primer constructor Array sigue dueno de la profundidad al completar otro EqualityRecord.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "deferred_visible_conversion_and_constructor_walk_stop_at_their_boundaries",
@@ -537,7 +568,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "C: `completion_unresolved` y `completion_conflict`"
       },
       "private_calls": [
@@ -551,10 +582,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_023",
       "fixture_family": "C: `completion_unresolved` y `completion_conflict`",
-      "private_invariant_destination": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno"
+      "private_invariant_destination": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno",
+      "private_invariant_new_model": "Waiting/Suspended no se serializan como nominales y el recorrido de ConstructorDuty se detiene en su componente.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "constructor_walk_keeps_exact_depth_boundaries",
@@ -563,7 +596,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Recorrido de constructor respeta 127/128/129 sin desbordar",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "C: generador de arrays 127/128/129 del test por CLI"
       },
       "private_calls": [
@@ -575,10 +608,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Recorrido de constructor respeta 127/128/129 sin desbordar; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Recorrido de constructor respeta 127/128/129 sin desbordar; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_024",
       "fixture_family": "C: generador de arrays 127/128/129 del test por CLI",
-      "private_invariant_destination": "Recorrido de constructor respeta 127/128/129 sin desbordar"
+      "private_invariant_destination": "Recorrido de constructor respeta 127/128/129 sin desbordar",
+      "private_invariant_new_model": "ConstructorDuty recorre un enlace por nivel y registra el primer nivel que supera el limite, sin recursion de pila.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "partial_type_table_preserves_never_and_taint_states",
@@ -604,9 +639,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Diagnósticos serializados no muestran variables ni estados internos",
-        "internal": "Sí: método de unificación o estado privado",
-        "proposed_cli": "G: 74 dirigidas; inspección JSON sin variables libres"
+        "observable": "DiagnÃ³sticos serializados no muestran variables ni estados internos",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
+        "proposed_cli": "G: 74 dirigidas; inspecciÃ³n JSON sin variables libres"
       },
       "private_calls": [
         "new_variable",
@@ -623,10 +658,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Diagnósticos serializados no muestran variables ni estados internos; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "DiagnÃ³sticos serializados no muestran variables ni estados internos; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_026",
-      "fixture_family": "G: 74 dirigidas; inspección JSON sin variables libres",
-      "private_invariant_destination": "Diagnósticos serializados no muestran variables ni estados internos"
+      "fixture_family": "G: 74 dirigidas; inspecciÃ³n JSON sin variables libres",
+      "private_invariant_destination": "DiagnÃ³sticos serializados no muestran variables ni estados internos",
+      "private_invariant_new_model": "La materializacion final toma solo tipos cerrados del representante; Waiting/Suspended no aparece en data ni texto.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "deferred_result_components_and_structural_array_elements_resolve_separately",
@@ -652,10 +689,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Ok y Err completan sus payloads por separado; el elemento Array conserva su E0103 o tipo final según su propia evidencia",
+      "destination_assertions": "Ok y Err completan sus payloads por separado; el elemento Array conserva su E0103 o tipo final segÃºn su propia evidencia",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_027",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "Ok y Err completan sus payloads por separado; el elemento Array conserva su E0103 o tipo final según su propia evidencia"
+      "private_invariant_destination": "Ok y Err completan sus payloads por separado; el elemento Array conserva su E0103 o tipo final segÃºn su propia evidencia",
+      "private_invariant_new_model": "Result.Ok, Result.Err y Array.element tienen ConstructorDuty y OriginFact separados; Completion de uno no cierra otro.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "concrete_arrays_record_divergence_only_from_never_elements",
@@ -677,7 +716,9 @@
       "destination_assertions": "solo el elemento Never contribuye divergencia; el Array con valor normal conserva tipo y no crea E1303/E0103 espurio",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_028",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "solo el elemento Never contribuye divergencia; el Array con valor normal conserva tipo y no crea E1303/E0103 espurio"
+      "private_invariant_destination": "solo el elemento Never contribuye divergencia; el Array con valor normal conserva tipo y no crea E1303/E0103 espurio",
+      "private_invariant_new_model": "ResultStatus Never del elemento determina la divergencia; un elemento Valid no contamina el ConstructorDuty del Array.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "solver_bind_dispatch_applies_each_fact_boundary",
@@ -686,7 +727,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Cada enlace de tipo se aplica en su sitio causal y no al padre",
-        "internal": "Sí: `concrete,fact_mut,type_nodes`",
+        "internal": "SÃ­: `concrete,fact_mut,type_nodes`",
         "proposed_cli": "G: `planned` y `W1_atomic_compound`, primarios por hijo"
       },
       "private_calls": [
@@ -715,10 +756,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Cada enlace de tipo se aplica en su sitio causal y no al padre; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Cada enlace de tipo se aplica en su sitio causal y no al padre; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_029",
       "fixture_family": "G: `planned` y `W1_atomic_compound`, primarios por hijo",
-      "private_invariant_destination": "Cada enlace de tipo se aplica en su sitio causal y no al padre"
+      "private_invariant_destination": "Cada enlace de tipo se aplica en su sitio causal y no al padre",
+      "private_invariant_new_model": "Cada EqualityRecord publica su arista y OriginFact solo al ordinal propio; un rechazo no toca el componente padre.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "s3_solver_unify_depth_child",
@@ -726,9 +769,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "La unificación profunda alcanza el hijo correcto sin pánico",
-        "internal": "Sí: método de unificación o estado privado",
-        "proposed_cli": "C: arrays anidados del test por CLI, límite 128"
+        "observable": "La unificaciÃ³n profunda alcanza el hijo correcto sin pÃ¡nico",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
+        "proposed_cli": "C: arrays anidados del test por CLI, lÃ­mite 128"
       },
       "private_calls": [
         "unify_independent"
@@ -740,10 +783,12 @@
         "outcome"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "La unificación profunda alcanza el hijo correcto sin pánico; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "La unificaciÃ³n profunda alcanza el hijo correcto sin pÃ¡nico; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_030",
-      "fixture_family": "C: arrays anidados del test por CLI, límite 128",
-      "private_invariant_destination": "La unificación profunda alcanza el hijo correcto sin pánico"
+      "fixture_family": "C: arrays anidados del test por CLI, lÃ­mite 128",
+      "private_invariant_destination": "La unificaciÃ³n profunda alcanza el hijo correcto sin pÃ¡nico",
+      "private_invariant_new_model": "El journal del EqualityRecord profundo visita cada componente Array en Vec y mantiene la puerta de profundidad.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "drive_facts_close_after_successive_visits",
@@ -768,10 +813,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "dos visitas sucesivas conservan los valores exteriores y cierran sus hechos; mismo resultado y diagnósticos de programa",
+      "destination_assertions": "dos visitas sucesivas conservan los valores exteriores y cierran sus hechos; mismo resultado y diagnÃ³sticos de programa",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_031",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "dos visitas sucesivas conservan los valores exteriores y cierran sus hechos; mismo resultado y diagnósticos de programa"
+      "private_invariant_destination": "dos visitas sucesivas conservan los valores exteriores y cierran sus hechos; mismo resultado y diagnÃ³sticos de programa",
+      "private_invariant_new_model": "FactId de visita es transitorio; al cerrar Completion, el resultado final se deriva del representante, sin copiar el visitado anterior.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "boundary_context_owner_closes_constructor_before_comparison",
@@ -780,8 +827,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "El constructor se cierra antes de contrastar el contexto del padre",
-        "internal": "Sí: `fact_mut`",
-        "proposed_cli": "C: fuente CLI ya incluida en el test, mismo código/primario"
+        "internal": "SÃ­: `fact_mut`",
+        "proposed_cli": "C: fuente CLI ya incluida en el test, mismo cÃ³digo/primario"
       },
       "private_calls": [
         "check_against_context_one"
@@ -802,10 +849,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "El constructor se cierra antes de contrastar el contexto del padre; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "El constructor se cierra antes de contrastar el contexto del padre; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_032",
-      "fixture_family": "C: fuente CLI ya incluida en el test, mismo código/primario",
-      "private_invariant_destination": "El constructor se cierra antes de contrastar el contexto del padre"
+      "fixture_family": "C: fuente CLI ya incluida en el test, mismo cÃ³digo/primario",
+      "private_invariant_destination": "El constructor se cierra antes de contrastar el contexto del padre",
+      "private_invariant_new_model": "ConstructorDuty del hijo se resuelve antes del EqualityRecord contextual del padre segun ordinal reservado.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "boundary_binary_context_closes_after_prepared_comparison",
@@ -822,10 +871,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "la comparación preparada cierra su contexto antes del consumidor siguiente; mismo código, primario y tipo final",
+      "destination_assertions": "la comparaciÃ³n preparada cierra su contexto antes del consumidor siguiente; mismo cÃ³digo, primario y tipo final",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_033",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "la comparación preparada cierra su contexto antes del consumidor siguiente; mismo código, primario y tipo final"
+      "private_invariant_destination": "la comparaciÃ³n preparada cierra su contexto antes del consumidor siguiente; mismo cÃ³digo, primario y tipo final",
+      "private_invariant_new_model": "BinaryDomain intrinseco prepara contexto; EqualityRecord de operandos se decide antes de entregar resultado al siguiente consumidor.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "boundary_binary_left_quota_keeps_operator_until_context_close",
@@ -946,9 +997,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Visita anidada preserva valor exterior; ID cerrado no altera diagnóstico",
-        "internal": "Sí: `fact_mut`",
-        "proposed_cli": "G: `W1_atomic_compound` y `planned`, mismo diagnóstico exterior"
+        "observable": "Visita anidada preserva valor exterior; ID cerrado no altera diagnÃ³stico",
+        "internal": "SÃ­: `fact_mut`",
+        "proposed_cli": "G: `W1_atomic_compound` y `planned`, mismo diagnÃ³stico exterior"
       },
       "private_calls": [
         "clone"
@@ -968,10 +1019,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Visita anidada preserva valor exterior; ID cerrado no altera diagnóstico; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Visita anidada preserva valor exterior; ID cerrado no altera diagnÃ³stico; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_040",
-      "fixture_family": "G: `W1_atomic_compound` y `planned`, mismo diagnóstico exterior",
-      "private_invariant_destination": "Visita anidada preserva valor exterior; ID cerrado no altera diagnóstico"
+      "fixture_family": "G: `W1_atomic_compound` y `planned`, mismo diagnÃ³stico exterior",
+      "private_invariant_destination": "Visita anidada preserva valor exterior; ID cerrado no altera diagnÃ³stico",
+      "private_invariant_new_model": "FactId/generacion cerrado nunca es clave semantica; ReadContext del exterior conserva snapshot y resultado.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "deferred_selector_reentry_keeps_outer_facts_for_array_and_scalar_bindings",
@@ -1002,8 +1055,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Cuota en visita anidada conserva la causa del consumidor exterior",
-        "internal": "Sí: `fact_mut`",
-        "proposed_cli": "Q: fuente CLI del test, límites 0..coste−1"
+        "internal": "SÃ­: `fact_mut`",
+        "proposed_cli": "Q: fuente CLI del test, lÃ­mites 0..costeâˆ’1"
       },
       "private_calls": [
         "expr_with_visit_result"
@@ -1021,9 +1074,13 @@
         "quota_error"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_042",
-      "fixture_family": "Q: fuente CLI del test, límites 0..coste−1"
+      "fixture_family": "Q: fuente CLI del test, lÃ­mites 0..costeâˆ’1",
+      "current_output": "E0003 y estado interno active_count/tainted/domain_owner; sin programa CLI",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "malformed_generator_state_cycle_is_bounded",
@@ -1050,7 +1107,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "La profundidad del constructor Array prevalece sobre la del valor",
-        "internal": "Sí: `type_nodes`",
+        "internal": "SÃ­: `type_nodes`",
         "proposed_cli": "C: `recursive_69` y caso profundo del test"
       },
       "private_calls": [
@@ -1071,10 +1128,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "La profundidad del constructor Array prevalece sobre la del valor; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "La profundidad del constructor Array prevalece sobre la del valor; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_044",
       "fixture_family": "C: `recursive_69` y caso profundo del test",
-      "private_invariant_destination": "La profundidad del constructor Array prevalece sobre la del valor"
+      "private_invariant_destination": "La profundidad del constructor Array prevalece sobre la del valor",
+      "private_invariant_new_model": "ConstructorDuty Array conserva limite de forma separado del valor; se materializa primero la causa de profundidad estructural.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "contextual_array_charges_each_leaf_once_at_the_reduced_boundary",
@@ -1138,10 +1197,12 @@
         "expected_type"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "la expectativa pendiente espera y el grupo transmite el sitio de su hoja; mismos código, primario y relaciones al cerrar",
+      "destination_assertions": "la expectativa pendiente espera y el grupo transmite el sitio de su hoja; mismos cÃ³digo, primario y relaciones al cerrar",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_047",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "la expectativa pendiente espera y el grupo transmite el sitio de su hoja; mismos código, primario y relaciones al cerrar"
+      "private_invariant_destination": "la expectativa pendiente espera y el grupo transmite el sitio de su hoja; mismos cÃ³digo, primario y relaciones al cerrar",
+      "private_invariant_new_model": "Waiting del esperado no inventa nominal; OccurrenceId de la hoja agrupada conserva el primario tras Completion.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "non_result_try_is_rejected_at_the_expression_boundary",
@@ -1171,9 +1232,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "El orden de representantes no cambia el conflicto Array de unión",
-        "internal": "Sí: `type_nodes`",
-        "proposed_cli": "J: `W1_atomic_compound` en dos órdenes de binding"
+        "observable": "El orden de representantes no cambia el conflicto Array de uniÃ³n",
+        "internal": "SÃ­: `type_nodes`",
+        "proposed_cli": "J: `W1_atomic_compound` en dos Ã³rdenes de binding"
       },
       "private_calls": [
         "new_variable",
@@ -1197,10 +1258,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "El orden de representantes no cambia el conflicto Array de unión; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "El orden de representantes no cambia el conflicto Array de uniÃ³n; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_049",
-      "fixture_family": "J: `W1_atomic_compound` en dos órdenes de binding",
-      "private_invariant_destination": "El orden de representantes no cambia el conflicto Array de unión"
+      "fixture_family": "J: `W1_atomic_compound` en dos Ã³rdenes de binding",
+      "private_invariant_destination": "El orden de representantes no cambia el conflicto Array de uniÃ³n",
+      "private_invariant_new_model": "EqualityRecord compara ConstructorDuty Array de ambos componentes, sin depender de la eleccion fisica de raiz.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "union_selects_earlier_origin_by_start_even_when_spans_overlap",
@@ -1223,10 +1286,14 @@
         "found_type",
         "data"
       ],
-      "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismo JSON de unión y relación, ahora decidido por EqualityId de las dos obligaciones solapadas",
+      "action": "reescribir_precedencia_recorrido_comprobacion",
+      "destination_assertions": "E0102: I64/Bool, expected_type=[10,20); comprobar ademas positivo y ausencia de origen del intento rechazado.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_050",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "E0102: Bool/I64, expected_type=[5,15)",
+      "target_output": "E0102: I64/Bool, expected_type=[10,20)",
+      "target_reason_adr": "El hijo I64 [10,20) se comprueba antes del exterior Bool [5,15). F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
+      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "concrete_array_cache_keys_both_operands_and_charges_a_cached_constraint",
@@ -1234,9 +1301,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "La caché distingue pares y cada contraste consume cuota",
-        "internal": "Sí: método de unificación o estado privado",
-        "proposed_cli": "Q: dos pares Array concretos y límites 0..coste−1"
+        "observable": "La cachÃ© distingue pares y cada contraste consume cuota",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
+        "proposed_cli": "Q: dos pares Array concretos y lÃ­mites 0..costeâˆ’1"
       },
       "private_calls": [
         "clone"
@@ -1256,9 +1323,13 @@
         "data"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_051",
-      "fixture_family": "Q: dos pares Array concretos y límites 0..coste−1"
+      "fixture_family": "Q: dos pares Array concretos y lÃ­mites 0..costeâˆ’1",
+      "current_output": "solver_steps fijos 33/66, clave de cache por operandos",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "unresolved_constructor_pair_is_rechecked_after_its_child_resolves",
@@ -1267,7 +1338,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "El hijo completado reactiva el contraste pendiente entre constructores",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "C: `completion_conflict` y `completion_unresolved`"
       },
       "private_calls": [
@@ -1283,10 +1354,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "El hijo completado reactiva el contraste pendiente entre constructores; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "El hijo completado reactiva el contraste pendiente entre constructores; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_052",
       "fixture_family": "C: `completion_conflict` y `completion_unresolved`",
-      "private_invariant_destination": "El hijo completado reactiva el contraste pendiente entre constructores"
+      "private_invariant_destination": "El hijo completado reactiva el contraste pendiente entre constructores",
+      "private_invariant_new_model": "Completion del hijo reactiva exactamente el EqualityRecord Suspended de constructores y conserva su ordinal.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "cached_arrays_charge_every_logical_pair_at_the_reduced_limit",
@@ -1294,8 +1367,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "El par Array repetido sigue cobrando cada comparación lógica",
-        "internal": "Sí: método de unificación o estado privado",
+        "observable": "El par Array repetido sigue cobrando cada comparaciÃ³n lÃ³gica",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
         "proposed_cli": "Q: fuente CLI del test, comprobar `observed=limit+1`"
       },
       "private_calls": [
@@ -1314,9 +1387,13 @@
         "data"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_053",
-      "fixture_family": "Q: fuente CLI del test, comprobar `observed=limit+1`"
+      "fixture_family": "Q: fuente CLI del test, comprobar `observed=limit+1`",
+      "current_output": "solver_steps 33/65; limit 65, observed 66",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "existing_array_domain_and_occurs_walk_charge_at_the_reduced_limit",
@@ -1340,9 +1417,13 @@
         "data"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "para cada límite inferior al coste medido: solo E0003 con observed=limit+1; el ocurre-check completo conserva el diagnóstico sin límite",
+      "destination_assertions": "para cada lÃ­mite inferior al coste medido: solo E0003 con observed=limit+1; el ocurre-check completo conserva el diagnÃ³stico sin lÃ­mite",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_054",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "E0003 en frontera fija de dominio y ocurre-check",
+      "target_output": "para cada lÃ­mite inferior al coste medido: solo E0003 con observed=limit+1; el ocurre-check completo conserva el diagnÃ³stico sin lÃ­mite",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "adr_gap_union_charge_at_the_exact_reduced_boundary",
@@ -1365,9 +1446,13 @@
         "data"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "barrido 0..coste−1 con un E0003 y observed=limit+1; sin cifra de frontera no enunciada por ADR",
+      "destination_assertions": "barrido 0..costeâˆ’1 con un E0003 y observed=limit+1; sin cifra de frontera no enunciada por ADR",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_055",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "cargo fijo before+1 para union",
+      "target_output": "barrido 0..costeâˆ’1 con un E0003 y observed=limit+1; sin cifra de frontera no enunciada por ADR",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "union_preserves_bottom_marker_from_either_representative",
@@ -1376,7 +1461,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "`Never` en cualquier lado no inventa tipo ni conflicto exterior",
-        "internal": "Sí: `type_nodes`",
+        "internal": "SÃ­: `type_nodes`",
         "proposed_cli": "J: `RS1_condition_contaminated` y retorno en rama"
       },
       "private_calls": [
@@ -1389,10 +1474,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "`Never` en cualquier lado no inventa tipo ni conflicto exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "`Never` en cualquier lado no inventa tipo ni conflicto exterior; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_056",
       "fixture_family": "J: `RS1_condition_contaminated` y retorno en rama",
-      "private_invariant_destination": "`Never` en cualquier lado no inventa tipo ni conflicto exterior"
+      "private_invariant_destination": "`Never` en cualquier lado no inventa tipo ni conflicto exterior",
+      "private_invariant_new_model": "ResultStatus Never se propaga al JoinRecord independientemente de la raiz fisica y no crea un tipo nominal.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "adr_gap_shape_walk_charge_per_constructor_link",
@@ -1418,9 +1505,13 @@
         "data"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "cada constructor visitado causa progreso/cargo real y no se acepta con límite insuficiente; observed=limit+1",
+      "destination_assertions": "cada constructor visitado causa progreso/cargo real y no se acepta con lÃ­mite insuficiente; observed=limit+1",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_057",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "128 cargos de recorrido; E0003 en frontera fija",
+      "target_output": "cada constructor visitado causa progreso/cargo real y no se acepta con lÃ­mite insuficiente; observed=limit+1",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "solver_charges_the_final_granted_unit_and_reports_one_rejected_unit",
@@ -1514,7 +1605,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Cada nivel Array anidado consume cargo de solver",
-        "internal": "Sí: método de unificación o estado privado",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
         "proposed_cli": "Q: fuente CLI del test con arrays anidados"
       },
       "private_calls": [],
@@ -1530,9 +1621,13 @@
         "data"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_062",
-      "fixture_family": "Q: fuente CLI del test con arrays anidados"
+      "fixture_family": "Q: fuente CLI del test con arrays anidados",
+      "current_output": "32 cargos; E0003 observed 33",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "deferred_if_join_charges_the_reduced_boundary",
@@ -1789,9 +1884,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Permutar restricciones compatibles conserva tipo y aceptación",
-        "internal": "Sí: `concrete`",
-        "proposed_cli": "G: dos órdenes de `q=r;q=[1];r=[1]` por CLI"
+        "observable": "Permutar restricciones compatibles conserva tipo y aceptaciÃ³n",
+        "internal": "SÃ­: `concrete`",
+        "proposed_cli": "G: dos Ã³rdenes de `q=r;q=[1];r=[1]` por CLI"
       },
       "private_calls": [
         "bind_independent",
@@ -1809,10 +1904,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Permutar restricciones compatibles conserva tipo y aceptación; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Permutar restricciones compatibles conserva tipo y aceptaciÃ³n; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_073",
-      "fixture_family": "G: dos órdenes de `q=r;q=[1];r=[1]` por CLI",
-      "private_invariant_destination": "Permutar restricciones compatibles conserva tipo y aceptación"
+      "fixture_family": "G: dos Ã³rdenes de `q=r;q=[1];r=[1]` por CLI",
+      "private_invariant_destination": "Permutar restricciones compatibles conserva tipo y aceptaciÃ³n",
+      "private_invariant_new_model": "Con los mismos EqualityRecord compatibles, Completion produce el mismo representante y tipo final bajo ambos ordenes validos.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "generated_constraint_orders_have_the_same_acceptance",
@@ -1833,10 +1930,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "dos órdenes de igualdades conservan aceptación y tipos finales, y los conflictos mantienen código/primario/relaciones causales",
+      "destination_assertions": "dos Ã³rdenes de igualdades conservan aceptaciÃ³n y tipos finales, y los conflictos mantienen cÃ³digo/primario/relaciones causales",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_074",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "dos órdenes de igualdades conservan aceptación y tipos finales, y los conflictos mantienen código/primario/relaciones causales"
+      "private_invariant_destination": "dos Ã³rdenes de igualdades conservan aceptaciÃ³n y tipos finales, y los conflictos mantienen cÃ³digo/primario/relaciones causales",
+      "private_invariant_new_model": "Cada permutacion decide EqualityRecord en su ordinal de comprobacion; aceptacion y tipos finales coinciden y el rechazo apunta a su operando.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor_refuted_binary_and_guarded_results",
@@ -1850,10 +1949,13 @@
         "assert!(graph.refuted_result_sites().contains(&guarded));"
       ],
       "asserted_fields": [],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
-      "new_cli_test_id_or_retained_id": "i07c_survivor_refuted_binary_and_guarded_results",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "ResultStatus Contaminated del binario refutado no revoca EqualityRecord del guard valido ni sus diagnosticos independientes. Positivo y negativo CLI preservan todos los campos observables del test original.",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_075",
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_new_model": "ResultStatus Contaminated del binario refutado no revoca EqualityRecord del guard valido ni sus diagnosticos independientes.",
+      "owner_commit": "C3",
+      "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
     {
       "source_test": "i07c_survivor_conditional_bindings_follow_their_result_sites",
@@ -1866,10 +1968,13 @@
         "assert_eq!("
       ],
       "asserted_fields": [],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
-      "new_cli_test_id_or_retained_id": "i07c_survivor_conditional_bindings_follow_their_result_sites",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "JoinRecord de cada condicion atribuye su reserva al OccurrenceId del resultado correcto; Completion no desplaza primario. Positivo y negativo CLI preservan todos los campos observables del test original.",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_076",
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_new_model": "JoinRecord de cada condicion atribuye su reserva al OccurrenceId del resultado correcto; Completion no desplaza primario.",
+      "owner_commit": "C3",
+      "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
     {
       "source_test": "i07c_survivor2_nested_shape_hints_reach_the_leaf",
@@ -1885,7 +1990,7 @@
       ],
       "asserted_fields": [],
       "action": "sustituir_mecanismo_por_cli",
-      "destination_assertions": "la restricción Array alcanza la hoja correcta; positivo tipado y negativo con primario de hoja; límite insuficiente emite E0003 sin ocultarlo",
+      "destination_assertions": "la restricciÃ³n Array alcanza la hoja correcta; positivo tipado y negativo con primario de hoja; lÃ­mite insuficiente emite E0003 sin ocultarlo",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_077",
       "fixture_family": "source from original test; preserve all positive and negative programs"
     },
@@ -1916,7 +2021,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Nominal pendiente solo se activa con dominio vivo y acreditado",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "G: `waiting_projection_valid`/`waiting_projection_refuted`"
       },
       "private_calls": [
@@ -1928,10 +2033,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Nominal pendiente solo se activa con dominio vivo y acreditado; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Nominal pendiente solo se activa con dominio vivo y acreditado; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_079",
       "fixture_family": "G: `waiting_projection_valid`/`waiting_projection_refuted`",
-      "private_invariant_destination": "Nominal pendiente solo se activa con dominio vivo y acreditado"
+      "private_invariant_destination": "Nominal pendiente solo se activa con dominio vivo y acreditado",
+      "private_invariant_new_model": "Waiting nominal solo se activa con predicado de dominio acreditado y un Completion real; sin ello no publica constructor.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor2_solver_preserves_constructor_identity",
@@ -1939,8 +2046,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "El constructor inicial conserva su sitio tras unificación",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "El constructor inicial conserva su sitio tras unificaciÃ³n",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "C: `recursive_69` y `CD1_independent_constructor`"
       },
       "private_calls": [
@@ -1957,10 +2064,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "El constructor inicial conserva su sitio tras unificación; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "El constructor inicial conserva su sitio tras unificaciÃ³n; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_080",
       "fixture_family": "C: `recursive_69` y `CD1_independent_constructor`",
-      "private_invariant_destination": "El constructor inicial conserva su sitio tras unificación"
+      "private_invariant_destination": "El constructor inicial conserva su sitio tras unificaciÃ³n",
+      "private_invariant_new_model": "ConstructorDuty inicial conserva OccurrenceId y OriginFact despues de fusionar representantes.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf",
@@ -1969,8 +2078,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Hijo Array nuevo empieza libre y hoja existente conserva su evidencia",
-        "internal": "Sí: `concrete,concrete_plan,seed_planned_shape,shape_plan,type_nodes`",
-        "proposed_cli": "C: `fn Main(){var q=[];let a=[q,1];q=[1];}`; comparar aceptación y tipo final"
+        "internal": "SÃ­: `concrete,concrete_plan,seed_planned_shape,shape_plan,type_nodes`",
+        "proposed_cli": "C: `fn Main(){var q=[];let a=[q,1];q=[1];}`; comparar aceptaciÃ³n y tipo final"
       },
       "private_calls": [
         "new_variable",
@@ -1983,9 +2092,9 @@
       ],
       "asserted_fields": [],
       "action": "sustituir_mecanismo_por_cli",
-      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "destination_assertions": "aceptaciÃ³n y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserciÃ³n del campo interno eliminado",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_081",
-      "fixture_family": "C: `fn Main(){var q=[];let a=[q,1];q=[1];}`; comparar aceptación y tipo final"
+      "fixture_family": "C: `fn Main(){var q=[];let a=[q,1];q=[1];}`; comparar aceptaciÃ³n y tipo final"
     },
     {
       "source_test": "i07c_survivor2_closure_restores_enclosing_result_site",
@@ -2014,8 +2123,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Resultado concreto del closure no fija retorno pendiente de otro contexto",
-        "internal": "Sí: `concrete,type_nodes`",
-        "proposed_cli": "L: fuente CLI del test; comparar aceptación y diagnóstico del retorno"
+        "internal": "SÃ­: `concrete,type_nodes`",
+        "proposed_cli": "L: fuente CLI del test; comparar aceptaciÃ³n y diagnÃ³stico del retorno"
       },
       "private_calls": [
         "closure_begin",
@@ -2029,10 +2138,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Resultado concreto del closure no fija retorno pendiente de otro contexto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Resultado concreto del closure no fija retorno pendiente de otro contexto; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_083",
-      "fixture_family": "L: fuente CLI del test; comparar aceptación y diagnóstico del retorno",
-      "private_invariant_destination": "Resultado concreto del closure no fija retorno pendiente de otro contexto"
+      "fixture_family": "L: fuente CLI del test; comparar aceptaciÃ³n y diagnÃ³stico del retorno",
+      "private_invariant_destination": "Resultado concreto del closure no fija retorno pendiente de otro contexto",
+      "private_invariant_new_model": "ReadContext del retorno de closure no recibe arista de EqualityRecord ajeno; su Waiting permanece hasta su propia Completion.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor2_pending_selector_keeps_independent_taint",
@@ -2053,7 +2164,9 @@
       "destination_assertions": "el selector pendiente no borra E0103/E0102 de un hijo independiente; mismo orden y primarios tras completar base",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_084",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "el selector pendiente no borra E0103/E0102 de un hijo independiente; mismo orden y primarios tras completar base"
+      "private_invariant_destination": "el selector pendiente no borra E0103/E0102 de un hijo independiente; mismo orden y primarios tras completar base",
+      "private_invariant_new_model": "Waiting de proyeccion del selector no cancela ResultStatus Contaminated del hijo independiente; reservas C se materializan separadas.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor2_selection_depth_keeps_the_current_type",
@@ -2080,8 +2193,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Una unión completada conserva payload `Option` correcto",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "Una uniÃ³n completada conserva payload `Option` correcto",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "R: programa `match Option` con brazos compatibles y contraparte incompatible"
       },
       "private_calls": [
@@ -2093,10 +2206,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Una unión completada conserva payload `Option` correcto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Una uniÃ³n completada conserva payload `Option` correcto; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_086",
       "fixture_family": "R: programa `match Option` con brazos compatibles y contraparte incompatible",
-      "private_invariant_destination": "Una unión completada conserva payload `Option` correcto"
+      "private_invariant_destination": "Una uniÃ³n completada conserva payload `Option` correcto",
+      "private_invariant_new_model": "JoinRecord decidido cierra ConstructorDuty Option.payload y el representante final refleja la forma publicada.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor2_expression_dependencies_cover_branch_children",
@@ -2119,10 +2234,13 @@
         "assert_child("
       ],
       "asserted_fields": [],
-      "action": "conservar_sin_cambio",
-      "destination_assertions": "mismas aserciones originales; el test conserva su nombre y cuerpo",
-      "new_cli_test_id_or_retained_id": "i07c_survivor2_expression_dependencies_cover_branch_children",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "action": "sustituir_mecanismo_por_cli",
+      "destination_assertions": "Cierre de dependencias por OccurrenceId incluye hijos de cada rama; replay reevalua solo sufijo conectado y conserva C independientes. Positivo y negativo CLI preservan todos los campos observables del test original.",
+      "new_cli_test_id_or_retained_id": "i07c_r9_cli_087",
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "private_invariant_new_model": "Cierre de dependencias por OccurrenceId incluye hijos de cada rama; replay reevalua solo sufijo conectado y conserva C independientes.",
+      "owner_commit": "C5",
+      "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
     {
       "source_test": "i07c_survivor2_root_compresses_the_entire_parent_chain",
@@ -2131,8 +2249,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Cadena de alias conserva tipo final y termina",
-        "internal": "Sí: `type_nodes`",
-        "proposed_cli": "G: `q=r;r=s;s=[1]`; aceptación y coste; compresión exacta sigue interna"
+        "internal": "SÃ­: `type_nodes`",
+        "proposed_cli": "G: `q=r;r=s;s=[1]`; aceptaciÃ³n y coste; compresiÃ³n exacta sigue interna"
       },
       "private_calls": [
         "new_variable",
@@ -2144,9 +2262,9 @@
       ],
       "asserted_fields": [],
       "action": "sustituir_mecanismo_por_cli",
-      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "destination_assertions": "aceptaciÃ³n y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserciÃ³n del campo interno eliminado",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_088",
-      "fixture_family": "G: `q=r;r=s;s=[1]`; aceptación y coste; compresión exacta sigue interna"
+      "fixture_family": "G: `q=r;r=s;s=[1]`; aceptaciÃ³n y coste; compresiÃ³n exacta sigue interna"
     },
     {
       "source_test": "i07c_survivor2_result_shape_conflict_keeps_payload_identity",
@@ -2155,7 +2273,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Conflicto Result no cambia identidad del payload previo",
-        "internal": "Sí: `type_nodes`",
+        "internal": "SÃ­: `type_nodes`",
         "proposed_cli": "R: `Result<Array<I64>,I64>` con RHS incompatible y uso posterior"
       },
       "private_calls": [
@@ -2171,10 +2289,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Conflicto Result no cambia identidad del payload previo; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Conflicto Result no cambia identidad del payload previo; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_089",
       "fixture_family": "R: `Result<Array<I64>,I64>` con RHS incompatible y uso posterior",
-      "private_invariant_destination": "Conflicto Result no cambia identidad del payload previo"
+      "private_invariant_destination": "Conflicto Result no cambia identidad del payload previo",
+      "private_invariant_new_model": "EqualityRecord Result rechazado revierte journal de ambos payloads; sus OriginFact anteriores permanecen.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor2_shape_conflicts_continue_past_irrelevant_children",
@@ -2183,7 +2303,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Un hijo irrelevante no oculta conflicto de otro hijo",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "C: array con tres hijos, segundo compatible y tercero incompatible"
       },
       "private_calls": [
@@ -2206,10 +2326,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Un hijo irrelevante no oculta conflicto de otro hijo; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Un hijo irrelevante no oculta conflicto de otro hijo; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_090",
       "fixture_family": "C: array con tres hijos, segundo compatible y tercero incompatible",
-      "private_invariant_destination": "Un hijo irrelevante no oculta conflicto de otro hijo"
+      "private_invariant_destination": "Un hijo irrelevante no oculta conflicto de otro hijo",
+      "private_invariant_new_model": "ConstructorDuty del hijo irrelevante no consume la reserva del primer EqualityRecord incompatible en otro componente.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor2_pattern_shape_chooses_first_conflicting_child",
@@ -2217,9 +2339,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Patrón compuesto señala el primer hijo incompatible",
-        "internal": "Sí: `type_nodes`",
-        "proposed_cli": "R: `match Option`/`Result` con patrón inválido y primario del primer hijo"
+        "observable": "PatrÃ³n compuesto seÃ±ala el primer hijo incompatible",
+        "internal": "SÃ­: `type_nodes`",
+        "proposed_cli": "R: `match Option`/`Result` con patrÃ³n invÃ¡lido y primario del primer hijo"
       },
       "private_calls": [
         "new_variable"
@@ -2233,10 +2355,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Patrón compuesto señala el primer hijo incompatible; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "PatrÃ³n compuesto seÃ±ala el primer hijo incompatible; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_091",
-      "fixture_family": "R: `match Option`/`Result` con patrón inválido y primario del primer hijo",
-      "private_invariant_destination": "Patrón compuesto señala el primer hijo incompatible"
+      "fixture_family": "R: `match Option`/`Result` con patrÃ³n invÃ¡lido y primario del primer hijo",
+      "private_invariant_destination": "PatrÃ³n compuesto seÃ±ala el primer hijo incompatible",
+      "private_invariant_new_model": "EqualityRecord del patron compara componentes en orden de comprobacion y reserva la primera incompatibilidad real.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_shape_walk_checks_later_result_payload",
@@ -2245,7 +2369,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "El recorrido Result comprueba el payload posterior al primero",
-        "internal": "Sí: `type_nodes`",
+        "internal": "SÃ­: `type_nodes`",
         "proposed_cli": "R: Result con Ok compatible y Err incompatible"
       },
       "private_calls": [
@@ -2264,10 +2388,12 @@
         "related_spans"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "El recorrido Result comprueba el payload posterior al primero; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "El recorrido Result comprueba el payload posterior al primero; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_092",
       "fixture_family": "R: Result con Ok compatible y Err incompatible",
-      "private_invariant_destination": "El recorrido Result comprueba el payload posterior al primero"
+      "private_invariant_destination": "El recorrido Result comprueba el payload posterior al primero",
+      "private_invariant_new_model": "Despues de Result.Ok, el mismo EqualityRecord contrasta Result.Err antes de publicar el journal completo.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_require_union_moves_concrete_payloads_to_children",
@@ -2275,8 +2401,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "La restricción de Result/Option distribuye el tipo concreto a los payloads",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "La restricciÃ³n de Result/Option distribuye el tipo concreto a los payloads",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "R: `Ok`/`Err` y `Some` anotados, luego RHS incompatible"
       },
       "private_calls": [
@@ -2293,10 +2419,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "La restricción de Result/Option distribuye el tipo concreto a los payloads; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "La restricciÃ³n de Result/Option distribuye el tipo concreto a los payloads; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_093",
       "fixture_family": "R: `Ok`/`Err` y `Some` anotados, luego RHS incompatible",
-      "private_invariant_destination": "La restricción de Result/Option distribuye el tipo concreto a los payloads"
+      "private_invariant_destination": "La restricciÃ³n de Result/Option distribuye el tipo concreto a los payloads",
+      "private_invariant_new_model": "ConstructorDuty Result/Option distribuye restricciones a rutas de payload del mismo representante, sin duplicar origen.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_union_transfers_single_sided_shape_and_origin",
@@ -2305,8 +2433,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Un solo lado estructurado transfiere forma y primer origen",
-        "internal": "Sí: `concrete,type_nodes`",
-        "proposed_cli": "F: `omitted_relation`, relación del primer operando"
+        "internal": "SÃ­: `concrete,type_nodes`",
+        "proposed_cli": "F: `omitted_relation`, relaciÃ³n del primer operando"
       },
       "private_calls": [
         "concrete",
@@ -2323,10 +2451,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Un solo lado estructurado transfiere forma y primer origen; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Un solo lado estructurado transfiere forma y primer origen; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_094",
-      "fixture_family": "F: `omitted_relation`, relación del primer operando",
-      "private_invariant_destination": "Un solo lado estructurado transfiere forma y primer origen"
+      "fixture_family": "F: `omitted_relation`, relaciÃ³n del primer operando",
+      "private_invariant_destination": "Un solo lado estructurado transfiere forma y primer origen",
+      "private_invariant_new_model": "EqualityRecord compatible publica forma unilateral y OriginFact del proveedor en una transaccion.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_failed_union_restores_both_constructor_roots",
@@ -2334,8 +2464,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Unión rechazada deja intactos ambos constructores para usos posteriores",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "UniÃ³n rechazada deja intactos ambos constructores para usos posteriores",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "J: `W1_atomic_compound` y `planned`"
       },
       "private_calls": [
@@ -2356,10 +2486,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Unión rechazada deja intactos ambos constructores para usos posteriores; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "UniÃ³n rechazada deja intactos ambos constructores para usos posteriores; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_095",
       "fixture_family": "J: `W1_atomic_compound` y `planned`",
-      "private_invariant_destination": "Unión rechazada deja intactos ambos constructores para usos posteriores"
+      "private_invariant_destination": "UniÃ³n rechazada deja intactos ambos constructores para usos posteriores",
+      "private_invariant_new_model": "EqualityRecord incompatible descarta journal; ambos ConstructorDuty y OriginFact conservan sus prefijos.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_unify_concrete_union_kinds_and_payloads",
@@ -2368,7 +2500,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Option/Result incompatibles rechazan tipo de variante y payload correctos",
-        "internal": "Sí: método de unificación o estado privado",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
         "proposed_cli": "R: `Some(1)` frente a `Ok(1)` y payload tipado"
       },
       "private_calls": [],
@@ -2390,10 +2522,12 @@
         "data"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Option/Result incompatibles rechazan tipo de variante y payload correctos; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Option/Result incompatibles rechazan tipo de variante y payload correctos; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_096",
       "fixture_family": "R: `Some(1)` frente a `Ok(1)` y payload tipado",
-      "private_invariant_destination": "Option/Result incompatibles rechazan tipo de variante y payload correctos"
+      "private_invariant_destination": "Option/Result incompatibles rechazan tipo de variante y payload correctos",
+      "private_invariant_new_model": "EqualityRecord compara clase Result/Option y luego payloads en orden de comprobacion, con un solo rechazo por igualdad.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_shape_requirements_reject_incompatible_roots",
@@ -2414,10 +2548,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Array/Option/Result incompatibles rechazan la igualdad completa en ambos órdenes; mismos diagnósticos y uso posterior intacto",
+      "destination_assertions": "Array/Option/Result incompatibles rechazan la igualdad completa en ambos Ã³rdenes; mismos diagnÃ³sticos y uso posterior intacto",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_097",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "Array/Option/Result incompatibles rechazan la igualdad completa en ambos órdenes; mismos diagnósticos y uso posterior intacto"
+      "private_invariant_destination": "Array/Option/Result incompatibles rechazan la igualdad completa en ambos Ã³rdenes; mismos diagnÃ³sticos y uso posterior intacto",
+      "private_invariant_new_model": "ConstructorDuty Array/Option/Result incompatible causa Rejected sin publicar aristas, con independencia de la raiz fisica.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_failed_single_sided_union_keeps_preexisting_shape",
@@ -2426,7 +2562,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Rechazo con forma solo a un lado conserva la forma previa",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "J: `completion_conflict` y `W1_atomic_compound`"
       },
       "private_calls": [
@@ -2445,10 +2581,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Rechazo con forma solo a un lado conserva la forma previa; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Rechazo con forma solo a un lado conserva la forma previa; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_098",
       "fixture_family": "J: `completion_conflict` y `W1_atomic_compound`",
-      "private_invariant_destination": "Rechazo con forma solo a un lado conserva la forma previa"
+      "private_invariant_destination": "Rechazo con forma solo a un lado conserva la forma previa",
+      "private_invariant_new_model": "El journal rechazado no modifica ConstructorDuty ni OriginFact del lado estructurado.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind",
@@ -2457,7 +2595,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Rechazo de Result revierte enlace tentativo de primer payload",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
       },
       "private_calls": [
@@ -2477,10 +2615,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Rechazo de Result revierte enlace tentativo de primer payload; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Rechazo de Result revierte enlace tentativo de primer payload; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_099",
       "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok",
-      "private_invariant_destination": "Rechazo de Result revierte enlace tentativo de primer payload"
+      "private_invariant_destination": "Rechazo de Result revierte enlace tentativo de primer payload",
+      "private_invariant_new_model": "Si Result.Err falla, el journal revierte tambien el enlace tentativo de Result.Ok.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_union_prefers_larger_component_before_id",
@@ -2488,9 +2628,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Orden interno por tamaño no altera tipo ni diagnóstico",
-        "internal": "Sí: `type_nodes`",
-        "proposed_cli": "G: mismo Result/Array con dos órdenes de bindings; comparar JSON"
+        "observable": "Orden interno por tamaÃ±o no altera tipo ni diagnÃ³stico",
+        "internal": "SÃ­: `type_nodes`",
+        "proposed_cli": "G: mismo Result/Array con dos Ã³rdenes de bindings; comparar JSON"
       },
       "private_calls": [
         "new_variable",
@@ -2503,9 +2643,9 @@
       ],
       "asserted_fields": [],
       "action": "sustituir_mecanismo_por_cli",
-      "destination_assertions": "aceptación y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserción del campo interno eliminado",
+      "destination_assertions": "aceptaciÃ³n y tipo final, causa/primario/relaciones y cuota observables; retirar solo la aserciÃ³n del campo interno eliminado",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_100",
-      "fixture_family": "G: mismo Result/Array con dos órdenes de bindings; comparar JSON"
+      "fixture_family": "G: mismo Result/Array con dos Ã³rdenes de bindings; comparar JSON"
     },
     {
       "source_test": "i07c_survivor3_never_payload_keeps_later_result_bind",
@@ -2514,7 +2654,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Payload `Never` deja que otro payload complete Result",
-        "internal": "Sí: `concrete`",
+        "internal": "SÃ­: `concrete`",
         "proposed_cli": "R: Result con `return` en un brazo y valor posterior"
       },
       "private_calls": [
@@ -2526,10 +2666,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Payload `Never` deja que otro payload complete Result; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Payload `Never` deja que otro payload complete Result; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_101",
       "fixture_family": "R: Result con `return` en un brazo y valor posterior",
-      "private_invariant_destination": "Payload `Never` deja que otro payload complete Result"
+      "private_invariant_destination": "Payload `Never` deja que otro payload complete Result",
+      "private_invariant_new_model": "ResultStatus Never en un payload no cancela Completion acreditada del otro payload de Result.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_cached_array_child_rebuilds_outer_shape",
@@ -2538,8 +2680,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Hijo Array cacheado no pierde forma exterior",
-        "internal": "Sí: método de unificación o estado privado",
-        "proposed_cli": "C: arrays anidados repetidos y asignación posterior"
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
+        "proposed_cli": "C: arrays anidados repetidos y asignaciÃ³n posterior"
       },
       "private_calls": [
         "clone"
@@ -2549,10 +2691,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Hijo Array cacheado no pierde forma exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Hijo Array cacheado no pierde forma exterior; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_102",
-      "fixture_family": "C: arrays anidados repetidos y asignación posterior",
-      "private_invariant_destination": "Hijo Array cacheado no pierde forma exterior"
+      "fixture_family": "C: arrays anidados repetidos y asignaciÃ³n posterior",
+      "private_invariant_destination": "Hijo Array cacheado no pierde forma exterior",
+      "private_invariant_new_model": "Cache por epoch es derivada; ConstructorDuty Array exterior se reconstruye del representante y no de la entrada cacheada.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_failed_atomic_union_preserves_quota_error",
@@ -2560,9 +2704,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Rechazo atómico no revierte ni oculta NX-E0003 de cuota",
-        "internal": "Sí: `type_nodes`",
-        "proposed_cli": "Q: `W1_atomic_compound` con límites inferiores al coste"
+        "observable": "Rechazo atÃ³mico no revierte ni oculta NX-E0003 de cuota",
+        "internal": "SÃ­: `type_nodes`",
+        "proposed_cli": "Q: `W1_atomic_compound` con lÃ­mites inferiores al coste"
       },
       "private_calls": [
         "new_variable",
@@ -2578,9 +2722,13 @@
         "quota_error"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_103",
-      "fixture_family": "Q: `W1_atomic_compound` con límites inferiores al coste"
+      "fixture_family": "Q: `W1_atomic_compound` con lÃ­mites inferiores al coste",
+      "current_output": "E0003, quota_error interno y active_count=0",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "i07c_survivor3_completed_option_uses_binding_origin",
@@ -2589,7 +2737,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Option completado usa el origen del binding inicial",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "F: ADR Firma/Alias y `later_completion` con Option"
       },
       "private_calls": [
@@ -2602,10 +2750,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Option completado usa el origen del binding inicial; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Option completado usa el origen del binding inicial; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_104",
       "fixture_family": "F: ADR Firma/Alias y `later_completion` con Option",
-      "private_invariant_destination": "Option completado usa el origen del binding inicial"
+      "private_invariant_destination": "Option completado usa el origen del binding inicial",
+      "private_invariant_new_model": "Completion de Option.payload conserva OriginFact del primer EqualityRecord del binding, no el completador tardio.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind",
@@ -2613,9 +2763,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Fallo de payload Result no altera vínculo diferido anterior",
-        "internal": "Sí: `concrete`",
-        "proposed_cli": "R: Result diferido, segundo payload inválido, uso posterior del primero"
+        "observable": "Fallo de payload Result no altera vÃ­nculo diferido anterior",
+        "internal": "SÃ­: `concrete`",
+        "proposed_cli": "R: Result diferido, segundo payload invÃ¡lido, uso posterior del primero"
       },
       "private_calls": [
         "concrete",
@@ -2629,10 +2779,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Fallo de payload Result no altera vínculo diferido anterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Fallo de payload Result no altera vÃ­nculo diferido anterior; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_105",
-      "fixture_family": "R: Result diferido, segundo payload inválido, uso posterior del primero",
-      "private_invariant_destination": "Fallo de payload Result no altera vínculo diferido anterior"
+      "fixture_family": "R: Result diferido, segundo payload invÃ¡lido, uso posterior del primero",
+      "private_invariant_destination": "Fallo de payload Result no altera vÃ­nculo diferido anterior",
+      "private_invariant_new_model": "Rechazo Result descarta journal propio y deja EqualityRecord Suspended previo con su arista y ordinal.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_union_rejects_variant_against_array_in_both_orders",
@@ -2655,10 +2807,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Result/Option frente a Array rechazan en ambos órdenes con mismo código, tipos, primario y relaciones; sin enlace parcial",
+      "destination_assertions": "Result/Option frente a Array rechazan en ambos Ã³rdenes con mismo cÃ³digo, tipos, primario y relaciones; sin enlace parcial",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_106",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_destination": "Result/Option frente a Array rechazan en ambos órdenes con mismo código, tipos, primario y relaciones; sin enlace parcial"
+      "private_invariant_destination": "Result/Option frente a Array rechazan en ambos Ã³rdenes con mismo cÃ³digo, tipos, primario y relaciones; sin enlace parcial",
+      "private_invariant_new_model": "EqualityRecord Result/Option frente a Array se rechaza atomicamente en ambos ordenes; ningun ConstructorDuty migra.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_require_union_quota_propagates_through_bind",
@@ -2677,9 +2831,13 @@
         "quota_error"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "límite menor al coste real da un E0003 observado=limit+1 sin publicar el payload parcial; ejecución sin límite conserva C",
+      "destination_assertions": "lÃ­mite menor al coste real da un E0003 observado=limit+1 sin publicar el payload parcial; ejecuciÃ³n sin lÃ­mite conserva C",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_107",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "E0003 y quota_error interno",
+      "target_output": "lÃ­mite menor al coste real da un E0003 observado=limit+1 sin publicar el payload parcial; ejecuciÃ³n sin lÃ­mite conserva C",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "i07c_survivor3_rebinding_known_union_keeps_first_shape_origin",
@@ -2687,8 +2845,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Reenlace de unión conocida conserva primer origen",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "Reenlace de uniÃ³n conocida conserva primer origen",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "F: `rejected_assignment` y `later_completion`"
       },
       "private_calls": [
@@ -2699,10 +2857,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Reenlace de unión conocida conserva primer origen; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Reenlace de uniÃ³n conocida conserva primer origen; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_108",
       "fixture_family": "F: `rejected_assignment` y `later_completion`",
-      "private_invariant_destination": "Reenlace de unión conocida conserva primer origen"
+      "private_invariant_destination": "Reenlace de uniÃ³n conocida conserva primer origen",
+      "private_invariant_new_model": "El nuevo EqualityRecord compatible completa forma sin reemplazar OriginFact del primer fijador.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_failed_result_bind_restores_first_payload",
@@ -2711,7 +2871,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Fallo de enlace Result conserva el primer payload",
-        "internal": "Sí: `concrete`",
+        "internal": "SÃ­: `concrete`",
         "proposed_cli": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok"
       },
       "private_calls": [
@@ -2726,10 +2886,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Fallo de enlace Result conserva el primer payload; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Fallo de enlace Result conserva el primer payload; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_109",
       "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok",
-      "private_invariant_destination": "Fallo de enlace Result conserva el primer payload"
+      "private_invariant_destination": "Fallo de enlace Result conserva el primer payload",
+      "private_invariant_new_model": "Rechazo del segundo payload Result revierte el primer enlace provisional y preserva OriginFact previo.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_noncopyable_second_payload_restores_first_bind",
@@ -2737,8 +2899,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Payload no copiable rechaza la operación sin alterar primer enlace",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "Payload no copiable rechaza la operaciÃ³n sin alterar primer enlace",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "R: Result con segundo payload de recurso y uso posterior del primero"
       },
       "private_calls": [
@@ -2753,10 +2915,12 @@
         "code"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Payload no copiable rechaza la operación sin alterar primer enlace; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Payload no copiable rechaza la operaciÃ³n sin alterar primer enlace; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_110",
       "fixture_family": "R: Result con segundo payload de recurso y uso posterior del primero",
-      "private_invariant_destination": "Payload no copiable rechaza la operación sin alterar primer enlace"
+      "private_invariant_destination": "Payload no copiable rechaza la operaciÃ³n sin alterar primer enlace",
+      "private_invariant_new_model": "Predicado Copyable rechazado en segundo payload revierte journal del EqualityRecord completo, incluido el primero.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span",
@@ -2765,7 +2929,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Spans con mismo inicio eligen origen causal izquierdo estable",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "F: variante de `rejected_assignment` con grupos de igual inicio"
       },
       "private_calls": [
@@ -2781,10 +2945,12 @@
         "related_spans"
       ],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Spans con mismo inicio eligen origen causal izquierdo estable; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Spans con mismo inicio eligen origen causal izquierdo estable; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_111",
       "fixture_family": "F: variante de `rejected_assignment` con grupos de igual inicio",
-      "private_invariant_destination": "Spans con mismo inicio eligen origen causal izquierdo estable"
+      "private_invariant_destination": "Spans con mismo inicio eligen origen causal izquierdo estable",
+      "private_invariant_new_model": "OriginFact del primer EqualityRecord segun recorrido de comprobacion gana aunque ambos spans empiecen igual.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion",
@@ -2792,8 +2958,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Formas pendientes incompatibles terminan con C, sin recursión infinita",
-        "internal": "Sí: `type_nodes`",
+        "observable": "Formas pendientes incompatibles terminan con C, sin recursiÃ³n infinita",
+        "internal": "SÃ­: `type_nodes`",
         "proposed_cli": "J: `suspended_68` y `recursive_69`, sin timeout"
       },
       "private_calls": [
@@ -2811,10 +2977,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Formas pendientes incompatibles terminan con C, sin recursión infinita; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Formas pendientes incompatibles terminan con C, sin recursiÃ³n infinita; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_112",
       "fixture_family": "J: `suspended_68` y `recursive_69`, sin timeout",
-      "private_invariant_destination": "Formas pendientes incompatibles terminan con C, sin recursión infinita"
+      "private_invariant_destination": "Formas pendientes incompatibles terminan con C, sin recursiÃ³n infinita",
+      "private_invariant_new_model": "EqualityRecord Suspended espera Completion de constructor y el driver en Vec decide conflicto sin recursion.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_union_child_allocation_propagates_quota_errors",
@@ -2822,9 +2990,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Asignar hijo de unión propaga NX-E0003 sin publicar tipo parcial",
-        "internal": "Sí: `type_nodes`",
-        "proposed_cli": "Q: Result/Option anidado con límite bajo"
+        "observable": "Asignar hijo de uniÃ³n propaga NX-E0003 sin publicar tipo parcial",
+        "internal": "SÃ­: `type_nodes`",
+        "proposed_cli": "Q: Result/Option anidado con lÃ­mite bajo"
       },
       "private_calls": [
         "new_variable",
@@ -2839,9 +3007,13 @@
         "quota_error"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_113",
-      "fixture_family": "Q: Result/Option anidado con límite bajo"
+      "fixture_family": "Q: Result/Option anidado con lÃ­mite bajo",
+      "current_output": "E0003, quota_error y variant_children interno vacio",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "i07c_survivor3_late_result_payload_quota_rolls_back_first_bind",
@@ -2849,9 +3021,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Cuota en payload tardío no deja primer enlace tentativo",
-        "internal": "Sí: `concrete`",
-        "proposed_cli": "Q: Result de dos payloads, barrido de límites"
+        "observable": "Cuota en payload tardÃ­o no deja primer enlace tentativo",
+        "internal": "SÃ­: `concrete`",
+        "proposed_cli": "Q: Result de dos payloads, barrido de lÃ­mites"
       },
       "private_calls": [
         "concrete",
@@ -2866,9 +3038,13 @@
         "quota_error"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_114",
-      "fixture_family": "Q: Result de dos payloads, barrido de límites"
+      "fixture_family": "Q: Result de dos payloads, barrido de lÃ­mites",
+      "current_output": "E0003, quota_error y concrete(pending)=None",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "i07c_survivor3_partial_union_allocation_rolls_back_on_quota",
@@ -2876,9 +3052,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Cuota durante creación parcial de unión no deja estructura publicada",
-        "internal": "Sí: `type_nodes`",
-        "proposed_cli": "Q: Option/Result anidado, barrido de límites"
+        "observable": "Cuota durante creaciÃ³n parcial de uniÃ³n no deja estructura publicada",
+        "internal": "SÃ­: `type_nodes`",
+        "proposed_cli": "Q: Option/Result anidado, barrido de lÃ­mites"
       },
       "private_calls": [
         "new_variable"
@@ -2893,9 +3069,13 @@
         "quota_error"
       ],
       "action": "reescribir_cuota_propiedad_11_1",
-      "destination_assertions": "coste medido en la misma ejecución; cada límite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin límite; sin cifra fija",
+      "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_115",
-      "fixture_family": "Q: Option/Result anidado, barrido de límites"
+      "fixture_family": "Q: Option/Result anidado, barrido de lÃ­mites",
+      "current_output": "E0003, quota_error y next_variable/variant_children sin cambio",
+      "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
+      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "i07c_survivor3_equal_start_array_origins_choose_left_diagnostic_span",
@@ -2918,10 +3098,14 @@
         "code",
         "primary_span"
       ],
-      "action": "reescribir_precedencia_equality_id",
-      "destination_assertions": "mismo diagnóstico y relaciones cuando dos orígenes comparten inicio; elegir por EqualityId y ranura, no por Span.start",
+      "action": "reescribir_precedencia_recorrido_comprobacion",
+      "destination_assertions": "E0103 primary=[10,11); comprobar ademas positivo y ausencia de origen del intento rechazado.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_116",
-      "fixture_family": "source from original test; preserve all positive and negative programs"
+      "fixture_family": "source from original test; preserve all positive and negative programs",
+      "current_output": "E0103 primary=[10,11)",
+      "target_output": "E0103 primary=[10,11)",
+      "target_reason_adr": "Los dos spans empiezan en 10; el primer ConstructorDuty visitado gana por recorrido. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
+      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
     },
     {
       "source_test": "i07c_survivor3_failed_concrete_union_expansion_restores_root",
@@ -2929,8 +3113,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Expansión concreta fallida conserva raíz y diagnóstico posterior",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "ExpansiÃ³n concreta fallida conserva raÃ­z y diagnÃ³stico posterior",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "J: `W1_atomic_compound` y caso Result incompatible"
       },
       "private_calls": [
@@ -2943,10 +3127,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Expansión concreta fallida conserva raíz y diagnóstico posterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "ExpansiÃ³n concreta fallida conserva raÃ­z y diagnÃ³stico posterior; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_117",
       "fixture_family": "J: `W1_atomic_compound` y caso Result incompatible",
-      "private_invariant_destination": "Expansión concreta fallida conserva raíz y diagnóstico posterior"
+      "private_invariant_destination": "ExpansiÃ³n concreta fallida conserva raÃ­z y diagnÃ³stico posterior",
+      "private_invariant_new_model": "Expansion de constructor dentro de EqualityRecord rechazada revierte forma y aristas de la raiz.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands",
@@ -2955,8 +3141,8 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Un enlace diferido relaciona los operandos escritos originales",
-        "internal": "Sí: método de unificación o estado privado",
-        "proposed_cli": "F: `rejected_assignment`, relación por bytes"
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
+        "proposed_cli": "F: `rejected_assignment`, relaciÃ³n por bytes"
       },
       "private_calls": [
         "new_variable",
@@ -2973,10 +3159,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Un enlace diferido relaciona los operandos escritos originales; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Un enlace diferido relaciona los operandos escritos originales; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_118",
-      "fixture_family": "F: `rejected_assignment`, relación por bytes",
-      "private_invariant_destination": "Un enlace diferido relaciona los operandos escritos originales"
+      "fixture_family": "F: `rejected_assignment`, relaciÃ³n por bytes",
+      "private_invariant_destination": "Un enlace diferido relaciona los operandos escritos originales",
+      "private_invariant_new_model": "JoinRecord pendiente retiene OccurrenceId de continuaciones completas al reactivar su EqualityRecord.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands",
@@ -2984,8 +3172,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Unión hija diferida conserva relación con el operando padre correcto",
-        "internal": "Sí: `concrete,type_nodes`",
+        "observable": "UniÃ³n hija diferida conserva relaciÃ³n con el operando padre correcto",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "J: M1 anidado y 4363, relaciones completas"
       },
       "private_calls": [
@@ -3003,10 +3191,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Unión hija diferida conserva relación con el operando padre correcto; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "UniÃ³n hija diferida conserva relaciÃ³n con el operando padre correcto; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_119",
       "fixture_family": "J: M1 anidado y 4363, relaciones completas",
-      "private_invariant_destination": "Unión hija diferida conserva relación con el operando padre correcto"
+      "private_invariant_destination": "UniÃ³n hija diferida conserva relaciÃ³n con el operando padre correcto",
+      "private_invariant_new_model": "JoinRecord hijo conserva su operand OccurrenceId; Completion del padre no reemplaza su origen escrito.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_partial_result_conflict_defers_join",
@@ -3014,9 +3204,9 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Conflicto parcial Result espera evidencia antes de emitir unión",
-        "internal": "Sí: `concrete,type_nodes`",
-        "proposed_cli": "R: Result con payload pendiente y asignación completadora"
+        "observable": "Conflicto parcial Result espera evidencia antes de emitir uniÃ³n",
+        "internal": "SÃ­: `concrete,type_nodes`",
+        "proposed_cli": "R: Result con payload pendiente y asignaciÃ³n completadora"
       },
       "private_calls": [
         "concrete",
@@ -3030,10 +3220,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Conflicto parcial Result espera evidencia antes de emitir unión; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Conflicto parcial Result espera evidencia antes de emitir uniÃ³n; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_120",
-      "fixture_family": "R: Result con payload pendiente y asignación completadora",
-      "private_invariant_destination": "Conflicto parcial Result espera evidencia antes de emitir unión"
+      "fixture_family": "R: Result con payload pendiente y asignaciÃ³n completadora",
+      "private_invariant_destination": "Conflicto parcial Result espera evidencia antes de emitir uniÃ³n",
+      "private_invariant_new_model": "JoinRecord Result Partial queda Suspended hasta que ambos payloads acrediten tipo; no denuncia antes.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_array_join_wraps_pending_operand_shapes",
@@ -3041,8 +3233,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Unión Array con operandos pendientes conserva constructor exterior",
-        "internal": "Sí: método de unificación o estado privado",
+        "observable": "UniÃ³n Array con operandos pendientes conserva constructor exterior",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
         "proposed_cli": "C: `completion_unresolved` y `T5_constructor_equivalent`"
       },
       "private_calls": [
@@ -3058,10 +3250,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Unión Array con operandos pendientes conserva constructor exterior; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "UniÃ³n Array con operandos pendientes conserva constructor exterior; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_121",
       "fixture_family": "C: `completion_unresolved` y `T5_constructor_equivalent`",
-      "private_invariant_destination": "Unión Array con operandos pendientes conserva constructor exterior"
+      "private_invariant_destination": "UniÃ³n Array con operandos pendientes conserva constructor exterior",
+      "private_invariant_new_model": "JoinRecord Array mantiene ConstructorDuty exterior mientras el EqualityRecord de elemento espera Completion.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor3_nested_partial_result_deferral_keeps_array_shape",
@@ -3070,7 +3264,7 @@
       "private_checker_api": true,
       "previous_inventory": {
         "observable": "Result parcial anidado conserva Array exterior sin falso C",
-        "internal": "Sí: `concrete,type_nodes`",
+        "internal": "SÃ­: `concrete,type_nodes`",
         "proposed_cli": "R: `Result<Array<I64>,I64>` anidado con payload pendiente"
       },
       "private_calls": [
@@ -3083,10 +3277,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Result parcial anidado conserva Array exterior sin falso C; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Result parcial anidado conserva Array exterior sin falso C; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_122",
       "fixture_family": "R: `Result<Array<I64>,I64>` anidado con payload pendiente",
-      "private_invariant_destination": "Result parcial anidado conserva Array exterior sin falso C"
+      "private_invariant_destination": "Result parcial anidado conserva Array exterior sin falso C",
+      "private_invariant_new_model": "Result Partial anidado no elimina ConstructorDuty Array exterior durante el replay.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor4_deferred_bind_keeps_branch_policy",
@@ -3094,8 +3290,8 @@
       "class": "previous_59",
       "private_checker_api": true,
       "previous_inventory": {
-        "observable": "Enlace diferido conserva política de denuncia única por rama",
-        "internal": "Sí: método de unificación o estado privado",
+        "observable": "Enlace diferido conserva polÃ­tica de denuncia Ãºnica por rama",
+        "internal": "SÃ­: mÃ©todo de unificaciÃ³n o estado privado",
         "proposed_cli": "J: `W1_atomic_compound` y `M2_partial_witness_chain`"
       },
       "private_calls": [
@@ -3113,10 +3309,12 @@
       ],
       "asserted_fields": [],
       "action": "portar_observable_cli_y_privado_libro",
-      "destination_assertions": "Enlace diferido conserva política de denuncia única por rama; conservar literalmente campos de diagnóstico (código, subcausa, primario, data y related_spans)",
+      "destination_assertions": "Enlace diferido conserva polÃ­tica de denuncia Ãºnica por rama; conservar literalmente campos de diagnÃ³stico (cÃ³digo, subcausa, primario, data y related_spans)",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_123",
       "fixture_family": "J: `W1_atomic_compound` y `M2_partial_witness_chain`",
-      "private_invariant_destination": "Enlace diferido conserva política de denuncia única por rama"
+      "private_invariant_destination": "Enlace diferido conserva polÃ­tica de denuncia Ãºnica por rama",
+      "private_invariant_new_model": "JoinRecord pendiente reserva una causa por rama; Completion del binding no duplica ni desplaza C.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
     },
     {
       "source_test": "i07c_survivor4_invalid_control_condition_taints_visit",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the structural integrity of the R6 v3 frozen specification."""
+"""Check the structural integrity of the R6 v4 frozen specification."""
 
 import hashlib
 import importlib.util
@@ -36,6 +36,26 @@ for family, size in (("directed74_normative_ids", 74), ("matrix45_normative_ids"
         previous = current
     assert len(previous) == size
 assert gates["directed74_unique_sources"] == 48
+assert gates["commits"]["C1"]["c1_excluded_until_c3"]
+assert not gates["commits"]["C1"]["w1_w1a_full_normative"]
+assert gates["commits"]["C3"]["w1_w1a_full_normative"]
+assert gates["commits"]["C3"]["match_conservation_24_full_main"]
+
+witnesses = data("r9-witness-discriminator.json")["rows"]
+assert len(witnesses) == 24
+assert len({row["id"] for row in witnesses}) == 24
+matrix_match = data("r8-match-main.json")["rows"]
+for index in (4, 44):
+    probe = next(row for row in witnesses if row["id"] == f"match-index-{index}")
+    assert probe["expected_main"] == matrix_match[index]["expected_main"]
+    assert probe["source"] == matrix_match[index]["source"]
+
+f2_variants = data("r9-f2-variants.json")["rows"]
+assert len(f2_variants) == 7
+for id_ in ("P3_result_both_payloads_pending", "P4_result_err_only_pending"):
+    row = next(r for r in f2_variants if r["id"] == id_)
+    assert row["source"][77:83] == "Err(r)"
+    assert row["expected_adr"]["diagnosticos"][0]["relations"][0]["span"] == [77, 83]
 
 f2 = next(x for x in data("r8-f2-ajeno4.json")["rows"] if x["id"] == "c1-13262")
 assert f2["expected_main_compact"][0][-1] == [142, 143]
@@ -45,6 +65,11 @@ migration = data("r9-test-migration.json")["rows"]
 assert len(migration) == len({x["source_test"] for x in migration}) == 124
 assert sum(x["class"] == "former_65" for x in migration) == 65
 assert sum(x["class"] == "former_65" and x["private_checker_api"] for x in migration) == 21
-assert sum(x["action"] == "conservar_sin_cambio" for x in migration) == 44
+assert sum(x["action"] == "conservar_sin_cambio" for x in migration) == 40
+assert sum(x["action"] == "sustituir_mecanismo_por_cli" for x in migration) == 8
+assert sum(x["action"] == "reescribir_precedencia_recorrido_comprobacion" for x in migration) == 5
+assert sum(x["action"] == "reescribir_cuota_propiedad_11_1" for x in migration) == 12
+assert all(x.get("private_invariant_new_model") for x in migration if x["action"] == "portar_observable_cli_y_privado_libro")
+assert all(x.get("approval", "").startswith("aprobacion expresa") for x in migration if x["action"] in ("reescribir_precedencia_recorrido_comprobacion", "reescribir_cuota_propiedad_11_1"))
 
 print("r9 contract structure OK")
