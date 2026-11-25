@@ -1,0 +1,2107 @@
+{
+  "binary_sha256": "bf5cb6e764153006b06ef6dda55fd3d1654fcd566c94c873f54110ea2decfb00",
+  "variants": {
+    "r4_event_replay": {
+      "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r4replay,r1t5",
+      "probes": {
+        "t2192": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              67,
+              69
+            ],
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              124,
+              125
+            ]
+          ]
+        },
+        "t3584": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              146,
+              148
+            ]
+          ]
+        },
+        "t3584_min": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              65,
+              68
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              85,
+              86
+            ]
+          ]
+        },
+        "w0_min": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ],
+            [
+              "NX-E1303",
+              null,
+              52,
+              53
+            ]
+          ]
+        },
+        "projection_unrelated": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              85,
+              88
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              105,
+              106
+            ]
+          ]
+        },
+        "projection_nested_c1_1976": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ]
+          ]
+        },
+        "projection_union_97": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              null,
+              25,
+              27
+            ]
+          ]
+        },
+        "t3594": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              140,
+              141
+            ]
+          ]
+        },
+        "t3596": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              145,
+              149
+            ]
+          ]
+        },
+        "t7094": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              140,
+              141
+            ]
+          ]
+        },
+        "planned": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              59,
+              63
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              90,
+              91
+            ]
+          ]
+        },
+        "planned_full": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              152,
+              153
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              159,
+              163
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              176,
+              177
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              190,
+              191
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              215,
+              221
+            ]
+          ]
+        },
+        "incompatible_prefix": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              53,
+              60
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              66,
+              67
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ]
+          ]
+        },
+        "anchored_first_branch": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              136,
+              137
+            ]
+          ]
+        },
+        "recursive": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              66,
+              67
+            ]
+          ]
+        },
+        "positive": {
+          "ok": true,
+          "actual": []
+        }
+      },
+      "matrix": {
+        "R1": {
+          "ok": true
+        },
+        "R1twin": {
+          "ok": true
+        },
+        "R3c": {
+          "ok": true
+        },
+        "R2": {
+          "ok": true
+        },
+        "R2b": {
+          "ok": true
+        },
+        "R3": {
+          "ok": true
+        },
+        "R3b": {
+          "ok": true
+        },
+        "R4": {
+          "ok": true
+        },
+        "X_R1na": {
+          "ok": true
+        },
+        "X_R1ord": {
+          "ok": true
+        },
+        "X_flat3": {
+          "ok": true
+        },
+        "Y_pend_if": {
+          "ok": true
+        },
+        "Y_pend_if2": {
+          "ok": true
+        },
+        "X_mix3": {
+          "ok": true
+        },
+        "X_R4asg_r": {
+          "ok": true
+        },
+        "X_R1inc": {
+          "ok": true
+        },
+        "X_R1pre": {
+          "ok": true
+        },
+        "X_R2na": {
+          "ok": true
+        },
+        "X_R4na": {
+          "ok": true
+        },
+        "X_nest_first": {
+          "ok": true
+        },
+        "Y_conc_if": {
+          "ok": true
+        },
+        "Y_pend_if_asg": {
+          "ok": true
+        },
+        "W0nounion": {
+          "ok": true
+        },
+        "W0": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              69,
+              70
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              69,
+              70
+            ]
+          ]
+        },
+        "A": {
+          "ok": true
+        },
+        "A_reord": {
+          "ok": true
+        },
+        "A_ctrl": {
+          "ok": true
+        },
+        "A_noasg": {
+          "ok": true
+        },
+        "B_qr": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E0103",
+              null,
+              36,
+              38
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              63,
+              64
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              83,
+              84
+            ]
+          ]
+        },
+        "B_rq": {
+          "ok": true
+        },
+        "F06": {
+          "ok": true
+        },
+        "M2": {
+          "ok": true
+        },
+        "O01": {
+          "ok": true
+        },
+        "O03": {
+          "ok": true
+        },
+        "O07": {
+          "ok": true
+        },
+        "O08": {
+          "ok": true
+        },
+        "M2_noasg": {
+          "ok": true
+        },
+        "M2_ctrl": {
+          "ok": true
+        },
+        "DREF_valid": {
+          "ok": true
+        },
+        "P1": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              109,
+              111
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              109,
+              111
+            ]
+          ]
+        },
+        "c3": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              107,
+              109
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              107,
+              109
+            ]
+          ]
+        },
+        "w1": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              87,
+              88
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              108,
+              110
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              108,
+              110
+            ]
+          ]
+        },
+        "P2": {
+          "ok": true
+        },
+        "P3": {
+          "ok": true
+        },
+        "w3": {
+          "ok": true
+        }
+      },
+      "summary": {
+        "probes_ok": 3,
+        "matrix_ok": 40
+      },
+      "binary_sha256": "bf5cb6e764153006b06ef6dda55fd3d1654fcd566c94c873f54110ea2decfb00"
+    },
+    "r4_event_replay_t5_late": {
+      "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r4replay,r1t5,r5t5",
+      "probes": {
+        "t2192": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              67,
+              69
+            ],
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              124,
+              125
+            ]
+          ]
+        },
+        "t3584": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              146,
+              148
+            ]
+          ]
+        },
+        "t3584_min": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              65,
+              68
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              85,
+              86
+            ]
+          ]
+        },
+        "w0_min": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ],
+            [
+              "NX-E1303",
+              null,
+              52,
+              53
+            ]
+          ]
+        },
+        "projection_unrelated": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              85,
+              88
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              105,
+              106
+            ]
+          ]
+        },
+        "projection_nested_c1_1976": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ]
+          ]
+        },
+        "projection_union_97": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ],
+            [
+              "NX-E0103",
+              null,
+              25,
+              27
+            ]
+          ]
+        },
+        "t3594": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              140,
+              141
+            ]
+          ]
+        },
+        "t3596": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              145,
+              149
+            ]
+          ]
+        },
+        "t7094": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              140,
+              141
+            ]
+          ]
+        },
+        "planned": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ],
+            [
+              "NX-E1303",
+              null,
+              69,
+              70
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              106,
+              112
+            ]
+          ]
+        },
+        "planned_full": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              152,
+              153
+            ],
+            [
+              "NX-E1303",
+              null,
+              169,
+              170
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              176,
+              177
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              215,
+              221
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              237,
+              243
+            ]
+          ]
+        },
+        "incompatible_prefix": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              53,
+              60
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              66,
+              67
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ],
+            [
+              "NX-E1303",
+              null,
+              96,
+              97
+            ]
+          ]
+        },
+        "anchored_first_branch": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              136,
+              137
+            ]
+          ]
+        },
+        "recursive": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              66,
+              67
+            ]
+          ]
+        },
+        "positive": {
+          "ok": true,
+          "actual": []
+        }
+      },
+      "matrix": {
+        "R1": {
+          "ok": true
+        },
+        "R1twin": {
+          "ok": true
+        },
+        "R3c": {
+          "ok": true
+        },
+        "R2": {
+          "ok": true
+        },
+        "R2b": {
+          "ok": true
+        },
+        "R3": {
+          "ok": true
+        },
+        "R3b": {
+          "ok": true
+        },
+        "R4": {
+          "ok": true
+        },
+        "X_R1na": {
+          "ok": true
+        },
+        "X_R1ord": {
+          "ok": true
+        },
+        "X_flat3": {
+          "ok": true
+        },
+        "Y_pend_if": {
+          "ok": true
+        },
+        "Y_pend_if2": {
+          "ok": true
+        },
+        "X_mix3": {
+          "ok": true
+        },
+        "X_R4asg_r": {
+          "ok": true
+        },
+        "X_R1inc": {
+          "ok": true
+        },
+        "X_R1pre": {
+          "ok": true
+        },
+        "X_R2na": {
+          "ok": true
+        },
+        "X_R4na": {
+          "ok": true
+        },
+        "X_nest_first": {
+          "ok": true
+        },
+        "Y_conc_if": {
+          "ok": true
+        },
+        "Y_pend_if_asg": {
+          "ok": true
+        },
+        "W0nounion": {
+          "ok": true
+        },
+        "W0": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              69,
+              70
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              69,
+              70
+            ]
+          ]
+        },
+        "A": {
+          "ok": true
+        },
+        "A_reord": {
+          "ok": true
+        },
+        "A_ctrl": {
+          "ok": true
+        },
+        "A_noasg": {
+          "ok": true
+        },
+        "B_qr": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E0103",
+              null,
+              36,
+              38
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              63,
+              64
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              83,
+              84
+            ]
+          ]
+        },
+        "B_rq": {
+          "ok": true
+        },
+        "F06": {
+          "ok": true
+        },
+        "M2": {
+          "ok": true
+        },
+        "O01": {
+          "ok": true
+        },
+        "O03": {
+          "ok": true
+        },
+        "O07": {
+          "ok": true
+        },
+        "O08": {
+          "ok": true
+        },
+        "M2_noasg": {
+          "ok": true
+        },
+        "M2_ctrl": {
+          "ok": true
+        },
+        "DREF_valid": {
+          "ok": true
+        },
+        "P1": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              109,
+              111
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              109,
+              111
+            ]
+          ]
+        },
+        "c3": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              107,
+              109
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              107,
+              109
+            ]
+          ]
+        },
+        "w1": {
+          "ok": false,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              27,
+              29
+            ],
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              87,
+              88
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              108,
+              110
+            ]
+          ],
+          "expected": [
+            [
+              "NX-E1303",
+              null,
+              70,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              108,
+              110
+            ]
+          ]
+        },
+        "P2": {
+          "ok": true
+        },
+        "P3": {
+          "ok": true
+        },
+        "w3": {
+          "ok": true
+        }
+      },
+      "summary": {
+        "probes_ok": 6,
+        "matrix_ok": 40
+      },
+      "binary_sha256": "bf5cb6e764153006b06ef6dda55fd3d1654fcd566c94c873f54110ea2decfb00"
+    },
+    "r5_prefix": {
+      "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r5prefix,r1t5,r5t5",
+      "probes": {
+        "t2192": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ]
+          ]
+        },
+        "t3584": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "t3584_min": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              65,
+              68
+            ]
+          ]
+        },
+        "w0_min": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              52,
+              53
+            ]
+          ]
+        },
+        "projection_unrelated": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              85,
+              88
+            ]
+          ]
+        },
+        "projection_nested_c1_1976": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              150,
+              151
+            ],
+            [
+              "NX-E1303",
+              null,
+              158,
+              159
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              172,
+              173
+            ]
+          ]
+        },
+        "projection_union_97": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ]
+          ]
+        },
+        "t3594": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "t3596": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "t7094": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "planned": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ],
+            [
+              "NX-E1303",
+              null,
+              69,
+              70
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              106,
+              112
+            ]
+          ]
+        },
+        "planned_full": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              152,
+              153
+            ],
+            [
+              "NX-E1303",
+              null,
+              169,
+              170
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              176,
+              177
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              215,
+              221
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              237,
+              243
+            ]
+          ]
+        },
+        "incompatible_prefix": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              53,
+              60
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              66,
+              67
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ],
+            [
+              "NX-E1303",
+              null,
+              96,
+              97
+            ]
+          ]
+        },
+        "anchored_first_branch": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              136,
+              137
+            ]
+          ]
+        },
+        "recursive": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              66,
+              67
+            ]
+          ]
+        },
+        "positive": {
+          "ok": true,
+          "actual": []
+        }
+      },
+      "matrix": {
+        "R1": {
+          "ok": true
+        },
+        "R1twin": {
+          "ok": true
+        },
+        "R3c": {
+          "ok": true
+        },
+        "R2": {
+          "ok": true
+        },
+        "R2b": {
+          "ok": true
+        },
+        "R3": {
+          "ok": true
+        },
+        "R3b": {
+          "ok": true
+        },
+        "R4": {
+          "ok": true
+        },
+        "X_R1na": {
+          "ok": true
+        },
+        "X_R1ord": {
+          "ok": true
+        },
+        "X_flat3": {
+          "ok": true
+        },
+        "Y_pend_if": {
+          "ok": true
+        },
+        "Y_pend_if2": {
+          "ok": true
+        },
+        "X_mix3": {
+          "ok": true
+        },
+        "X_R4asg_r": {
+          "ok": true
+        },
+        "X_R1inc": {
+          "ok": true
+        },
+        "X_R1pre": {
+          "ok": true
+        },
+        "X_R2na": {
+          "ok": true
+        },
+        "X_R4na": {
+          "ok": true
+        },
+        "X_nest_first": {
+          "ok": true
+        },
+        "Y_conc_if": {
+          "ok": true
+        },
+        "Y_pend_if_asg": {
+          "ok": true
+        },
+        "W0nounion": {
+          "ok": true
+        },
+        "W0": {
+          "ok": true
+        },
+        "A": {
+          "ok": true
+        },
+        "A_reord": {
+          "ok": true
+        },
+        "A_ctrl": {
+          "ok": true
+        },
+        "A_noasg": {
+          "ok": true
+        },
+        "B_qr": {
+          "ok": true
+        },
+        "B_rq": {
+          "ok": true
+        },
+        "F06": {
+          "ok": true
+        },
+        "M2": {
+          "ok": true
+        },
+        "O01": {
+          "ok": true
+        },
+        "O03": {
+          "ok": true
+        },
+        "O07": {
+          "ok": true
+        },
+        "O08": {
+          "ok": true
+        },
+        "M2_noasg": {
+          "ok": true
+        },
+        "M2_ctrl": {
+          "ok": true
+        },
+        "DREF_valid": {
+          "ok": true
+        },
+        "P1": {
+          "ok": true
+        },
+        "c3": {
+          "ok": true
+        },
+        "w1": {
+          "ok": true
+        },
+        "P2": {
+          "ok": true
+        },
+        "P3": {
+          "ok": true
+        },
+        "w3": {
+          "ok": true
+        }
+      },
+      "summary": {
+        "probes_ok": 16,
+        "matrix_ok": 45
+      },
+      "binary_sha256": "bf5cb6e764153006b06ef6dda55fd3d1654fcd566c94c873f54110ea2decfb00"
+    },
+    "r5_prefix_txmarks": {
+      "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,r5prefix,r1t5,r5t5,txmarks,txmarksproj",
+      "probes": {
+        "t2192": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ]
+          ]
+        },
+        "t3584": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "t3584_min": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              65,
+              68
+            ]
+          ]
+        },
+        "w0_min": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              52,
+              53
+            ]
+          ]
+        },
+        "projection_unrelated": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E1303",
+              null,
+              85,
+              88
+            ]
+          ]
+        },
+        "projection_nested_c1_1976": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              150,
+              151
+            ],
+            [
+              "NX-E1303",
+              null,
+              158,
+              159
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              172,
+              173
+            ]
+          ]
+        },
+        "projection_union_97": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ]
+          ]
+        },
+        "t3594": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "t3596": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              76,
+              78
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "t7094": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              85,
+              87
+            ],
+            [
+              "NX-E1303",
+              null,
+              126,
+              128
+            ]
+          ]
+        },
+        "planned": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ],
+            [
+              "NX-E1303",
+              null,
+              69,
+              70
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              106,
+              112
+            ]
+          ]
+        },
+        "planned_full": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              152,
+              153
+            ],
+            [
+              "NX-E1303",
+              null,
+              169,
+              170
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              176,
+              177
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              215,
+              221
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              237,
+              243
+            ]
+          ]
+        },
+        "incompatible_prefix": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              53,
+              60
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              66,
+              67
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ],
+            [
+              "NX-E1303",
+              null,
+              96,
+              97
+            ]
+          ]
+        },
+        "anchored_first_branch": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              136,
+              137
+            ]
+          ]
+        },
+        "recursive": {
+          "ok": true,
+          "actual": [
+            [
+              "NX-E0103",
+              null,
+              66,
+              67
+            ]
+          ]
+        },
+        "positive": {
+          "ok": true,
+          "actual": []
+        }
+      },
+      "matrix": {
+        "R1": {
+          "ok": true
+        },
+        "R1twin": {
+          "ok": true
+        },
+        "R3c": {
+          "ok": true
+        },
+        "R2": {
+          "ok": true
+        },
+        "R2b": {
+          "ok": true
+        },
+        "R3": {
+          "ok": true
+        },
+        "R3b": {
+          "ok": true
+        },
+        "R4": {
+          "ok": true
+        },
+        "X_R1na": {
+          "ok": true
+        },
+        "X_R1ord": {
+          "ok": true
+        },
+        "X_flat3": {
+          "ok": true
+        },
+        "Y_pend_if": {
+          "ok": true
+        },
+        "Y_pend_if2": {
+          "ok": true
+        },
+        "X_mix3": {
+          "ok": true
+        },
+        "X_R4asg_r": {
+          "ok": true
+        },
+        "X_R1inc": {
+          "ok": true
+        },
+        "X_R1pre": {
+          "ok": true
+        },
+        "X_R2na": {
+          "ok": true
+        },
+        "X_R4na": {
+          "ok": true
+        },
+        "X_nest_first": {
+          "ok": true
+        },
+        "Y_conc_if": {
+          "ok": true
+        },
+        "Y_pend_if_asg": {
+          "ok": true
+        },
+        "W0nounion": {
+          "ok": true
+        },
+        "W0": {
+          "ok": true
+        },
+        "A": {
+          "ok": true
+        },
+        "A_reord": {
+          "ok": true
+        },
+        "A_ctrl": {
+          "ok": true
+        },
+        "A_noasg": {
+          "ok": true
+        },
+        "B_qr": {
+          "ok": true
+        },
+        "B_rq": {
+          "ok": true
+        },
+        "F06": {
+          "ok": true
+        },
+        "M2": {
+          "ok": true
+        },
+        "O01": {
+          "ok": true
+        },
+        "O03": {
+          "ok": true
+        },
+        "O07": {
+          "ok": true
+        },
+        "O08": {
+          "ok": true
+        },
+        "M2_noasg": {
+          "ok": true
+        },
+        "M2_ctrl": {
+          "ok": true
+        },
+        "DREF_valid": {
+          "ok": true
+        },
+        "P1": {
+          "ok": true
+        },
+        "c3": {
+          "ok": true
+        },
+        "w1": {
+          "ok": true
+        },
+        "P2": {
+          "ok": true
+        },
+        "P3": {
+          "ok": true
+        },
+        "w3": {
+          "ok": true
+        }
+      },
+      "summary": {
+        "probes_ok": 16,
+        "matrix_ok": 45
+      },
+      "binary_sha256": "bf5cb6e764153006b06ef6dda55fd3d1654fcd566c94c873f54110ea2decfb00"
+    }
+  }
+}
