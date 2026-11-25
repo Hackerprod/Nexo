@@ -2,6 +2,28 @@
 
 Estado: **exploración reabierta; sin PASS; ningún plan de Flujo B**. Base de código: `origin/main` `6e22181` para `src/check/types.rs`; los corpus históricos y el oráculo se leen del blob de `origin/i07c-estructural-r2`. El prototipo desechable y los resúmenes publicados están en `i07c-rediseno-proto`; sus cambios de `src/` no son entregables de integración. La parada anterior tras una regresión en t3584 fue prematura. Esta continuación analiza ese defecto y ejecuta el barrido por lotes.
 
+## Barrido completo de `txmarksproj` (release, `check`)
+
+Los trece conjuntos/perfiles siguientes quedaron medidos con el binario `txmarksproj` SHA-256 `57f9db1da0d2…` frente a `main` `44bef37452e4…`, corpus congelados comprobados por SHA, cuatro hilos y un solo lote bajo `heavy-lock` cada vez. A/B/C/D de núcleo solo cuenta filas modeladas: A = `main` correcto y variante incorrecta, B = variante correcta y `main` incorrecto, C = ambos incorrectos iguales, D = ambos incorrectos distintos. `A full` incluye tipos y relación de procedencia. `Δ sin oráculo` es diferencia frente a `main` **sin calificar**. Los JSON íntegros están en `docs/validation/i07c-rediseno/barrido/` de la rama desechable; ningún lote informó error o hijo inconcluso.
+
+| corpus/perfil | filas modeladas / total | core A/B/C/D | A full | Δ sin oráculo |
+|---|---:|---:|---:|---:|
+| c1 | 24.000 / 24.000 | 9/2762/5/2 | 5 | 0 |
+| c2 · `f0-0002-b-v2` | 15.809 / 16.000 | 3/641/7685/72 | 1 | 13 |
+| c2 · `f0-0003-b-v1` | 15.809 / 16.000 | 5/1091/2370/146 | 3 | 13 |
+| corpus-b | 3.959 / 4.000 | 1/546/309/3 | 1 | 0 |
+| perm | 3.822 / 4.044 | 4/340/4/0 | 9 | 0 |
+| corpus-t | 0 / 10.584 | — | — | 4.781 |
+| B 7021993 | 1.098 / 4.500 | 1/206/0/1 | 0 | 546 |
+| B 4417061 | 1.138 / 4.500 | 1/221/0/3 | 0 | 546 |
+| B 9908255 | 1.108 / 4.500 | 0/177/0/2 | 1 | 539 |
+| dirigido5 | 0 / 6.000 | — | — | 123 |
+| c1-nueva | 8.000 / 8.000 | 2/819/0/3 | 1 | 0 |
+| c2-nueva · `f0-0002-b-v2` | 7.910 / 8.000 | 2/293/3938/34 | 0 | 7 |
+| c2-nueva · `f0-0003-b-v1` | 7.910 / 8.000 | 3/555/1186/61 | 2 | 7 |
+
+Los A del corpus nuevo hacen aplicable la parada del brief §5 por causa estructural común. Los detalles por familia y las adjudicaciones `takeempty` siguen abajo. Este barrido no es una prueba de aceptación `run`, debug/release ni PASS.
+
 ## Continuación: mínimo, causa y sondas baratas
 
 Se redujo t3584 a 89 bytes, ASCII sin BOM ni LF final, perfil `f0-0002-b-v2`:
