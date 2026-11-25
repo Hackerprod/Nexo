@@ -1,0 +1,2029 @@
+{
+  "main_sha256": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+  "r6_sha256": "66c2cf310e7a2f846798f5d893d013c79998bc0ad57b0dce6db7fdeda2934ccd",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+  "rows": [
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t2192",
+      "source_sha256": "784e527b40813f0fc331aaea25b3239f4c51471b7cddb667e2be531320c31e33",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.56,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.174,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.914,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.724,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3584",
+      "source_sha256": "ab4c3c769879777bd7ec9f59677f6ea3a851a27df54a5f65f61b41d18ace0265",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 30.01,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.75,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.801,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.793,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3584_min",
+      "source_sha256": "41012ff6f44e6eb3ecd669c1c2c03c26ae4b28392be5f685cf196177a1ba7a9e",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.056,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.935,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.923,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.077,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "w0_min",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.751,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.862,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.713,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.167,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "projection_unrelated",
+      "source_sha256": "040410d957e528382d27df3623fd25d9e4e42aa6f265a09cf66ff4ac7abc7dd7",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.755,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.232,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.152,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.15,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "projection_nested_c1_1976",
+      "source_sha256": "7f927e09d8483a06c908e0f5dddfcd0bcbef91f30078ed36502a5c38503426b2",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.933,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.901,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.824,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.942,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "projection_union_97",
+      "source_sha256": "26d32b2e987506c9603483fcdce41f4e6a902d871f388cc0250b1a9750a5ee06",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.13,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.165,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.969,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.876,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3594",
+      "source_sha256": "6b97763899415bbe0848b3844509285416f4c0be9c17390e702acdbd10ee6d62",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.152,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.804,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.395,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.817,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t3596",
+      "source_sha256": "31d4d350dba3365cd17b829a4d899654fd3bda631f0173e5446b6b741b0323d6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.816,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.075,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.994,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.063,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "t7094",
+      "source_sha256": "09f11163f6c53d66a0830f45877184a7950f6981c68836c6eb48dc3439e63cf6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.696,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.945,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.189,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.158,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "planned",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.866,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.463,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.826,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.808,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "planned_full",
+      "source_sha256": "8aab0f16f7e48218a63d3acb3693a8b006d90c085b140e70627dc53d27ad1552",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.93,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.992,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.891,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.235,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "incompatible_prefix",
+      "source_sha256": "f9226de0192bf53eac641da575489d671cb4b76faf6baee7a1f42276c36954b8",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.064,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.884,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.351,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.846,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "anchored_first_branch",
+      "source_sha256": "9dad19885297068a2254f856c6040bfd6f90df0b0b2628dbd298c4ad17dc07df",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 30.075,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.484,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.893,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.336,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "recursive",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.791,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.956,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.774,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.846,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "positive",
+      "source_sha256": "4aebc3e14c2d8e77a263e8ed0189701466e284bfd1f49ecad3beaa4024e71bc2",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 22.108,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 22.028,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.955,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 22.235,
+            "accepted": true
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "M1",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.929,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.207,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.973,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.787,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0002-b-v2",
+      "name": "M2",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.925,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.169,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.465,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.063,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t2192",
+      "source_sha256": "784e527b40813f0fc331aaea25b3239f4c51471b7cddb667e2be531320c31e33",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.704,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.972,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.472,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.897,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3584",
+      "source_sha256": "ab4c3c769879777bd7ec9f59677f6ea3a851a27df54a5f65f61b41d18ace0265",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.953,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.121,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.38,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.405,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3584_min",
+      "source_sha256": "41012ff6f44e6eb3ecd669c1c2c03c26ae4b28392be5f685cf196177a1ba7a9e",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.639,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.99,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.793,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.004,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "w0_min",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.929,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.095,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.939,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.664,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "projection_unrelated",
+      "source_sha256": "040410d957e528382d27df3623fd25d9e4e42aa6f265a09cf66ff4ac7abc7dd7",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.874,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.788,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.042,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.703,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "projection_nested_c1_1976",
+      "source_sha256": "7f927e09d8483a06c908e0f5dddfcd0bcbef91f30078ed36502a5c38503426b2",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.067,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.782,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 30.326,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.715,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "projection_union_97",
+      "source_sha256": "26d32b2e987506c9603483fcdce41f4e6a902d871f388cc0250b1a9750a5ee06",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.842,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.182,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.024,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.948,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3594",
+      "source_sha256": "6b97763899415bbe0848b3844509285416f4c0be9c17390e702acdbd10ee6d62",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.056,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.115,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.809,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.269,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t3596",
+      "source_sha256": "31d4d350dba3365cd17b829a4d899654fd3bda631f0173e5446b6b741b0323d6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.966,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.151,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.953,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.017,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "t7094",
+      "source_sha256": "09f11163f6c53d66a0830f45877184a7950f6981c68836c6eb48dc3439e63cf6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.095,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.133,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.294,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.161,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "planned",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.167,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.858,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.844,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.135,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "planned_full",
+      "source_sha256": "8aab0f16f7e48218a63d3acb3693a8b006d90c085b140e70627dc53d27ad1552",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.103,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.33,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.759,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.143,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "incompatible_prefix",
+      "source_sha256": "f9226de0192bf53eac641da575489d671cb4b76faf6baee7a1f42276c36954b8",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.582,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.915,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.759,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.953,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "anchored_first_branch",
+      "source_sha256": "9dad19885297068a2254f856c6040bfd6f90df0b0b2628dbd298c4ad17dc07df",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.831,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.299,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.662,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.042,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "recursive",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.881,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.856,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.957,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.988,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "positive",
+      "source_sha256": "4aebc3e14c2d8e77a263e8ed0189701466e284bfd1f49ecad3beaa4024e71bc2",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.756,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 22.002,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 22.11,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 21.694,
+            "accepted": true
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "M1",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.834,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.944,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.73,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.845,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0003-b-v1",
+      "name": "M2",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.981,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 29.472,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.824,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.088,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t2192",
+      "source_sha256": "784e527b40813f0fc331aaea25b3239f4c51471b7cddb667e2be531320c31e33",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.17,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.272,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.965,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.957,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3584",
+      "source_sha256": "ab4c3c769879777bd7ec9f59677f6ea3a851a27df54a5f65f61b41d18ace0265",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.1,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.188,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.831,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.354,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3584_min",
+      "source_sha256": "41012ff6f44e6eb3ecd669c1c2c03c26ae4b28392be5f685cf196177a1ba7a9e",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.087,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.132,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.897,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.112,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "w0_min",
+      "source_sha256": "9d9cf96bdc175f5d210ddb33a24e31b4890d00140f7d890a9f8d3864c7323358",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.17,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.868,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.753,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.696,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "projection_unrelated",
+      "source_sha256": "040410d957e528382d27df3623fd25d9e4e42aa6f265a09cf66ff4ac7abc7dd7",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.661,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.121,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.062,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.007,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "projection_nested_c1_1976",
+      "source_sha256": "7f927e09d8483a06c908e0f5dddfcd0bcbef91f30078ed36502a5c38503426b2",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.108,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.969,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.305,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.973,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "projection_union_97",
+      "source_sha256": "26d32b2e987506c9603483fcdce41f4e6a902d871f388cc0250b1a9750a5ee06",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.972,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.027,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.916,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.033,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3594",
+      "source_sha256": "6b97763899415bbe0848b3844509285416f4c0be9c17390e702acdbd10ee6d62",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.296,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.781,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.773,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.182,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t3596",
+      "source_sha256": "31d4d350dba3365cd17b829a4d899654fd3bda631f0173e5446b6b741b0323d6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.938,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.238,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.735,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.111,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "t7094",
+      "source_sha256": "09f11163f6c53d66a0830f45877184a7950f6981c68836c6eb48dc3439e63cf6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 25.209,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.703,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.054,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.279,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "planned",
+      "source_sha256": "676f38d6ef6a7e4196ec03122f0c7e51979faf5873f2e0ab473c4e07c76fef2e",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.139,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.099,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.025,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.872,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "planned_full",
+      "source_sha256": "8aab0f16f7e48218a63d3acb3693a8b006d90c085b140e70627dc53d27ad1552",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.4,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.258,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.326,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.03,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "incompatible_prefix",
+      "source_sha256": "f9226de0192bf53eac641da575489d671cb4b76faf6baee7a1f42276c36954b8",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.141,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.169,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.867,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.79,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "anchored_first_branch",
+      "source_sha256": "9dad19885297068a2254f856c6040bfd6f90df0b0b2628dbd298c4ad17dc07df",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.922,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.064,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.145,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.147,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "recursive",
+      "source_sha256": "b54b3da16b4c846a3e2228472cd032518c6dee13838d5864eef15d17795acab6",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.085,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.111,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.109,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.216,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "positive",
+      "source_sha256": "4aebc3e14c2d8e77a263e8ed0189701466e284bfd1f49ecad3beaa4024e71bc2",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 21.93,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 22.399,
+            "accepted": true
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 0,
+            "outcome": "checked",
+            "elapsed_ms": 22.053,
+            "accepted": true
+          },
+          "run": {
+            "exit": 0,
+            "outcome": "unit",
+            "elapsed_ms": 22.058,
+            "accepted": true
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "M1",
+      "source_sha256": "7ba928dd9f4552a6c349d439ff4ba6fa7353402f578f1d0d24c5eddcfc797a49",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.829,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.096,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.202,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.206,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    },
+    {
+      "profile": "f0-0005-b-v1",
+      "name": "M2",
+      "source_sha256": "1135e0a3d7be563c309456b4fa1e68a888fb2c14783fb3db8919d362e2afb6cc",
+      "readings": {
+        "main": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 22.084,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.938,
+            "accepted": false
+          }
+        },
+        "r6": {
+          "check": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.824,
+            "accepted": false
+          },
+          "run": {
+            "exit": 1,
+            "outcome": "rejected",
+            "elapsed_ms": 21.673,
+            "accepted": false
+          }
+        }
+      },
+      "check_run_same": true,
+      "main_r6_same": true
+    }
+  ],
+  "timing": {
+    "main": {
+      "check": {
+        "median_ms": 21.977,
+        "n": 54
+      },
+      "run": {
+        "median_ms": 22.069,
+        "n": 54
+      }
+    },
+    "r6": {
+      "check": {
+        "median_ms": 21.961,
+        "n": 54
+      },
+      "run": {
+        "median_ms": 22.023,
+        "n": 54
+      }
+    }
+  },
+  "check_run_failures": [],
+  "main_r6_failures": []
+}
