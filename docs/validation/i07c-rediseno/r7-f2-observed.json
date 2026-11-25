@@ -1,0 +1,225 @@
+{
+  "schema": "i07c-r7-f2-observed-v1",
+  "prototype_commit": "654e322422f3b44f5e182718e8fcd41d7941bed6",
+  "binary_sha256": "c4dff09f7fdc4b8243f02dfa1b91ca368f42247f609932f019da7494798ffff5",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness,rmm3b",
+  "rows": [
+    {
+      "id": "rejected_assignment",
+      "source_sha256": "1b77e2abddc90489b076208624650a3d20dfdef7314929b0c53dc4686f59733f",
+      "expected": [
+        {
+          "primary": [
+            72,
+            73
+          ],
+          "expected_type_relation": [
+            57,
+            58
+          ]
+        }
+      ],
+      "observed": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          72,
+          73,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            70,
+            71
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "omitted_relation",
+      "source_sha256": "8012d4d68b3142b7dee0fe9573e8bd30c1ad0d8abca1fff44db7cf803695916e",
+      "expected": [
+        {
+          "primary": [
+            72,
+            76
+          ],
+          "expected_type_relation": [
+            57,
+            60
+          ]
+        }
+      ],
+      "observed": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          72,
+          76,
+          "Array<Array<I64>>",
+          "Bool",
+          null
+        ]
+      ]
+    },
+    {
+      "id": "later_completion",
+      "source_sha256": "ddae0dce0250422ec93f9e59821eec1b09017ca9cea9deeac0c91bbf3818aa02",
+      "expected": [
+        {
+          "primary": [
+            100,
+            104
+          ],
+          "expected_type_relation": [
+            58,
+            78
+          ]
+        }
+      ],
+      "observed": [
+        [
+          "NX-E1303",
+          null,
+          77,
+          78,
+          "Array<Array<Bool>>",
+          "I64",
+          [
+            68,
+            71
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          100,
+          104,
+          "Array<Bool>",
+          "Bool",
+          [
+            90,
+            96
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "unrelated_operand",
+      "source_sha256": "9c0b7ee84bfa0747818f0fbaf36d0bda326600e916fe492ef24385ee3f6a5485",
+      "expected": [
+        {
+          "primary": [
+            222,
+            224
+          ],
+          "expected_type_relation": [
+            183,
+            184
+          ]
+        },
+        {
+          "primary": [
+            227,
+            228
+          ],
+          "expected_type_relation": [
+            183,
+            184
+          ]
+        }
+      ],
+      "observed": [
+        [
+          "NX-E1303",
+          null,
+          131,
+          134,
+          "I64",
+          "Array<Array<I64>>",
+          [
+            92,
+            113
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          202,
+          206,
+          "Array<I64>",
+          "I64",
+          [
+            163,
+            184
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          222,
+          224,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            102,
+            103
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          227,
+          228,
+          "Array<Array<I64>>",
+          "Array<I64>",
+          [
+            102,
+            103
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "concrete_rhs_oracle_correction",
+      "source_sha256": "e564ac7d11c2525707afe3d73092ec81d5039d7a9ba34cf992225e0ac4bdb618",
+      "expected": [
+        {
+          "primary": [
+            125,
+            127
+          ],
+          "expected_type_relation": [
+            85,
+            90
+          ]
+        }
+      ],
+      "observed": [
+        [
+          "NX-E1303",
+          null,
+          117,
+          118,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            110,
+            111
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          125,
+          127,
+          "I64",
+          "Array<I64>",
+          [
+            85,
+            90
+          ]
+        ]
+      ]
+    }
+  ]
+}
