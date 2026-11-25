@@ -276,7 +276,7 @@ El corpus base sigue limitado a una función `Main`, seis hojas y profundidad tr
 
 ## Continuación 5: sondas de representación (resultado parcial)
 
-Los resultados reproducibles están en `docs/validation/i07c-rediseno/r45-sondas.json` de la rama desechable y se atan al SHA-256 del binario. La matriz usa el oráculo T5/N; estas filas son **sondas**, no el barrido de los trece conjuntos/perfiles. Ninguna variante de esta tabla autoriza todavía un plan de integración.
+Los resultados reproducibles están en `docs/validation/i07c-rediseno/r45-sondas-inicial.json` de la rama desechable y se atan al SHA-256 del binario. La matriz usa el oráculo T5/N; estas filas son **sondas**, no el barrido de los trece conjuntos/perfiles. Ninguna variante de esta tabla autoriza todavía un plan de integración.
 
 | instrumento | sondas /16 | T5/N /45 | contraejemplo y causa inmediata |
 |---|---:|---:|---|
