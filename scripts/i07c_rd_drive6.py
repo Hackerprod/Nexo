@@ -84,6 +84,13 @@ def main():
     session_started = time.monotonic()
     print(json.dumps({"base_sha256": base_hash, "candidate_sha256": candidate_hash,
                       "base_tag": base_tag, "candidate_tag": candidate_tag}), flush=True)
+    match_table = DEST / "r5-match103.json"
+    if not match_table.exists():
+        match_result = subprocess.run(
+            [sys.executable, "-B", "scripts/i07c_rd_match103.py", BASE, CANDIDATE],
+            capture_output=True, text=True, check=True,
+        )
+        print(match_result.stdout.strip(), flush=True)
     selection = sys.argv[1:] or CORPORA
     for corpus in selection:
         if corpus not in CORPORA:
