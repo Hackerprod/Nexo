@@ -56,6 +56,11 @@ for index in (4, 44):
 
 f2_variants = data("r9-f2-variants.json")["rows"]
 assert len(f2_variants) == 7
+for id_ in ("result_ok_before_err", "result_two_mismatches"):
+    row = next(r for r in f2_variants if r["id"] == id_)
+    assert row["authority"] == "class_I_revertible"
+    assert "expected_adr" not in row
+    assert row["expected_class_I_conservation"]
 for id_ in ("P3_result_both_payloads_pending", "P4_result_err_only_pending"):
     row = next(r for r in f2_variants if r["id"] == id_)
     assert row["source"][77:83] == "Err(r)"
@@ -74,6 +79,6 @@ assert sum(x["action"] == "sustituir_mecanismo_por_cli" for x in migration) == 8
 assert sum(x["action"] == "reescribir_precedencia_recorrido_comprobacion" for x in migration) == 5
 assert sum(x["action"] == "reescribir_cuota_propiedad_11_1" for x in migration) == 12
 assert all(x.get("private_invariant_new_model") for x in migration if x["action"] == "portar_observable_cli_y_privado_libro")
-assert all(x.get("approval", "").startswith("aprobacion expresa") for x in migration if x["action"] in ("reescribir_precedencia_recorrido_comprobacion", "reescribir_cuota_propiedad_11_1"))
+assert all(x.get("approval", "").startswith("aprobación expresa") for x in migration if x["action"] in ("reescribir_precedencia_recorrido_comprobacion", "reescribir_cuota_propiedad_11_1"))
 
 print("r9 contract structure OK")

@@ -162,7 +162,7 @@
       "destination_assertions": "Reservas C de dos OccurrenceId con causa distinta materializan ambos diagnosticos; sibling independiente conserva codigo, primario y relaciones. Positivo y negativo CLI preservan todos los campos observables del test original.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_008",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_new_model": "Reservas C de dos OccurrenceId con causa distinta materializan ambos diagnosticos; sibling independiente conserva codigo, primario y relaciones.",
+      "private_invariant_new_model": "Reservas C de dos OccurrenceId con causa distinta materializan ambos diagnósticos; sibling independiente conserva código, primario y relaciónes.",
       "owner_commit": "C4",
       "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
@@ -188,7 +188,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "mismo diagnÃ³stico del operando anidado y conservaciÃ³n de las causas independientes tras completar el padre; cÃ³digo, subcausa, primario, data y relaciones idÃ©nticos",
       "private_invariant_new_model": "OriginFact del operando anidado permanece en su componente tras Completion del padre; EqualityRecord de otros hijos no lo sustituye.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "solver_states_and_representatives_keep_their_distinct_rules",
@@ -221,7 +221,7 @@
       "fixture_family": "G: `suspended_68` y `planned`; mismo resultado tras ordenar restricciones",
       "private_invariant_destination": "Estados de solver distintos conservan aceptaciÃ³n y diagnÃ³stico al completar restricciones",
       "private_invariant_new_model": "Cada EqualityRecord conserva Suspended/Committed/Rejected y el representante final solo incorpora aristas de Committed.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "right_hand_bottom_and_taint_keep_their_algebraic_states",
@@ -245,7 +245,7 @@
       "fixture_family": "J: `RS1_condition_contaminated` y `RS2_independent_child_errors`",
       "private_invariant_destination": "Un RHS `Never` o contaminado no fija tipo nominal ni borra C independiente",
       "private_invariant_new_model": "ResultStatus Never/Contaminated del RHS no publica OriginFact ni cambia el representante del destino; C independientes sobreviven.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "concrete_deferred_branch_join_reports_branch_mismatch",
@@ -273,8 +273,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_012",
       "fixture_family": "J: `W1_atomic_compound`, cÃ³digo y primario de la rama",
       "private_invariant_destination": "La uniÃ³n diferida completa y acusa la rama escrita incompatible",
-      "private_invariant_new_model": "JoinRecord espera Completion de la rama y su EqualityRecord rechazada reserva E1303 en la continuacion escrita.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "JoinRecord espera Completion de la rama y su EqualityRecord rechazada reserva E1303 en la continuación escrita.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "union_retains_earliest_concrete_origin_and_copyable_domain",
@@ -305,8 +305,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102 Bool tras I64: expected_type=[10,11); dominio Copyable rechaza MockResource",
       "target_output": "E0102 Bool tras I64: expected_type=[10,11); dominio Copyable rechaza MockResource",
-      "target_reason_adr": "I64 se fija primero en recorrido; union posterior no reemplaza OriginFact. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
-      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "I64 se fija primero en recorrido; unión posterior no reemplaza OriginFact. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "deferred_alias_union_charges_the_written_conflict_site",
@@ -340,7 +340,7 @@
       "fixture_family": "Q: `suspended_68` con cuota y primario del RHS",
       "private_invariant_destination": "Un alias diferido denuncia el operando escrito y cobra su contraste",
       "private_invariant_new_model": "EqualityRecord del alias conserva OccurrenceId del operando escrito y charge_solver se ejecuta antes del contraste.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "overlapping_type_origins_choose_the_earlier_start",
@@ -369,8 +369,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102: Bool/I64, expected_type=[2,12)",
       "target_output": "E0102: I64/Bool, expected_type=[6,7)",
-      "target_reason_adr": "El hijo I64 se comprueba antes del resultado exterior Bool aunque [2,12) empiece antes. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
-      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "El hijo I64 se comprueba antes del resultado exterior Bool aunque [2,12) empiece antes. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "inout_value_delegates_one_contextual_pair_to_its_operand",
@@ -429,7 +429,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "el primer elemento rechazado no fija al posterior; mismos diagnÃ³sticos por elemento y mismo tipo final de las hojas compatibles",
       "private_invariant_new_model": "El EqualityRecord rechazado del primer elemento revierte su journal; ConstructorDuty del elemento posterior sigue activo.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "contextual_all_divergent_if_retains_expected_type_and_divergence",
@@ -499,8 +499,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102: I64/Bool, expected_type=[5,6)",
       "target_output": "E0102: I64/Bool, expected_type=[5,6)",
-      "target_reason_adr": "El hecho I64 precede a Bool en recorrido; rechazo no publica origen. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
-      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "El hecho I64 precede a Bool en recorrido; rechazo no publica origen. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "inferred_array_depth_accepts_127_and_128_and_rejects_129",
@@ -529,8 +529,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_021",
       "fixture_family": "C: generador de arrays 127/128/129 del test por CLI",
       "private_invariant_destination": "Profundidad Array 127/128 aceptada y 129 rechazada con diagnÃ³stico de lÃ­mite",
-      "private_invariant_new_model": "ConstructorDuty de cada enlace Array mide profundidad final del representante; 127/128 son validos y 129 reserva limite.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "ConstructorDuty de cada enlace Array mide profundidad final del representante; 127/128 son válidos y 129 reserva límite.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "inferred_array_root_retains_depth_origin_after_later_constraint",
@@ -558,8 +558,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_022",
       "fixture_family": "F: `later_completion`, relaciÃ³n esperada original",
       "private_invariant_destination": "Una restricciÃ³n posterior conserva el origen de profundidad del primer constructor",
-      "private_invariant_new_model": "OriginFact del primer constructor Array sigue dueno de la profundidad al completar otro EqualityRecord.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "OriginFact del primer constructor Array sigue dueño de la profundidad al completar otro EqualityRecord.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "deferred_visible_conversion_and_constructor_walk_stop_at_their_boundaries",
@@ -587,7 +587,7 @@
       "fixture_family": "C: `completion_unresolved` y `completion_conflict`",
       "private_invariant_destination": "Tipo diferido no se muestra como nominal prematuro ni recorre constructor ajeno",
       "private_invariant_new_model": "Waiting/Suspended no se serializan como nominales y el recorrido de ConstructorDuty se detiene en su componente.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "constructor_walk_keeps_exact_depth_boundaries",
@@ -612,8 +612,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_024",
       "fixture_family": "C: generador de arrays 127/128/129 del test por CLI",
       "private_invariant_destination": "Recorrido de constructor respeta 127/128/129 sin desbordar",
-      "private_invariant_new_model": "ConstructorDuty recorre un enlace por nivel y registra el primer nivel que supera el limite, sin recursion de pila.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "ConstructorDuty recorre un enlace por nivel y registra el primer nivel que supera el límite, sin recursión de pila.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "partial_type_table_preserves_never_and_taint_states",
@@ -662,8 +662,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_026",
       "fixture_family": "G: 74 dirigidas; inspecciÃ³n JSON sin variables libres",
       "private_invariant_destination": "DiagnÃ³sticos serializados no muestran variables ni estados internos",
-      "private_invariant_new_model": "La materializacion final toma solo tipos cerrados del representante; Waiting/Suspended no aparece en data ni texto.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "La materialización final toma solo tipos cerrados del representante; Waiting/Suspended no aparece en data ni texto.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "deferred_result_components_and_structural_array_elements_resolve_separately",
@@ -694,7 +694,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "Ok y Err completan sus payloads por separado; el elemento Array conserva su E0103 o tipo final segÃºn su propia evidencia",
       "private_invariant_new_model": "Result.Ok, Result.Err y Array.element tienen ConstructorDuty y OriginFact separados; Completion de uno no cierra otro.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "concrete_arrays_record_divergence_only_from_never_elements",
@@ -718,7 +718,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "solo el elemento Never contribuye divergencia; el Array con valor normal conserva tipo y no crea E1303/E0103 espurio",
       "private_invariant_new_model": "ResultStatus Never del elemento determina la divergencia; un elemento Valid no contamina el ConstructorDuty del Array.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "solver_bind_dispatch_applies_each_fact_boundary",
@@ -761,7 +761,7 @@
       "fixture_family": "G: `planned` y `W1_atomic_compound`, primarios por hijo",
       "private_invariant_destination": "Cada enlace de tipo se aplica en su sitio causal y no al padre",
       "private_invariant_new_model": "Cada EqualityRecord publica su arista y OriginFact solo al ordinal propio; un rechazo no toca el componente padre.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "s3_solver_unify_depth_child",
@@ -788,7 +788,7 @@
       "fixture_family": "C: arrays anidados del test por CLI, lÃ­mite 128",
       "private_invariant_destination": "La unificaciÃ³n profunda alcanza el hijo correcto sin pÃ¡nico",
       "private_invariant_new_model": "El journal del EqualityRecord profundo visita cada componente Array en Vec y mantiene la puerta de profundidad.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "drive_facts_close_after_successive_visits",
@@ -818,7 +818,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "dos visitas sucesivas conservan los valores exteriores y cierran sus hechos; mismo resultado y diagnÃ³sticos de programa",
       "private_invariant_new_model": "FactId de visita es transitorio; al cerrar Completion, el resultado final se deriva del representante, sin copiar el visitado anterior.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "boundary_context_owner_closes_constructor_before_comparison",
@@ -853,8 +853,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_032",
       "fixture_family": "C: fuente CLI ya incluida en el test, mismo cÃ³digo/primario",
       "private_invariant_destination": "El constructor se cierra antes de contrastar el contexto del padre",
-      "private_invariant_new_model": "ConstructorDuty del hijo se resuelve antes del EqualityRecord contextual del padre segun ordinal reservado.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "ConstructorDuty del hijo se resuelve antes del EqualityRecord contextual del padre según ordinal reservado.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "boundary_binary_context_closes_after_prepared_comparison",
@@ -875,8 +875,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_033",
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "la comparaciÃ³n preparada cierra su contexto antes del consumidor siguiente; mismo cÃ³digo, primario y tipo final",
-      "private_invariant_new_model": "BinaryDomain intrinseco prepara contexto; EqualityRecord de operandos se decide antes de entregar resultado al siguiente consumidor.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "BinaryDomain intrínseco prepara contexto; EqualityRecord de operandos se decide antes de entregar resultado al siguiente consumidor.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "boundary_binary_left_quota_keeps_operator_until_context_close",
@@ -1023,8 +1023,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_040",
       "fixture_family": "G: `W1_atomic_compound` y `planned`, mismo diagnÃ³stico exterior",
       "private_invariant_destination": "Visita anidada preserva valor exterior; ID cerrado no altera diagnÃ³stico",
-      "private_invariant_new_model": "FactId/generacion cerrado nunca es clave semantica; ReadContext del exterior conserva snapshot y resultado.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "FactId/generación cerrado nunca es clave semántica; ReadContext del exterior conserva snapshot y resultado.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "deferred_selector_reentry_keeps_outer_facts_for_array_and_scalar_bindings",
@@ -1079,8 +1079,8 @@
       "fixture_family": "Q: fuente CLI del test, lÃ­mites 0..costeâˆ’1",
       "current_output": "E0003 y estado interno active_count/tainted/domain_owner; sin programa CLI",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "malformed_generator_state_cycle_is_bounded",
@@ -1132,8 +1132,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_044",
       "fixture_family": "C: `recursive_69` y caso profundo del test",
       "private_invariant_destination": "La profundidad del constructor Array prevalece sobre la del valor",
-      "private_invariant_new_model": "ConstructorDuty Array conserva limite de forma separado del valor; se materializa primero la causa de profundidad estructural.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "ConstructorDuty Array conserva límite de forma separado del valor; se materializa primero la causa de profundidad estructural.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "contextual_array_charges_each_leaf_once_at_the_reduced_boundary",
@@ -1202,7 +1202,7 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "la expectativa pendiente espera y el grupo transmite el sitio de su hoja; mismos cÃ³digo, primario y relaciones al cerrar",
       "private_invariant_new_model": "Waiting del esperado no inventa nominal; OccurrenceId de la hoja agrupada conserva el primario tras Completion.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "non_result_try_is_rejected_at_the_expression_boundary",
@@ -1262,8 +1262,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_049",
       "fixture_family": "J: `W1_atomic_compound` en dos Ã³rdenes de binding",
       "private_invariant_destination": "El orden de representantes no cambia el conflicto Array de uniÃ³n",
-      "private_invariant_new_model": "EqualityRecord compara ConstructorDuty Array de ambos componentes, sin depender de la eleccion fisica de raiz.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "EqualityRecord compara ConstructorDuty Array de ambos componentes, sin depender de la elección física de raíz.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "union_selects_earlier_origin_by_start_even_when_spans_overlap",
@@ -1292,8 +1292,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0102: Bool/I64, expected_type=[5,15)",
       "target_output": "E0102: I64/Bool, expected_type=[10,20)",
-      "target_reason_adr": "El hijo I64 [10,20) se comprueba antes del exterior Bool [5,15). F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
-      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "El hijo I64 [10,20) se comprueba antes del exterior Bool [5,15). F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "concrete_array_cache_keys_both_operands_and_charges_a_cached_constraint",
@@ -1326,10 +1326,10 @@
       "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_051",
       "fixture_family": "Q: dos pares Array concretos y lÃ­mites 0..costeâˆ’1",
-      "current_output": "solver_steps fijos 33/66, clave de cache por operandos",
+      "current_output": "solver_steps fijos 33/66, clave de caché por operandos",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "unresolved_constructor_pair_is_rechecked_after_its_child_resolves",
@@ -1359,7 +1359,7 @@
       "fixture_family": "C: `completion_conflict` y `completion_unresolved`",
       "private_invariant_destination": "El hijo completado reactiva el contraste pendiente entre constructores",
       "private_invariant_new_model": "Completion del hijo reactiva exactamente el EqualityRecord Suspended de constructores y conserva su ordinal.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "cached_arrays_charge_every_logical_pair_at_the_reduced_limit",
@@ -1392,8 +1392,8 @@
       "fixture_family": "Q: fuente CLI del test, comprobar `observed=limit+1`",
       "current_output": "solver_steps 33/65; limit 65, observed 66",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "existing_array_domain_and_occurs_walk_charge_at_the_reduced_limit",
@@ -1422,8 +1422,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0003 en frontera fija de dominio y ocurre-check",
       "target_output": "para cada lÃ­mite inferior al coste medido: solo E0003 con observed=limit+1; el ocurre-check completo conserva el diagnÃ³stico sin lÃ­mite",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "adr_gap_union_charge_at_the_exact_reduced_boundary",
@@ -1449,10 +1449,10 @@
       "destination_assertions": "barrido 0..costeâˆ’1 con un E0003 y observed=limit+1; sin cifra de frontera no enunciada por ADR",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_055",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "current_output": "cargo fijo before+1 para union",
+      "current_output": "cargo fijo before+1 para unión",
       "target_output": "barrido 0..costeâˆ’1 con un E0003 y observed=limit+1; sin cifra de frontera no enunciada por ADR",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "union_preserves_bottom_marker_from_either_representative",
@@ -1478,8 +1478,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_056",
       "fixture_family": "J: `RS1_condition_contaminated` y retorno en rama",
       "private_invariant_destination": "`Never` en cualquier lado no inventa tipo ni conflicto exterior",
-      "private_invariant_new_model": "ResultStatus Never se propaga al JoinRecord independientemente de la raiz fisica y no crea un tipo nominal.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "ResultStatus Never se propaga al JoinRecord independientemente de la raíz física y no crea un tipo nominal.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "adr_gap_shape_walk_charge_per_constructor_link",
@@ -1510,8 +1510,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "128 cargos de recorrido; E0003 en frontera fija",
       "target_output": "cada constructor visitado causa progreso/cargo real y no se acepta con lÃ­mite insuficiente; observed=limit+1",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "solver_charges_the_final_granted_unit_and_reports_one_rejected_unit",
@@ -1626,8 +1626,8 @@
       "fixture_family": "Q: fuente CLI del test con arrays anidados",
       "current_output": "32 cargos; E0003 observed 33",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "deferred_if_join_charges_the_reduced_boundary",
@@ -1908,8 +1908,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_073",
       "fixture_family": "G: dos Ã³rdenes de `q=r;q=[1];r=[1]` por CLI",
       "private_invariant_destination": "Permutar restricciones compatibles conserva tipo y aceptaciÃ³n",
-      "private_invariant_new_model": "Con los mismos EqualityRecord compatibles, Completion produce el mismo representante y tipo final bajo ambos ordenes validos.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Con los mismos EqualityRecord compatibles, Completion produce el mismo representante y tipo final bajo ambos órdenes válidos.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "generated_constraint_orders_have_the_same_acceptance",
@@ -1934,8 +1934,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_074",
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "dos Ã³rdenes de igualdades conservan aceptaciÃ³n y tipos finales, y los conflictos mantienen cÃ³digo/primario/relaciones causales",
-      "private_invariant_new_model": "Cada permutacion decide EqualityRecord en su ordinal de comprobacion; aceptacion y tipos finales coinciden y el rechazo apunta a su operando.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Cada permutación decide EqualityRecord en su ordinal de comprobación; aceptación y tipos finales coinciden y el rechazo apunta a su operando.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor_refuted_binary_and_guarded_results",
@@ -1953,7 +1953,7 @@
       "destination_assertions": "ResultStatus Contaminated del binario refutado no revoca EqualityRecord del guard valido ni sus diagnosticos independientes. Positivo y negativo CLI preservan todos los campos observables del test original.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_075",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_new_model": "ResultStatus Contaminated del binario refutado no revoca EqualityRecord del guard valido ni sus diagnosticos independientes.",
+      "private_invariant_new_model": "ResultStatus Contaminated del binario refutado no revoca EqualityRecord del guard válido ni sus diagnósticos independientes.",
       "owner_commit": "C3",
       "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
@@ -1972,7 +1972,7 @@
       "destination_assertions": "JoinRecord de cada condicion atribuye su reserva al OccurrenceId del resultado correcto; Completion no desplaza primario. Positivo y negativo CLI preservan todos los campos observables del test original.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_076",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_new_model": "JoinRecord de cada condicion atribuye su reserva al OccurrenceId del resultado correcto; Completion no desplaza primario.",
+      "private_invariant_new_model": "JoinRecord de cada condición atribuye su reserva al OccurrenceId del resultado correcto; Completion no desplaza primario.",
       "owner_commit": "C3",
       "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
@@ -2038,7 +2038,7 @@
       "fixture_family": "G: `waiting_projection_valid`/`waiting_projection_refuted`",
       "private_invariant_destination": "Nominal pendiente solo se activa con dominio vivo y acreditado",
       "private_invariant_new_model": "Waiting nominal solo se activa con predicado de dominio acreditado y un Completion real; sin ello no publica constructor.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor2_solver_preserves_constructor_identity",
@@ -2068,8 +2068,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_080",
       "fixture_family": "C: `recursive_69` y `CD1_independent_constructor`",
       "private_invariant_destination": "El constructor inicial conserva su sitio tras unificaciÃ³n",
-      "private_invariant_new_model": "ConstructorDuty inicial conserva OccurrenceId y OriginFact despues de fusionar representantes.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "ConstructorDuty inicial conserva OccurrenceId y OriginFact después de fusionar representantes.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf",
@@ -2143,7 +2143,7 @@
       "fixture_family": "L: fuente CLI del test; comparar aceptaciÃ³n y diagnÃ³stico del retorno",
       "private_invariant_destination": "Resultado concreto del closure no fija retorno pendiente de otro contexto",
       "private_invariant_new_model": "ReadContext del retorno de closure no recibe arista de EqualityRecord ajeno; su Waiting permanece hasta su propia Completion.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor2_pending_selector_keeps_independent_taint",
@@ -2165,8 +2165,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_084",
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "el selector pendiente no borra E0103/E0102 de un hijo independiente; mismo orden y primarios tras completar base",
-      "private_invariant_new_model": "Waiting de proyeccion del selector no cancela ResultStatus Contaminated del hijo independiente; reservas C se materializan separadas.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Waiting de proyección del selector no cancela ResultStatus Contaminated del hijo independiente; reservas C se materializan separadas.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor2_selection_depth_keeps_the_current_type",
@@ -2211,7 +2211,7 @@
       "fixture_family": "R: programa `match Option` con brazos compatibles y contraparte incompatible",
       "private_invariant_destination": "Una uniÃ³n completada conserva payload `Option` correcto",
       "private_invariant_new_model": "JoinRecord decidido cierra ConstructorDuty Option.payload y el representante final refleja la forma publicada.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor2_expression_dependencies_cover_branch_children",
@@ -2238,7 +2238,7 @@
       "destination_assertions": "Cierre de dependencias por OccurrenceId incluye hijos de cada rama; replay reevalua solo sufijo conectado y conserva C independientes. Positivo y negativo CLI preservan todos los campos observables del test original.",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_087",
       "fixture_family": "source from original test; preserve all positive and negative programs",
-      "private_invariant_new_model": "Cierre de dependencias por OccurrenceId incluye hijos de cada rama; replay reevalua solo sufijo conectado y conserva C independientes.",
+      "private_invariant_new_model": "Cierre de dependencias por OccurrenceId incluye hijos de cada rama; replay revalúa solo sufijo conectado y conserva C independientes.",
       "owner_commit": "C5",
       "replacement_reason": "graph.occurrences/obligations/emitted_sites es sustituido por OccurrenceId, reservas y replay R6."
     },
@@ -2294,7 +2294,7 @@
       "fixture_family": "R: `Result<Array<I64>,I64>` con RHS incompatible y uso posterior",
       "private_invariant_destination": "Conflicto Result no cambia identidad del payload previo",
       "private_invariant_new_model": "EqualityRecord Result rechazado revierte journal de ambos payloads; sus OriginFact anteriores permanecen.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor2_shape_conflicts_continue_past_irrelevant_children",
@@ -2331,7 +2331,7 @@
       "fixture_family": "C: array con tres hijos, segundo compatible y tercero incompatible",
       "private_invariant_destination": "Un hijo irrelevante no oculta conflicto de otro hijo",
       "private_invariant_new_model": "ConstructorDuty del hijo irrelevante no consume la reserva del primer EqualityRecord incompatible en otro componente.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor2_pattern_shape_chooses_first_conflicting_child",
@@ -2359,8 +2359,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_091",
       "fixture_family": "R: `match Option`/`Result` con patrÃ³n invÃ¡lido y primario del primer hijo",
       "private_invariant_destination": "PatrÃ³n compuesto seÃ±ala el primer hijo incompatible",
-      "private_invariant_new_model": "EqualityRecord del patron compara componentes en orden de comprobacion y reserva la primera incompatibilidad real.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "EqualityRecord del patrón compara componentes en orden de comprobación y reserva la primera incompatibilidad real.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_shape_walk_checks_later_result_payload",
@@ -2392,8 +2392,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_092",
       "fixture_family": "R: Result con Ok compatible y Err incompatible",
       "private_invariant_destination": "El recorrido Result comprueba el payload posterior al primero",
-      "private_invariant_new_model": "Despues de Result.Ok, el mismo EqualityRecord contrasta Result.Err antes de publicar el journal completo.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Después de Result.Ok, el mismo EqualityRecord contrasta Result.Err antes de publicar el journal completo.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_require_union_moves_concrete_payloads_to_children",
@@ -2424,7 +2424,7 @@
       "fixture_family": "R: `Ok`/`Err` y `Some` anotados, luego RHS incompatible",
       "private_invariant_destination": "La restricciÃ³n de Result/Option distribuye el tipo concreto a los payloads",
       "private_invariant_new_model": "ConstructorDuty Result/Option distribuye restricciones a rutas de payload del mismo representante, sin duplicar origen.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_union_transfers_single_sided_shape_and_origin",
@@ -2455,8 +2455,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_094",
       "fixture_family": "F: `omitted_relation`, relaciÃ³n del primer operando",
       "private_invariant_destination": "Un solo lado estructurado transfiere forma y primer origen",
-      "private_invariant_new_model": "EqualityRecord compatible publica forma unilateral y OriginFact del proveedor en una transaccion.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "EqualityRecord compatible publica forma unilateral y OriginFact del proveedor en una transacción.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_failed_union_restores_both_constructor_roots",
@@ -2491,7 +2491,7 @@
       "fixture_family": "J: `W1_atomic_compound` y `planned`",
       "private_invariant_destination": "UniÃ³n rechazada deja intactos ambos constructores para usos posteriores",
       "private_invariant_new_model": "EqualityRecord incompatible descarta journal; ambos ConstructorDuty y OriginFact conservan sus prefijos.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_unify_concrete_union_kinds_and_payloads",
@@ -2526,8 +2526,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_096",
       "fixture_family": "R: `Some(1)` frente a `Ok(1)` y payload tipado",
       "private_invariant_destination": "Option/Result incompatibles rechazan tipo de variante y payload correctos",
-      "private_invariant_new_model": "EqualityRecord compara clase Result/Option y luego payloads en orden de comprobacion, con un solo rechazo por igualdad.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "EqualityRecord compara clase Result/Option y luego payloads en orden de comprobación, con un solo rechazo por igualdad.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_shape_requirements_reject_incompatible_roots",
@@ -2552,8 +2552,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_097",
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "Array/Option/Result incompatibles rechazan la igualdad completa en ambos Ã³rdenes; mismos diagnÃ³sticos y uso posterior intacto",
-      "private_invariant_new_model": "ConstructorDuty Array/Option/Result incompatible causa Rejected sin publicar aristas, con independencia de la raiz fisica.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "ConstructorDuty Array/Option/Result incompatible causa Rejected sin publicar aristas, con independencia de la raíz física.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_failed_single_sided_union_keeps_preexisting_shape",
@@ -2586,7 +2586,7 @@
       "fixture_family": "J: `completion_conflict` y `W1_atomic_compound`",
       "private_invariant_destination": "Rechazo con forma solo a un lado conserva la forma previa",
       "private_invariant_new_model": "El journal rechazado no modifica ConstructorDuty ni OriginFact del lado estructurado.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind",
@@ -2619,8 +2619,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_099",
       "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok",
       "private_invariant_destination": "Rechazo de Result revierte enlace tentativo de primer payload",
-      "private_invariant_new_model": "Si Result.Err falla, el journal revierte tambien el enlace tentativo de Result.Ok.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Si Result.Err falla, el journal revierte también el enlace tentativo de Result.Ok.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_union_prefers_larger_component_before_id",
@@ -2671,7 +2671,7 @@
       "fixture_family": "R: Result con `return` en un brazo y valor posterior",
       "private_invariant_destination": "Payload `Never` deja que otro payload complete Result",
       "private_invariant_new_model": "ResultStatus Never en un payload no cancela Completion acreditada del otro payload de Result.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_cached_array_child_rebuilds_outer_shape",
@@ -2695,8 +2695,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_102",
       "fixture_family": "C: arrays anidados repetidos y asignaciÃ³n posterior",
       "private_invariant_destination": "Hijo Array cacheado no pierde forma exterior",
-      "private_invariant_new_model": "Cache por epoch es derivada; ConstructorDuty Array exterior se reconstruye del representante y no de la entrada cacheada.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Caché por epoch es derivada; ConstructorDuty Array exterior se reconstruye del representante y no de la entrada cachéada.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_failed_atomic_union_preserves_quota_error",
@@ -2727,8 +2727,8 @@
       "fixture_family": "Q: `W1_atomic_compound` con lÃ­mites inferiores al coste",
       "current_output": "E0003, quota_error interno y active_count=0",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "i07c_survivor3_completed_option_uses_binding_origin",
@@ -2754,8 +2754,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_104",
       "fixture_family": "F: ADR Firma/Alias y `later_completion` con Option",
       "private_invariant_destination": "Option completado usa el origen del binding inicial",
-      "private_invariant_new_model": "Completion de Option.payload conserva OriginFact del primer EqualityRecord del binding, no el completador tardio.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Completion de Option.payload conserva OriginFact del primer EqualityRecord del binding, no el completador tardío.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind",
@@ -2784,7 +2784,7 @@
       "fixture_family": "R: Result diferido, segundo payload invÃ¡lido, uso posterior del primero",
       "private_invariant_destination": "Fallo de payload Result no altera vÃ­nculo diferido anterior",
       "private_invariant_new_model": "Rechazo Result descarta journal propio y deja EqualityRecord Suspended previo con su arista y ordinal.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_union_rejects_variant_against_array_in_both_orders",
@@ -2811,8 +2811,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_106",
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "private_invariant_destination": "Result/Option frente a Array rechazan en ambos Ã³rdenes con mismo cÃ³digo, tipos, primario y relaciones; sin enlace parcial",
-      "private_invariant_new_model": "EqualityRecord Result/Option frente a Array se rechaza atomicamente en ambos ordenes; ningun ConstructorDuty migra.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "EqualityRecord Result/Option frente a Array se rechaza atómicamente en ambos órdenes; ningún ConstructorDuty migra.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_require_union_quota_propagates_through_bind",
@@ -2836,8 +2836,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0003 y quota_error interno",
       "target_output": "lÃ­mite menor al coste real da un E0003 observado=limit+1 sin publicar el payload parcial; ejecuciÃ³n sin lÃ­mite conserva C",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "i07c_survivor3_rebinding_known_union_keeps_first_shape_origin",
@@ -2862,7 +2862,7 @@
       "fixture_family": "F: `rejected_assignment` y `later_completion`",
       "private_invariant_destination": "Reenlace de uniÃ³n conocida conserva primer origen",
       "private_invariant_new_model": "El nuevo EqualityRecord compatible completa forma sin reemplazar OriginFact del primer fijador.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_failed_result_bind_restores_first_payload",
@@ -2890,8 +2890,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_109",
       "fixture_family": "R: Result con Ok compatible y Err incompatible; uso posterior de Ok",
       "private_invariant_destination": "Fallo de enlace Result conserva el primer payload",
-      "private_invariant_new_model": "Rechazo del segundo payload Result revierte el primer enlace provisional y preserva OriginFact previo.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Rechazo del segúndo payload Result revierte el primer enlace provisional y preserva OriginFact previo.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_noncopyable_second_payload_restores_first_bind",
@@ -2919,8 +2919,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_110",
       "fixture_family": "R: Result con segundo payload de recurso y uso posterior del primero",
       "private_invariant_destination": "Payload no copiable rechaza la operaciÃ³n sin alterar primer enlace",
-      "private_invariant_new_model": "Predicado Copyable rechazado en segundo payload revierte journal del EqualityRecord completo, incluido el primero.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Predicado Copyable rechazado en segúndo payload revierte journal del EqualityRecord completo, incluido el primero.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span",
@@ -2949,8 +2949,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_111",
       "fixture_family": "F: variante de `rejected_assignment` con grupos de igual inicio",
       "private_invariant_destination": "Spans con mismo inicio eligen origen causal izquierdo estable",
-      "private_invariant_new_model": "OriginFact del primer EqualityRecord segun recorrido de comprobacion gana aunque ambos spans empiecen igual.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "OriginFact del primer EqualityRecord según recorrido de comprobación gana aunque ambos spans empiecen igual.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion",
@@ -2981,8 +2981,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_112",
       "fixture_family": "J: `suspended_68` y `recursive_69`, sin timeout",
       "private_invariant_destination": "Formas pendientes incompatibles terminan con C, sin recursiÃ³n infinita",
-      "private_invariant_new_model": "EqualityRecord Suspended espera Completion de constructor y el driver en Vec decide conflicto sin recursion.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "EqualityRecord Suspended espera Completion de constructor y el driver en Vec decide conflicto sin recursión.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_union_child_allocation_propagates_quota_errors",
@@ -3010,10 +3010,10 @@
       "destination_assertions": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_113",
       "fixture_family": "Q: Result/Option anidado con lÃ­mite bajo",
-      "current_output": "E0003, quota_error y variant_children interno vacio",
+      "current_output": "E0003, quota_error y variant_children interno vacío",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "i07c_survivor3_late_result_payload_quota_rolls_back_first_bind",
@@ -3043,8 +3043,8 @@
       "fixture_family": "Q: Result de dos payloads, barrido de lÃ­mites",
       "current_output": "E0003, quota_error y concrete(pending)=None",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "i07c_survivor3_partial_union_allocation_rolls_back_on_quota",
@@ -3074,8 +3074,8 @@
       "fixture_family": "Q: Option/Result anidado, barrido de lÃ­mites",
       "current_output": "E0003, quota_error y next_variable/variant_children sin cambio",
       "target_output": "coste medido en la misma ejecuciÃ³n; cada lÃ­mite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin lÃ­mite; sin cifra fija",
-      "target_reason_adr": "section 11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobacion expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "F0-0002 §11.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
+      "approval": "aprobación expresa del coordinador para cambio de coste; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "i07c_survivor3_equal_start_array_origins_choose_left_diagnostic_span",
@@ -3104,8 +3104,8 @@
       "fixture_family": "source from original test; preserve all positive and negative programs",
       "current_output": "E0103 primary=[10,11)",
       "target_output": "E0103 primary=[10,11)",
-      "target_reason_adr": "Los dos spans empiezan en 10; el primer ConstructorDuty visitado gana por recorrido. F0-0002 section 4.1.2.4: recorrido de comprobacion; no Span.start ni ID abstracto.",
-      "approval": "aprobacion expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueno"
+      "target_reason_adr": "Los dos spans empiezan en 10; el primer ConstructorDuty visitado gana por recorrido. F0-0002 F0-0002 §4.1.2.4: recorrido de comprobación; no Span.start ni ID abstracto.",
+      "approval": "aprobación expresa del coordinador para cambio de comportamiento; diff concreto fila a fila en commit dueño"
     },
     {
       "source_test": "i07c_survivor3_failed_concrete_union_expansion_restores_root",
@@ -3131,8 +3131,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_117",
       "fixture_family": "J: `W1_atomic_compound` y caso Result incompatible",
       "private_invariant_destination": "ExpansiÃ³n concreta fallida conserva raÃ­z y diagnÃ³stico posterior",
-      "private_invariant_new_model": "Expansion de constructor dentro de EqualityRecord rechazada revierte forma y aristas de la raiz.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "Expansión de constructor dentro de EqualityRecord rechazada revierte forma y aristas de la raíz.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands",
@@ -3163,8 +3163,8 @@
       "new_cli_test_id_or_retained_id": "i07c_r9_cli_118",
       "fixture_family": "F: `rejected_assignment`, relaciÃ³n por bytes",
       "private_invariant_destination": "Un enlace diferido relaciona los operandos escritos originales",
-      "private_invariant_new_model": "JoinRecord pendiente retiene OccurrenceId de continuaciones completas al reactivar su EqualityRecord.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "private_invariant_new_model": "JoinRecord pendiente retiene OccurrenceId de continuaciónes completas al reactivar su EqualityRecord.",
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands",
@@ -3196,7 +3196,7 @@
       "fixture_family": "J: M1 anidado y 4363, relaciones completas",
       "private_invariant_destination": "UniÃ³n hija diferida conserva relaciÃ³n con el operando padre correcto",
       "private_invariant_new_model": "JoinRecord hijo conserva su operand OccurrenceId; Completion del padre no reemplaza su origen escrito.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_partial_result_conflict_defers_join",
@@ -3225,7 +3225,7 @@
       "fixture_family": "R: Result con payload pendiente y asignaciÃ³n completadora",
       "private_invariant_destination": "Conflicto parcial Result espera evidencia antes de emitir uniÃ³n",
       "private_invariant_new_model": "JoinRecord Result Partial queda Suspended hasta que ambos payloads acrediten tipo; no denuncia antes.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_array_join_wraps_pending_operand_shapes",
@@ -3255,7 +3255,7 @@
       "fixture_family": "C: `completion_unresolved` y `T5_constructor_equivalent`",
       "private_invariant_destination": "UniÃ³n Array con operandos pendientes conserva constructor exterior",
       "private_invariant_new_model": "JoinRecord Array mantiene ConstructorDuty exterior mientras el EqualityRecord de elemento espera Completion.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor3_nested_partial_result_deferral_keeps_array_shape",
@@ -3282,7 +3282,7 @@
       "fixture_family": "R: `Result<Array<I64>,I64>` anidado con payload pendiente",
       "private_invariant_destination": "Result parcial anidado conserva Array exterior sin falso C",
       "private_invariant_new_model": "Result Partial anidado no elimina ConstructorDuty Array exterior durante el replay.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor4_deferred_bind_keeps_branch_policy",
@@ -3314,7 +3314,7 @@
       "fixture_family": "J: `W1_atomic_compound` y `M2_partial_witness_chain`",
       "private_invariant_destination": "Enlace diferido conserva polÃ­tica de denuncia Ãºnica por rama",
       "private_invariant_new_model": "JoinRecord pendiente reserva una causa por rama; Completion del binding no duplica ni desplaza C.",
-      "approval": "reescritura concreta fila a fila por coordinador en el commit dueno"
+      "approval": "reescritura concreta fila a fila por coordinador en el commit dueño"
     },
     {
       "source_test": "i07c_survivor4_invalid_control_condition_taints_visit",

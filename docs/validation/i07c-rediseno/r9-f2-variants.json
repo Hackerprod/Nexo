@@ -18,7 +18,9 @@
       "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));let y:Result<Array<Bool>,Array<I64>>=x;q=[1];r=[true];}",
       "source_sha256": "c516e36a26e132044273f0973d3dee574fb5e0452e88bfb29ab18880a07d77c2",
       "bytes": 122,
-      "expected_adr": {
+      "authority": "class_I_revertible",
+      "authority_note": "La prioridad Ok antes de Err en la anotación no está en el ADR; se conserva como conducta de main hasta decisión de Flujo A.",
+      "expected_class_I_conservation": {
         "outcome": "rejected",
         "diagnosticos": [
           [
@@ -50,9 +52,7 @@
             ]
           ]
         ]
-      },
-      "authority": "class_I_revertible",
-      "authority_note": "La prioridad Ok-before-Err en la anotacion no esta en el ADR; se conserva como conducta de main hasta decision de Flujo A."
+      }
     },
     {
       "id": "result_two_mismatches",
@@ -60,7 +60,9 @@
       "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));q=[1];r=[true];let y:Result<Array<Bool>,Array<I64>>=x;}",
       "source_sha256": "a212a02f2bcc8e82d766eedc9f0034b0be397722ea80708fa0135f3cffe58fe1",
       "bytes": 122,
-      "expected_adr": {
+      "authority": "class_I_revertible",
+      "authority_note": "La prioridad Ok antes de Err en la anotación no está en el ADR; se conserva como conducta de main hasta decisión de Flujo A.",
+      "expected_class_I_conservation": {
         "outcome": "rejected",
         "diagnosticos": [
           [
@@ -80,9 +82,7 @@
         ],
         "first_incompatible_component": "Result.Ok",
         "not_selected": "Result.Err"
-      },
-      "authority": "class_I_revertible",
-      "authority_note": "La prioridad Ok-before-Err en la anotacion no esta en el ADR; se conserva como conducta de main hasta decision de Flujo A."
+      }
     },
     {
       "id": "option_nested_valid",
