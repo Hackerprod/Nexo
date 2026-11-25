@@ -46,6 +46,33 @@ impl InferTy {
     }
 }
 
+// Deep Option/Result/Array values can be uniquely owned at a match exit.
+// Dropping an Arc chain recursively consumes the 65 KiB type-check stack.
+// Dismantle owned links on the heap, leaving shared links to their owners.
+fn drop_infer_type_iterative(root: InferTy) {
+    let mut pending = vec![root];
+    while let Some(ty) = pending.pop() {
+        match ty {
+            InferTy::Array(child) | InferTy::Generator { item: child, .. } => {
+                if let Ok(child) = Arc::try_unwrap(child) {
+                    pending.push(child);
+                }
+            }
+            InferTy::Union(_, first, second) => {
+                if let Some(second) = second
+                    && let Ok(second) = Arc::try_unwrap(second)
+                {
+                    pending.push(second);
+                }
+                if let Ok(first) = Arc::try_unwrap(first) {
+                    pending.push(first);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 pub(super) fn concrete_union(ty: &InferTy) -> Option<UnionDescriptor<&InferTy>> {
     match ty {
         InferTy::Union(UnionKind::Result, ok, Some(err)) => {
@@ -1028,6 +1055,7 @@ struct TypeNode {
     concrete_intrinsic: bool,
     array_child: Option<u64>,
     array_origin: Option<Span>,
+    first_fix_origin: Option<Span>,
     array_constructed: bool,
     variant_children: Option<UnionDescriptor<u64>>,
     variant_origin: Option<Span>,
@@ -1310,7 +1338,6 @@ struct AssignmentProgress<'a> {
     place: &'a Expr,
     value: &'a Expr,
     local: Option<u64>,
-    concrete: Option<(Type, Span)>,
     expected: Option<(Type, Span)>,
     parent_fact: FactId,
 }
@@ -3762,6 +3789,7 @@ impl Checker<'_> {
                     concrete_intrinsic: false,
                     array_child: None,
                     array_origin: None,
+                    first_fix_origin: None,
                     array_constructed: false,
                     variant_children: None,
                     variant_origin: None,
@@ -4638,6 +4666,7 @@ impl Checker<'_> {
                 concrete_intrinsic: false,
                 array_child: None,
                 array_origin: None,
+                first_fix_origin: None,
                 array_constructed: false,
                 variant_children: None,
                 variant_origin: None,
@@ -4988,24 +5017,6 @@ impl Checker<'_> {
             }
         }
         false
-    }
-
-    fn retain_assignment_origin(&mut self, id: u64, origin: &Span) {
-        let mut current = self.root(id);
-        for _ in 0..=128 {
-            if let Some((ty, _)) = self.graph.type_nodes[&current].concrete.clone() {
-                self.graph.type_node_mut(&current).unwrap().concrete = Some((ty, origin.clone()));
-                self.graph
-                    .type_node_mut(&current)
-                    .unwrap()
-                    .concrete_intrinsic = false;
-                return;
-            }
-            let Some(child) = self.graph.type_nodes[&current].array_child else {
-                return;
-            };
-            current = self.root(child);
-        }
     }
 
     fn type_determined(&mut self, ty: &Type) -> bool {
@@ -6867,6 +6878,14 @@ impl Checker<'_> {
                     let b_array_origin = self.graph.type_nodes[&b].array_origin.clone();
                     self.graph.type_node_mut(&a).unwrap().array_origin =
                         match (a_array_origin, b_array_origin) {
+                            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
+                            (Some(a), None) | (None, Some(a)) => Some(a),
+                            (None, None) => None,
+                        };
+                    let a_first_fix = self.graph.type_nodes[&a].first_fix_origin.clone();
+                    let b_first_fix = self.graph.type_nodes[&b].first_fix_origin.clone();
+                    self.graph.type_node_mut(&a).unwrap().first_fix_origin =
+                        match (a_first_fix, b_first_fix) {
                             (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
                             (Some(a), None) | (None, Some(a)) => Some(a),
                             (None, None) => None,
@@ -8820,7 +8839,7 @@ impl Checker<'_> {
                 None
             }
         });
-        let (context, concrete, expected) = if let Some(local) = local {
+        let (context, _concrete, expected) = if let Some(local) = local {
             let intrinsic_origin = self.origin_intrinsic(local);
             let concrete = self.concrete(local);
             let projected = if concrete.is_none() && self.expression_has_array_root(value) {
@@ -8886,7 +8905,6 @@ impl Checker<'_> {
                 place,
                 value,
                 local,
-                concrete,
                 expected,
                 parent_fact: visit,
             },
@@ -8927,6 +8945,10 @@ impl Checker<'_> {
                 .as_ref()
                 .filter(|(_, origin)| origin.start < Self::primary_span(place).start)
                 .map(|(_, origin)| origin.clone())
+                .or_else(|| {
+                    let root = self.root(local);
+                    self.graph.type_nodes[&root].first_fix_origin.clone()
+                })
                 .unwrap_or_else(|| {
                     if matches!(place, Expr::Index { .. }) {
                         Self::primary_span(value)
@@ -8939,6 +8961,7 @@ impl Checker<'_> {
                 .map(Type::Deferred)
                 .unwrap_or(rhs);
             let right_origin = self.expression_origin(value);
+            let unresolved_before = self.concrete(local).is_none();
             self.unify(
                 visit,
                 Type::Deferred(local),
@@ -8948,12 +8971,17 @@ impl Checker<'_> {
                 Self::primary_span(value),
                 false,
             )?;
-            if progress.concrete.is_none()
-                && matches!(place, Expr::Name(..))
-                && matches!(self.concrete(local), Some((Type::Array(_), _)))
+            if !self.planning
+                && unresolved_before
+                && matches!(value, Expr::Array(items, _) if !items.is_empty())
             {
-                self.retain_assignment_origin(local, &right_origin);
+                let root = self.root(local);
+                let node = self.graph.type_node_mut(&root).unwrap();
+                node.first_fix_origin.get_or_insert(right_origin);
             }
+            // The first compatible equality that established the carrier's
+            // structure owns its source relation. A later suspended equality
+            // may complete an element but must not replace that provenance.
             Ok(())
         })();
         self.note_assignment_verdict(assigned_place, outcome.is_err());
@@ -9536,11 +9564,14 @@ impl Checker<'_> {
                         Err(error) => return Resume::Next(Err(error), visit),
                     };
                     if let Err(error) = checker.require_match_pattern_shapes(selection, &inferred) {
+                        drop_infer_type_iterative(inferred);
                         return Resume::Next(Err(error), visit);
                     }
+                    let selected = checker.selection_type(&inferred, 0);
+                    drop_infer_type_iterative(inferred);
                     frames.push(Frame::StatementMatch {
                         selection,
-                        selected: checker.selection_type(&inferred, 0),
+                        selected,
                         selected_origin: Checker::primary_span(&selection.scrutinee),
                         next: 0,
                         stage: 0,
@@ -9577,15 +9608,15 @@ impl Checker<'_> {
                         return Resume::Evaluate(visit);
                     }
                     if next == selection.arms.len() {
-                        return Resume::Next(
-                            checker
-                                .finish_selection(selection, &selected, &None, false, None)
-                                .map(|_| Type::Unit),
-                            visit,
-                        );
+                        let finished = checker
+                            .finish_selection(selection, &selected, &None, false, None)
+                            .map(|_| Type::Unit);
+                        drop_infer_type_iterative(selected);
+                        return Resume::Next(finished, visit);
                     }
                     let arm = &selection.arms[next];
-                    selected = checker.selection_type(&selected, 0);
+                    let next_selected = checker.selection_type(&selected, 0);
+                    drop_infer_type_iterative(std::mem::replace(&mut selected, next_selected));
                     if let Err(error) =
                         checker.pattern_type(&arm.pattern, &selected, &selected_origin)
                     {
@@ -9789,8 +9820,382 @@ impl Checker<'_> {
             (result, parent_fact)
         }
         #[inline(never)]
-        #[allow(clippy::too_many_arguments)] // Continuation carries one drive's cursor.
-        fn resume_non_match<'a>(
+        fn resume_binary<'a>(
+            checker: &mut Checker<'_>,
+            mut visit: FactId,
+            progress: Box<BinaryFrame<'a>>,
+            mut result: Result<Type, Box<Diagnostic>>,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+        ) -> Resume {
+            let (expr, context, pending_before, outer_fact) = *progress;
+            checker.graph.fact_mut(visit).numeric_domain_owner = None;
+            if matches!(&result, Err(error) if error.operation != Operation::AnalysisLimit) {
+                let Err(error) = result else { unreachable!() };
+                let Expr::Binary {
+                    op, left, right, ..
+                } = expr
+                else {
+                    unreachable!("binary frame owns a binary")
+                };
+                let numeric = super::operators::is_arithmetic(op, checker.f5);
+                let left_domain_failed = numeric
+                    && error.primary_span.as_ref() == Some(&Checker::primary_span(left))
+                    && error.data.get("expected_type") == Some(&DataValue::String("I64".into()));
+                if numeric {
+                    checker.graph.fact_mut(visit).numeric_domain_owner =
+                        Some((left.span().start, right.span().end));
+                }
+                frames.push(Frame::BinaryIndependentLeftError(Box::new(
+                    BinaryLeftErrorProgress {
+                        expr,
+                        context,
+                        error,
+                        left_domain_failed,
+                        binary_fact: visit,
+                    },
+                )));
+                *inner = right;
+                *inner_context = OwnedCheckContext {
+                    expected: (numeric && !left_domain_failed).then_some(Type::I64),
+                    expected_span: None,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: false,
+                    deferred_element: false,
+                };
+                visit = checker.graph.child_fact(
+                    visit,
+                    span_key(inner.span()),
+                    FactRole::Expression,
+                    FactInheritance::Empty,
+                    FactInheritance::Inherit,
+                );
+                return Resume::Evaluate(visit);
+            }
+            if let (
+                Expr::Binary {
+                    op, left, right, ..
+                },
+                Ok(left_type),
+            ) = (expr, &result)
+            {
+                let numeric = super::operators::is_arithmetic(op, checker.f5);
+                let pending_domain = checker.graph.has(
+                    &span_key(&Checker::primary_span(left)),
+                    OccurrenceFlag::PendingDomain,
+                );
+                let joined = checker.pending_join_count() > pending_before;
+                let failed_join = checker
+                    .graph
+                    .has(&span_key(left.span()), OccurrenceFlag::FailedJoin);
+                let left_domain_failed = if pending_domain {
+                    Some(
+                        numeric
+                            && checker.type_determined(left_type)
+                            && *left_type != Type::I64
+                            && !failed_join,
+                    )
+                } else if numeric && joined {
+                    Some(checker.type_determined(left_type) && *left_type != Type::I64)
+                } else if failed_join || checker.graph.fact_mut(visit).tainted {
+                    Some(
+                        checker
+                            .graph
+                            .has(&span_key(left.span()), OccurrenceFlag::ContextRejected),
+                    )
+                } else if numeric
+                    && *left_type != Type::I64
+                    && !checker
+                        .graph
+                        .has(&span_key(left.span()), OccurrenceFlag::Deferred)
+                {
+                    let pending_left_result =
+                        checker.graph.obligations.iter().any(|entry| match entry {
+                            ObligationKind::BinaryDomain(domain) => {
+                                domain.result == Checker::primary_span(left)
+                            }
+                            _ => false,
+                        });
+                    Some(!pending_left_result)
+                } else {
+                    None
+                };
+                if let Some(left_domain_failed) = left_domain_failed {
+                    if numeric {
+                        checker.graph.fact_mut(visit).numeric_domain_owner =
+                            Some((left.span().start, right.span().end));
+                    }
+                    frames.push(Frame::BinaryIndependentRight(Box::new(
+                        BinaryIndependentProgress {
+                            expr,
+                            context,
+                            left: left_type.clone(),
+                            pending_before,
+                            left_domain_failed,
+                            binary_fact: visit,
+                        },
+                    )));
+                    *inner = right;
+                    *inner_context = OwnedCheckContext {
+                        expected: (numeric && !left_domain_failed).then_some(Type::I64),
+                        expected_span: None,
+                        check_here: true,
+                        anchor: None,
+                        outer_compare: false,
+                        related_expected: false,
+                        deferred_element: false,
+                    };
+                    visit = checker.graph.child_fact(
+                        visit,
+                        span_key(inner.span()),
+                        FactRole::Expression,
+                        FactInheritance::Empty,
+                        FactInheritance::Inherit,
+                    );
+                    return Resume::Evaluate(visit);
+                }
+            }
+            if let (
+                Expr::Binary {
+                    op, left, right, ..
+                },
+                Ok(left_type),
+            ) = (expr, &result)
+                && checker
+                    .graph
+                    .has(&span_key(left.span()), OccurrenceFlag::Deferred)
+            {
+                let numeric = super::operators::is_arithmetic(op, checker.f5);
+                let pending_before_operator = checker.pending_join_count();
+                frames.push(Frame::BinaryDeferredRight(Box::new(
+                    BinaryDeferredProgress {
+                        expr,
+                        context,
+                        left: left_type.clone(),
+                        pending_before_left: pending_before,
+                        pending_before_operator,
+                        binary_fact: visit,
+                    },
+                )));
+                *inner = right;
+                *inner_context = OwnedCheckContext {
+                    expected: numeric.then_some(Type::I64),
+                    expected_span: None,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: false,
+                    deferred_element: false,
+                };
+                visit = checker.graph.child_fact(
+                    visit,
+                    span_key(inner.span()),
+                    FactRole::Expression,
+                    FactInheritance::Inherit,
+                    FactInheritance::Empty,
+                );
+                return Resume::Evaluate(visit);
+            }
+            if let (
+                Expr::Binary {
+                    op, left, right, ..
+                },
+                Ok(left_type),
+            ) = (expr, &result)
+            {
+                let numeric = super::operators::is_arithmetic(op, checker.f5);
+                if !checker.graph.has(
+                    &span_key(&Checker::primary_span(left)),
+                    OccurrenceFlag::PendingDomain,
+                ) && !(numeric && checker.pending_join_count() > pending_before)
+                    && !checker
+                        .graph
+                        .has(&span_key(left.span()), OccurrenceFlag::FailedJoin)
+                    && !checker.graph.fact_mut(visit).tainted
+                    && !checker
+                        .graph
+                        .has(&span_key(left.span()), OccurrenceFlag::Deferred)
+                    && (!numeric || *left_type == Type::I64)
+                {
+                    let left_type = left_type.clone();
+                    let right_context = OwnedCheckContext {
+                        expected: Some(if numeric {
+                            Type::I64
+                        } else {
+                            left_type.clone()
+                        }),
+                        expected_span: Some(Checker::primary_span(left)),
+                        check_here: true,
+                        anchor: None,
+                        outer_compare: !numeric,
+                        related_expected: !numeric,
+                        deferred_element: false,
+                    };
+                    let pending_before = checker.pending_join_count();
+                    frames.push(Frame::BinaryRight(Box::new(BinaryRightProgress {
+                        expr,
+                        context,
+                        left: left_type,
+                        pending_before,
+                        binary_fact: visit,
+                    })));
+                    *inner = right;
+                    *inner_context = right_context;
+                    visit = checker.graph.child_fact(
+                        visit,
+                        span_key(inner.span()),
+                        FactRole::Expression,
+                        FactInheritance::Inherit,
+                        FactInheritance::Empty,
+                    );
+                    return Resume::Evaluate(visit);
+                }
+            }
+            result = checker.check_against_context_one(
+                visit,
+                expr,
+                context.borrowed(),
+                Some(PrecomputedType::BinaryLeft {
+                    result,
+                    pending_before,
+                    independent_right: None,
+                }),
+            );
+            checker.graph.merge_child(outer_fact, visit, true);
+            visit = outer_fact;
+            Resume::Next(result, visit)
+        }
+        #[inline(never)]
+        fn resume_index<'a>(
+            checker: &mut Checker<'_>,
+            mut visit: FactId,
+            progress: Box<(&'a Expr, OwnedCheckContext, FactId)>,
+            mut result: Result<Type, Box<Diagnostic>>,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+        ) -> Resume {
+            let (expr, context, parent_fact) = *progress;
+            checker.graph.merge_child(parent_fact, visit, true);
+            visit = parent_fact;
+            match result {
+                Ok(base) => {
+                    let Expr::Index { target, index, .. } = expr else {
+                        unreachable!("index frame owns an index")
+                    };
+                    let deferred_target = checker
+                        .graph
+                        .has(&span_key(target.span()), OccurrenceFlag::Deferred);
+                    let mut deferred_child = None;
+                    let mut pending_projection = false;
+                    if deferred_target
+                        && !matches!(base, Type::Tainted | Type::Never)
+                        && let Some(id) = checker.expression_variable(target)
+                    {
+                        let root = checker.root(id);
+                        if checker.graph.type_nodes[&root].array_child.is_some() {
+                            match checker.require_array(id, &Checker::primary_span(target)) {
+                                Ok(child) => deferred_child = Some(child),
+                                Err(error) => {
+                                    result = checker.check_against_context_one(
+                                        visit,
+                                        expr,
+                                        context.borrowed(),
+                                        Some(PrecomputedType::Whole(Err(error))),
+                                    );
+                                    return Resume::Next(result, visit);
+                                }
+                            }
+                        } else {
+                            pending_projection = true;
+                        }
+                    }
+                    if pending_projection {
+                        result = checker.check_against_context_one(
+                            visit,
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::IndexTarget {
+                                target: Ok(base),
+                                selector: None,
+                                deferred_child: None,
+                            }),
+                        );
+                        return Resume::Next(result, visit);
+                    }
+                    let divergent_target = deferred_target
+                        && checker
+                            .graph
+                            .has(&span_key(target.span()), OccurrenceFlag::Divergent);
+                    let expected = matches!(base, Type::Array(_) | Type::Tainted | Type::Never)
+                        || deferred_child.is_some()
+                        || divergent_target;
+                    let separate_taint = !matches!(base, Type::Array(_) | Type::Never)
+                        && deferred_child.is_none()
+                        && !divergent_target;
+                    frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
+                        expr,
+                        context,
+                        base: Ok(base),
+                        parent_fact: visit,
+                        deferred_child,
+                    })));
+                    *inner = index;
+                    *inner_context = OwnedCheckContext {
+                        expected: expected.then_some(Type::I64),
+                        expected_span: None,
+                        check_here: true,
+                        anchor: None,
+                        outer_compare: false,
+                        related_expected: false,
+                        deferred_element: false,
+                    };
+                    visit = checker.graph.child_fact(
+                        visit,
+                        span_key(inner.span()),
+                        FactRole::Selector,
+                        if separate_taint {
+                            FactInheritance::Empty
+                        } else {
+                            FactInheritance::Inherit
+                        },
+                        FactInheritance::Inherit,
+                    );
+                    return Resume::Evaluate(visit);
+                }
+                Err(error) if error.operation != Operation::AnalysisLimit => {
+                    return index_failed_base(
+                        checker,
+                        expr,
+                        context,
+                        error,
+                        visit,
+                        frames,
+                        inner,
+                        inner_context,
+                    );
+                }
+                other => {
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::IndexTarget {
+                            target: other,
+                            selector: None,
+                            deferred_child: None,
+                        }),
+                    );
+                }
+            }
+            Resume::Next(result, visit)
+        }
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)]
+        fn resume_statement_other<'a>(
             checker: &mut Checker<'_>,
             mut visit: FactId,
             frame: Frame<'a>,
@@ -9800,25 +10205,6 @@ impl Checker<'_> {
             inner_context: &mut OwnedCheckContext,
             pending_task: &mut Option<Task<'a>>,
         ) -> Resume {
-            #[cfg(test)]
-            let boundary_frame = match &frame {
-                Frame::Array(_) => Some("Array"),
-                Frame::Index(_) => Some("Index"),
-                Frame::IndexSelector(_) => Some("IndexSelector"),
-                Frame::Binary(_) => Some("Binary"),
-                Frame::BinaryRight(_) => Some("BinaryRight"),
-                Frame::BinaryDeferredRight(_) => Some("BinaryDeferredRight"),
-                Frame::BinaryIndependentLeftError(_) => Some("BinaryIndependentLeftError"),
-                Frame::BinaryIndependentRight(_) => Some("BinaryIndependentRight"),
-                Frame::Call(_) => Some("Call"),
-                Frame::CallTarget(_) => Some("CallTarget"),
-                Frame::ClosureCall(_) => Some("ClosureCall"),
-                Frame::UnionCall(_) => Some("UnionCall"),
-                Frame::IntrinsicOne(_) => Some("IntrinsicOne"),
-                Frame::TryAdd(_) => Some("TryAdd"),
-                Frame::AssertEq(_) => Some("AssertEq"),
-                _ => None,
-            };
             match frame {
                 Frame::StatementSite(statement, parent_fact) => {
                     let prior_taint = checker.graph.fact(parent_fact).tainted;
@@ -10009,612 +10395,22 @@ impl Checker<'_> {
                     checker.block_depth -= 1;
                     result = Ok(Type::Unit);
                 }
-                Frame::Group(progress) => {
-                    let (group, child, span, context) = *progress;
-                    checker.propagate_group(child, span);
-                    result = checker.check_against_context_one(
-                        visit,
-                        group,
-                        context.borrowed(),
-                        Some(PrecomputedType::Whole(result)),
-                    );
-                }
-                Frame::Unary(progress) => {
-                    let (expr, context) = *progress;
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::UnaryOperand(result)),
-                    );
-                }
-                Frame::UnaryPropagated(progress) => {
-                    let (expr, context) = *progress;
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::Whole(result)),
-                    );
-                }
-                Frame::LogicalLeft(progress) => {
-                    let (expr, context) = *progress;
-                    let Expr::Binary { right, .. } = expr else {
-                        unreachable!("logical frame owns a binary expression")
-                    };
-                    frames.push(Frame::LogicalRight(Box::new(LogicalRightProgress {
-                        expr,
-                        context,
-                        left: result,
-                    })));
-                    *inner = right;
-                    *inner_context = OwnedCheckContext::new(CheckContext {
-                        expected: Some(&Type::Bool),
-                        expected_span: None,
-                        check_here: true,
-                        anchor: None,
-                        outer_compare: false,
-                        related_expected: false,
-                        deferred_element: false,
-                    });
-                    return Resume::Evaluate(visit);
-                }
-                Frame::LogicalRight(progress) => {
-                    let LogicalRightProgress {
-                        expr,
-                        context,
-                        left,
-                    } = *progress;
-                    let combined = match (left, result) {
-                        (Err(error), _) | (_, Err(error)) => Err(error),
-                        (Ok(Type::Tainted), _) | (_, Ok(Type::Tainted)) => Ok(Type::Tainted),
-                        (Ok(_), Ok(_)) => Ok(Type::Bool),
-                    };
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::Whole(combined)),
-                    );
-                }
-                Frame::Array(progress) => {
-                    let mut state = *progress;
-                    let accepted = checker.array_accept(visit, &mut state, result);
-                    let parent_fact = state.parent_fact;
-                    checker.graph.merge_child(parent_fact, visit, true);
-                    visit = parent_fact;
-                    if accepted.is_ok() {
-                        state.next += 1;
-                        if state.next < state.items.len() {
-                            (*inner, *inner_context) = checker.array_next(visit, &mut state);
-                            frames.push(Frame::Array(Box::new(state)));
-                            visit = checker.graph.child_fact(
-                                visit,
-                                span_key(inner.span()),
-                                FactRole::Expression,
-                                FactInheritance::Empty,
-                                FactInheritance::Empty,
-                            );
-                            return Resume::Evaluate(visit);
-                        }
-                    }
-                    let expr = state.expr;
-                    let context = state.context.clone();
-                    let constructor_pair = state.element_expected.is_some();
-                    let outcome = accepted.and_then(|_| checker.array_finish(state));
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::ArrayComplete {
-                            result: outcome,
-                            constructor_pair,
-                        }),
-                    );
-                }
-                Frame::Index(progress) => {
-                    let (expr, context, parent_fact) = *progress;
-                    checker.graph.merge_child(parent_fact, visit, true);
-                    visit = parent_fact;
-                    match result {
-                        Ok(base) => {
-                            let Expr::Index { target, index, .. } = expr else {
-                                unreachable!("index frame owns an index")
-                            };
-                            let deferred_target = checker
-                                .graph
-                                .has(&span_key(target.span()), OccurrenceFlag::Deferred);
-                            let mut deferred_child = None;
-                            let mut pending_projection = false;
-                            if deferred_target
-                                && !matches!(base, Type::Tainted | Type::Never)
-                                && let Some(id) = checker.expression_variable(target)
-                            {
-                                let root = checker.root(id);
-                                if checker.graph.type_nodes[&root].array_child.is_some() {
-                                    match checker.require_array(id, &Checker::primary_span(target))
-                                    {
-                                        Ok(child) => deferred_child = Some(child),
-                                        Err(error) => {
-                                            result = checker.check_against_context_one(
-                                                visit,
-                                                expr,
-                                                context.borrowed(),
-                                                Some(PrecomputedType::Whole(Err(error))),
-                                            );
-                                            return Resume::Next(result, visit);
-                                        }
-                                    }
-                                } else {
-                                    pending_projection = true;
-                                }
-                            }
-                            if pending_projection {
-                                result = checker.check_against_context_one(
-                                    visit,
-                                    expr,
-                                    context.borrowed(),
-                                    Some(PrecomputedType::IndexTarget {
-                                        target: Ok(base),
-                                        selector: None,
-                                        deferred_child: None,
-                                    }),
-                                );
-                                return Resume::Next(result, visit);
-                            }
-                            let divergent_target = deferred_target
-                                && checker
-                                    .graph
-                                    .has(&span_key(target.span()), OccurrenceFlag::Divergent);
-                            let expected =
-                                matches!(base, Type::Array(_) | Type::Tainted | Type::Never)
-                                    || deferred_child.is_some()
-                                    || divergent_target;
-                            let separate_taint = !matches!(base, Type::Array(_) | Type::Never)
-                                && deferred_child.is_none()
-                                && !divergent_target;
-                            frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
-                                expr,
-                                context,
-                                base: Ok(base),
-                                parent_fact: visit,
-                                deferred_child,
-                            })));
-                            *inner = index;
-                            *inner_context = OwnedCheckContext {
-                                expected: expected.then_some(Type::I64),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            };
-                            visit = checker.graph.child_fact(
-                                visit,
-                                span_key(inner.span()),
-                                FactRole::Selector,
-                                if separate_taint {
-                                    FactInheritance::Empty
-                                } else {
-                                    FactInheritance::Inherit
-                                },
-                                FactInheritance::Inherit,
-                            );
-                            return Resume::Evaluate(visit);
-                        }
-                        Err(error) if error.operation != Operation::AnalysisLimit => {
-                            return index_failed_base(
-                                checker,
-                                expr,
-                                context,
-                                error,
-                                visit,
-                                frames,
-                                inner,
-                                inner_context,
-                            );
-                        }
-                        other => {
-                            result = checker.check_against_context_one(
-                                visit,
-                                expr,
-                                context.borrowed(),
-                                Some(PrecomputedType::IndexTarget {
-                                    target: other,
-                                    selector: None,
-                                    deferred_child: None,
-                                }),
-                            );
-                        }
-                    }
-                }
-                Frame::IndexSelector(progress) => {
-                    (result, visit) = finish_index_selector(checker, progress, visit, result);
-                }
-                Frame::Binary(progress) => {
-                    let (expr, context, pending_before, outer_fact) = *progress;
-                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
-                    if matches!(&result, Err(error) if error.operation != Operation::AnalysisLimit)
-                    {
-                        let Err(error) = result else { unreachable!() };
-                        let Expr::Binary {
-                            op, left, right, ..
-                        } = expr
-                        else {
-                            unreachable!("binary frame owns a binary")
-                        };
-                        let numeric = super::operators::is_arithmetic(op, checker.f5);
-                        let left_domain_failed = numeric
-                            && error.primary_span.as_ref() == Some(&Checker::primary_span(left))
-                            && error.data.get("expected_type")
-                                == Some(&DataValue::String("I64".into()));
-                        if numeric {
-                            checker.graph.fact_mut(visit).numeric_domain_owner =
-                                Some((left.span().start, right.span().end));
-                        }
-                        frames.push(Frame::BinaryIndependentLeftError(Box::new(
-                            BinaryLeftErrorProgress {
-                                expr,
-                                context,
-                                error,
-                                left_domain_failed,
-                                binary_fact: visit,
-                            },
-                        )));
-                        *inner = right;
-                        *inner_context = OwnedCheckContext {
-                            expected: (numeric && !left_domain_failed).then_some(Type::I64),
-                            expected_span: None,
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        };
-                        visit = checker.graph.child_fact(
-                            visit,
-                            span_key(inner.span()),
-                            FactRole::Expression,
-                            FactInheritance::Empty,
-                            FactInheritance::Inherit,
-                        );
-                        return Resume::Evaluate(visit);
-                    }
-                    if let (
-                        Expr::Binary {
-                            op, left, right, ..
-                        },
-                        Ok(left_type),
-                    ) = (expr, &result)
-                    {
-                        let numeric = super::operators::is_arithmetic(op, checker.f5);
-                        let pending_domain = checker.graph.has(
-                            &span_key(&Checker::primary_span(left)),
-                            OccurrenceFlag::PendingDomain,
-                        );
-                        let joined = checker.pending_join_count() > pending_before;
-                        let failed_join = checker
-                            .graph
-                            .has(&span_key(left.span()), OccurrenceFlag::FailedJoin);
-                        let left_domain_failed = if pending_domain {
-                            Some(
-                                numeric
-                                    && checker.type_determined(left_type)
-                                    && *left_type != Type::I64
-                                    && !failed_join,
-                            )
-                        } else if numeric && joined {
-                            Some(checker.type_determined(left_type) && *left_type != Type::I64)
-                        } else if failed_join || checker.graph.fact_mut(visit).tainted {
-                            Some(
-                                checker
-                                    .graph
-                                    .has(&span_key(left.span()), OccurrenceFlag::ContextRejected),
-                            )
-                        } else if numeric
-                            && *left_type != Type::I64
-                            && !checker
-                                .graph
-                                .has(&span_key(left.span()), OccurrenceFlag::Deferred)
-                        {
-                            let pending_left_result =
-                                checker.graph.obligations.iter().any(|entry| match entry {
-                                    ObligationKind::BinaryDomain(domain) => {
-                                        domain.result == Checker::primary_span(left)
-                                    }
-                                    _ => false,
-                                });
-                            Some(!pending_left_result)
-                        } else {
-                            None
-                        };
-                        if let Some(left_domain_failed) = left_domain_failed {
-                            if numeric {
-                                checker.graph.fact_mut(visit).numeric_domain_owner =
-                                    Some((left.span().start, right.span().end));
-                            }
-                            frames.push(Frame::BinaryIndependentRight(Box::new(
-                                BinaryIndependentProgress {
-                                    expr,
-                                    context,
-                                    left: left_type.clone(),
-                                    pending_before,
-                                    left_domain_failed,
-                                    binary_fact: visit,
-                                },
-                            )));
-                            *inner = right;
-                            *inner_context = OwnedCheckContext {
-                                expected: (numeric && !left_domain_failed).then_some(Type::I64),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            };
-                            visit = checker.graph.child_fact(
-                                visit,
-                                span_key(inner.span()),
-                                FactRole::Expression,
-                                FactInheritance::Empty,
-                                FactInheritance::Inherit,
-                            );
-                            return Resume::Evaluate(visit);
-                        }
-                    }
-                    if let (
-                        Expr::Binary {
-                            op, left, right, ..
-                        },
-                        Ok(left_type),
-                    ) = (expr, &result)
-                        && checker
-                            .graph
-                            .has(&span_key(left.span()), OccurrenceFlag::Deferred)
-                    {
-                        let numeric = super::operators::is_arithmetic(op, checker.f5);
-                        let pending_before_operator = checker.pending_join_count();
-                        frames.push(Frame::BinaryDeferredRight(Box::new(
-                            BinaryDeferredProgress {
-                                expr,
-                                context,
-                                left: left_type.clone(),
-                                pending_before_left: pending_before,
-                                pending_before_operator,
-                                binary_fact: visit,
-                            },
-                        )));
-                        *inner = right;
-                        *inner_context = OwnedCheckContext {
-                            expected: numeric.then_some(Type::I64),
-                            expected_span: None,
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        };
-                        visit = checker.graph.child_fact(
-                            visit,
-                            span_key(inner.span()),
-                            FactRole::Expression,
-                            FactInheritance::Inherit,
-                            FactInheritance::Empty,
-                        );
-                        return Resume::Evaluate(visit);
-                    }
-                    if let (
-                        Expr::Binary {
-                            op, left, right, ..
-                        },
-                        Ok(left_type),
-                    ) = (expr, &result)
-                    {
-                        let numeric = super::operators::is_arithmetic(op, checker.f5);
-                        if !checker.graph.has(
-                            &span_key(&Checker::primary_span(left)),
-                            OccurrenceFlag::PendingDomain,
-                        ) && !(numeric && checker.pending_join_count() > pending_before)
-                            && !checker
-                                .graph
-                                .has(&span_key(left.span()), OccurrenceFlag::FailedJoin)
-                            && !checker.graph.fact_mut(visit).tainted
-                            && !checker
-                                .graph
-                                .has(&span_key(left.span()), OccurrenceFlag::Deferred)
-                            && (!numeric || *left_type == Type::I64)
-                        {
-                            let left_type = left_type.clone();
-                            let right_context = OwnedCheckContext {
-                                expected: Some(if numeric {
-                                    Type::I64
-                                } else {
-                                    left_type.clone()
-                                }),
-                                expected_span: Some(Checker::primary_span(left)),
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: !numeric,
-                                related_expected: !numeric,
-                                deferred_element: false,
-                            };
-                            let pending_before = checker.pending_join_count();
-                            frames.push(Frame::BinaryRight(Box::new(BinaryRightProgress {
-                                expr,
-                                context,
-                                left: left_type,
-                                pending_before,
-                                binary_fact: visit,
-                            })));
-                            *inner = right;
-                            *inner_context = right_context;
-                            visit = checker.graph.child_fact(
-                                visit,
-                                span_key(inner.span()),
-                                FactRole::Expression,
-                                FactInheritance::Inherit,
-                                FactInheritance::Empty,
-                            );
-                            return Resume::Evaluate(visit);
-                        }
-                    }
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::BinaryLeft {
-                            result,
-                            pending_before,
-                            independent_right: None,
-                        }),
-                    );
-                    checker.graph.merge_child(outer_fact, visit, true);
-                    visit = outer_fact;
-                }
-                Frame::BinaryRight(progress) => {
-                    let BinaryRightProgress {
-                        expr,
-                        context,
-                        left,
-                        pending_before,
-                        binary_fact,
-                    } = *progress;
-                    checker.graph.merge_child(binary_fact, visit, true);
-                    visit = binary_fact;
-                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::BinaryRight {
-                            left,
-                            result,
-                            pending_before,
-                        }),
-                    );
-                    visit = checker.graph.merge_to_parent(visit, true);
-                }
-                Frame::BinaryDeferredRight(progress) => {
-                    let BinaryDeferredProgress {
-                        expr,
-                        context,
-                        left,
-                        pending_before_left,
-                        pending_before_operator,
-                        binary_fact,
-                    } = *progress;
-                    checker.graph.merge_child(binary_fact, visit, true);
-                    visit = binary_fact;
-                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::BinaryDeferredRight {
-                            left,
-                            result,
-                            pending_before_left,
-                            pending_before_operator,
-                        }),
-                    );
-                    visit = checker.graph.merge_to_parent(visit, true);
-                }
-                Frame::BinaryIndependentLeftError(progress) => {
-                    let BinaryLeftErrorProgress {
-                        expr,
-                        context,
-                        error,
-                        left_domain_failed,
-                        binary_fact,
-                    } = *progress;
-                    let Expr::Binary {
-                        op, left, right, ..
-                    } = expr
-                    else {
-                        unreachable!("independent frame owns a binary")
-                    };
-                    let right_tainted = checker.graph.fact_mut(visit).tainted;
-                    checker.graph.merge_child(binary_fact, visit, true);
-                    visit = binary_fact;
-                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
-                    let outcome = checker.finish_independent_binary_rhs(
-                        op,
-                        left,
-                        right,
-                        left_domain_failed,
-                        result,
-                        right_tainted,
-                    );
-                    let binary_result = match outcome {
-                        Ok(right_failed) => {
-                            if right_failed {
-                                checker.record_error(error);
-                                checker
-                                    .graph
-                                    .mark(span_key(expr.span()), OccurrenceFlag::Deferred);
-                                checker.graph.fact_mut(visit).tainted = true;
-                                Ok(Type::Tainted)
-                            } else {
-                                Err(error)
-                            }
-                        }
-                        Err(error) => Err(error),
-                    };
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::Whole(binary_result)),
-                    );
-                    visit = checker.graph.merge_to_parent(visit, true);
-                }
-                Frame::BinaryIndependentRight(progress) => {
-                    let BinaryIndependentProgress {
-                        expr,
-                        context,
-                        left,
-                        pending_before,
-                        left_domain_failed,
-                        binary_fact,
-                    } = *progress;
-                    let Expr::Binary {
-                        op,
-                        left: left_expr,
-                        right,
-                        ..
-                    } = expr
-                    else {
-                        unreachable!("independent frame owns a binary")
-                    };
-                    let right_tainted = checker.graph.fact_mut(visit).tainted;
-                    checker.graph.merge_child(binary_fact, visit, true);
-                    visit = binary_fact;
-                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
-                    let outcome = checker.finish_independent_binary_rhs(
-                        op,
-                        left_expr,
-                        right,
-                        left_domain_failed,
-                        result,
-                        right_tainted,
-                    );
-                    result = match outcome {
-                        Ok(right_failed) => checker.check_against_context_one(
-                            visit,
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::BinaryLeft {
-                                result: Ok(left),
-                                pending_before,
-                                independent_right: Some(right_failed),
-                            }),
-                        ),
-                        Err(error) => Err(error),
-                    };
-                    visit = checker.graph.merge_to_parent(visit, true);
-                }
+                _ => unreachable!("statement helper receives only statement frames"),
+            }
+            Resume::Next(result, visit)
+        }
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)]
+        fn resume_call_other<'a>(
+            checker: &mut Checker<'_>,
+            mut visit: FactId,
+            frame: Frame<'a>,
+            mut result: Result<Type, Box<Diagnostic>>,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+        ) -> Resume {
+            match frame {
                 Frame::Call(progress) => {
                     let CallProgress {
                         expr,
@@ -10962,6 +10758,381 @@ impl Checker<'_> {
                         Some(PrecomputedType::CallComplete(outcome)),
                     );
                     visit = checker.graph.merge_to_parent(visit, true);
+                }
+                _ => unreachable!("call helper receives only call frames"),
+            }
+            Resume::Next(result, visit)
+        }
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)]
+        fn resume_binary_tail<'a>(
+            checker: &mut Checker<'_>,
+            mut visit: FactId,
+            frame: Frame<'a>,
+            mut result: Result<Type, Box<Diagnostic>>,
+        ) -> Resume {
+            match frame {
+                Frame::BinaryRight(progress) => {
+                    let BinaryRightProgress {
+                        expr,
+                        context,
+                        left,
+                        pending_before,
+                        binary_fact,
+                    } = *progress;
+                    checker.graph.merge_child(binary_fact, visit, true);
+                    visit = binary_fact;
+                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::BinaryRight {
+                            left,
+                            result,
+                            pending_before,
+                        }),
+                    );
+                    visit = checker.graph.merge_to_parent(visit, true);
+                }
+                Frame::BinaryDeferredRight(progress) => {
+                    let BinaryDeferredProgress {
+                        expr,
+                        context,
+                        left,
+                        pending_before_left,
+                        pending_before_operator,
+                        binary_fact,
+                    } = *progress;
+                    checker.graph.merge_child(binary_fact, visit, true);
+                    visit = binary_fact;
+                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::BinaryDeferredRight {
+                            left,
+                            result,
+                            pending_before_left,
+                            pending_before_operator,
+                        }),
+                    );
+                    visit = checker.graph.merge_to_parent(visit, true);
+                }
+                Frame::BinaryIndependentLeftError(progress) => {
+                    let BinaryLeftErrorProgress {
+                        expr,
+                        context,
+                        error,
+                        left_domain_failed,
+                        binary_fact,
+                    } = *progress;
+                    let Expr::Binary {
+                        op, left, right, ..
+                    } = expr
+                    else {
+                        unreachable!("independent frame owns a binary")
+                    };
+                    let right_tainted = checker.graph.fact_mut(visit).tainted;
+                    checker.graph.merge_child(binary_fact, visit, true);
+                    visit = binary_fact;
+                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
+                    let outcome = checker.finish_independent_binary_rhs(
+                        op,
+                        left,
+                        right,
+                        left_domain_failed,
+                        result,
+                        right_tainted,
+                    );
+                    let binary_result = match outcome {
+                        Ok(right_failed) => {
+                            if right_failed {
+                                checker.record_error(error);
+                                checker
+                                    .graph
+                                    .mark(span_key(expr.span()), OccurrenceFlag::Deferred);
+                                checker.graph.fact_mut(visit).tainted = true;
+                                Ok(Type::Tainted)
+                            } else {
+                                Err(error)
+                            }
+                        }
+                        Err(error) => Err(error),
+                    };
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(binary_result)),
+                    );
+                    visit = checker.graph.merge_to_parent(visit, true);
+                }
+                Frame::BinaryIndependentRight(progress) => {
+                    let BinaryIndependentProgress {
+                        expr,
+                        context,
+                        left,
+                        pending_before,
+                        left_domain_failed,
+                        binary_fact,
+                    } = *progress;
+                    let Expr::Binary {
+                        op,
+                        left: left_expr,
+                        right,
+                        ..
+                    } = expr
+                    else {
+                        unreachable!("independent frame owns a binary")
+                    };
+                    let right_tainted = checker.graph.fact_mut(visit).tainted;
+                    checker.graph.merge_child(binary_fact, visit, true);
+                    visit = binary_fact;
+                    checker.graph.fact_mut(visit).numeric_domain_owner = None;
+                    let outcome = checker.finish_independent_binary_rhs(
+                        op,
+                        left_expr,
+                        right,
+                        left_domain_failed,
+                        result,
+                        right_tainted,
+                    );
+                    result = match outcome {
+                        Ok(right_failed) => checker.check_against_context_one(
+                            visit,
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::BinaryLeft {
+                                result: Ok(left),
+                                pending_before,
+                                independent_right: Some(right_failed),
+                            }),
+                        ),
+                        Err(error) => Err(error),
+                    };
+                    visit = checker.graph.merge_to_parent(visit, true);
+                }
+                _ => unreachable!("binary tail helper receives only binary frames"),
+            }
+            Resume::Next(result, visit)
+        }
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)] // Continuation carries one drive's cursor.
+        fn resume_non_match<'a>(
+            checker: &mut Checker<'_>,
+            mut visit: FactId,
+            frame: Frame<'a>,
+            mut result: Result<Type, Box<Diagnostic>>,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+            pending_task: &mut Option<Task<'a>>,
+        ) -> Resume {
+            #[cfg(test)]
+            let boundary_frame = match &frame {
+                Frame::Array(_) => Some("Array"),
+                Frame::Index(_) => Some("Index"),
+                Frame::IndexSelector(_) => Some("IndexSelector"),
+                Frame::Binary(_) => Some("Binary"),
+                Frame::BinaryRight(_) => Some("BinaryRight"),
+                Frame::BinaryDeferredRight(_) => Some("BinaryDeferredRight"),
+                Frame::BinaryIndependentLeftError(_) => Some("BinaryIndependentLeftError"),
+                Frame::BinaryIndependentRight(_) => Some("BinaryIndependentRight"),
+                Frame::Call(_) => Some("Call"),
+                Frame::CallTarget(_) => Some("CallTarget"),
+                Frame::ClosureCall(_) => Some("ClosureCall"),
+                Frame::UnionCall(_) => Some("UnionCall"),
+                Frame::IntrinsicOne(_) => Some("IntrinsicOne"),
+                Frame::TryAdd(_) => Some("TryAdd"),
+                Frame::AssertEq(_) => Some("AssertEq"),
+                _ => None,
+            };
+            match frame {
+                frame @ (Frame::StatementSite(..)
+                | Frame::StatementExpr
+                | Frame::StatementLet(..)
+                | Frame::StatementReturn(..)
+                | Frame::AssignmentPlace(..)
+                | Frame::AssignmentValue(..)
+                | Frame::StatementIf(..)
+                | Frame::StatementWhile(..)
+                | Frame::StatementFor(..)
+                | Frame::Block(..)) => {
+                    return resume_statement_other(
+                        checker,
+                        visit,
+                        frame,
+                        result,
+                        frames,
+                        inner,
+                        inner_context,
+                        pending_task,
+                    );
+                }
+                Frame::Group(progress) => {
+                    let (group, child, span, context) = *progress;
+                    checker.propagate_group(child, span);
+                    result = checker.check_against_context_one(
+                        visit,
+                        group,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(result)),
+                    );
+                }
+                Frame::Unary(progress) => {
+                    let (expr, context) = *progress;
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::UnaryOperand(result)),
+                    );
+                }
+                Frame::UnaryPropagated(progress) => {
+                    let (expr, context) = *progress;
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(result)),
+                    );
+                }
+                Frame::LogicalLeft(progress) => {
+                    let (expr, context) = *progress;
+                    let Expr::Binary { right, .. } = expr else {
+                        unreachable!("logical frame owns a binary expression")
+                    };
+                    frames.push(Frame::LogicalRight(Box::new(LogicalRightProgress {
+                        expr,
+                        context,
+                        left: result,
+                    })));
+                    *inner = right;
+                    *inner_context = OwnedCheckContext::new(CheckContext {
+                        expected: Some(&Type::Bool),
+                        expected_span: None,
+                        check_here: true,
+                        anchor: None,
+                        outer_compare: false,
+                        related_expected: false,
+                        deferred_element: false,
+                    });
+                    return Resume::Evaluate(visit);
+                }
+                Frame::LogicalRight(progress) => {
+                    let LogicalRightProgress {
+                        expr,
+                        context,
+                        left,
+                    } = *progress;
+                    let combined = match (left, result) {
+                        (Err(error), _) | (_, Err(error)) => Err(error),
+                        (Ok(Type::Tainted), _) | (_, Ok(Type::Tainted)) => Ok(Type::Tainted),
+                        (Ok(_), Ok(_)) => Ok(Type::Bool),
+                    };
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(combined)),
+                    );
+                }
+                Frame::Array(progress) => {
+                    let mut state = *progress;
+                    let accepted = checker.array_accept(visit, &mut state, result);
+                    let parent_fact = state.parent_fact;
+                    checker.graph.merge_child(parent_fact, visit, true);
+                    visit = parent_fact;
+                    if accepted.is_ok() {
+                        state.next += 1;
+                        if state.next < state.items.len() {
+                            (*inner, *inner_context) = checker.array_next(visit, &mut state);
+                            frames.push(Frame::Array(Box::new(state)));
+                            visit = checker.graph.child_fact(
+                                visit,
+                                span_key(inner.span()),
+                                FactRole::Expression,
+                                FactInheritance::Empty,
+                                FactInheritance::Empty,
+                            );
+                            return Resume::Evaluate(visit);
+                        }
+                    }
+                    let expr = state.expr;
+                    let context = state.context.clone();
+                    let constructor_pair = state.element_expected.is_some();
+                    let outcome = accepted.and_then(|_| checker.array_finish(state));
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::ArrayComplete {
+                            result: outcome,
+                            constructor_pair,
+                        }),
+                    );
+                }
+                Frame::Index(progress) => {
+                    match resume_index(
+                        checker,
+                        visit,
+                        progress,
+                        result,
+                        frames,
+                        inner,
+                        inner_context,
+                    ) {
+                        Resume::Next(next, next_fact) => {
+                            result = next;
+                            visit = next_fact;
+                        }
+                        other => return other,
+                    }
+                }
+                Frame::IndexSelector(progress) => {
+                    (result, visit) = finish_index_selector(checker, progress, visit, result);
+                }
+                Frame::Binary(progress) => {
+                    match resume_binary(
+                        checker,
+                        visit,
+                        progress,
+                        result,
+                        frames,
+                        inner,
+                        inner_context,
+                    ) {
+                        Resume::Next(next, next_fact) => {
+                            result = next;
+                            visit = next_fact;
+                        }
+                        other => return other,
+                    }
+                }
+                frame @ (Frame::BinaryRight(..)
+                | Frame::BinaryDeferredRight(..)
+                | Frame::BinaryIndependentLeftError(..)
+                | Frame::BinaryIndependentRight(..)) => {
+                    return resume_binary_tail(checker, visit, frame, result);
+                }
+                frame @ (Frame::Call(..)
+                | Frame::CallTarget(..)
+                | Frame::ClosureCall(..)
+                | Frame::UnionCall(..)
+                | Frame::IntrinsicOne(..)
+                | Frame::TryAdd(..)
+                | Frame::AssertEq(..)) => {
+                    return resume_call_other(
+                        checker,
+                        visit,
+                        frame,
+                        result,
+                        frames,
+                        inner,
+                        inner_context,
+                    );
                 }
                 Frame::If(mut progress) => {
                     match checker.if_advance(&mut visit, &mut progress, Some(result)) {
@@ -12201,6 +12372,15 @@ impl Checker<'_> {
             Some(Type::Deferred(_)) => {
                 self.graph
                     .mark(span_key(e.span()), OccurrenceFlag::Deferred);
+                if matches!(e, Expr::Match(_))
+                    && let Type::Deferred(id) = &got
+                {
+                    // The result occurrence and a local initialized from it
+                    // must share the arm equality's representative. Otherwise
+                    // a later assignment closes the arms but leaves the local
+                    // and the IR write with unrelated types.
+                    self.graph.expr_vars.insert(span_key(e.span()), *id);
+                }
             }
             _ => {}
         }
@@ -13865,6 +14045,7 @@ impl Checker<'_> {
                         span: pattern.span().clone(),
                     });
                 }
+                drop_infer_type_iterative(selected);
                 return Err(diagnostic);
             }
             if arm.guard.is_none() {
@@ -13882,8 +14063,10 @@ impl Checker<'_> {
             diagnostic
                 .data
                 .insert("missing_pattern".into(), DataValue::String(witness));
+            drop_infer_type_iterative(selected);
             return Err(diagnostic);
         }
+        drop_infer_type_iterative(selected);
         Ok(if expression {
             joined.as_ref().map_or_else(
                 || expected.cloned().unwrap_or(Type::Never),
@@ -15385,7 +15568,7 @@ impl Checker<'_> {
                             .and_then(|expr| self.expression_variable(expr))
                             .map(Type::Deferred)
                     });
-                    let arm_partial = (xv("matchpartial")
+                    let arm_partial = ((xv("matchpartial") || xv("r6witness"))
                         && branch_value_expr(&arm.body).is_some_and(|expr| {
                             self.graph
                                 .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)

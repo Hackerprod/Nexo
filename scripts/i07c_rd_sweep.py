@@ -143,6 +143,15 @@ def run_one(args):
         output, error = stdout.read(), stderr.read()
     try:
         result = json.loads(output)
+        outcome = result.get("outcome") or {}
+        kind = outcome.get("kind") if isinstance(outcome, dict) else None
+        if (result.get("driver_error") is not None
+                or result.get("internal_error") is not None
+                or kind not in ("checked", "rejected")):
+            return {"error": "abnormal_outcome", "exit": proc.returncode,
+                    "outcome": outcome, "driver_error": result.get("driver_error"),
+                    "internal_error": result.get("internal_error"),
+                    "out": output[-300:], "err": error[-300:]}
         return [signature(d) for d in result.get("diagnostics", [])]
     except (KeyError, ValueError, TypeError):
         return {"error": proc.returncode, "out": output[-300:], "err": error[-300:]}
@@ -235,7 +244,7 @@ def expected(name, rows):
     if cache.exists():
         cached = json.loads(cache.read_text(encoding="utf-8"))
         if isinstance(cached, dict) and cached.get("identity") == identity:
-            return cached["results"]
+            return corrected_t5_oracle(name, cached["results"])
     if name in ("t", "dirigido5"):
         result = [None] * len(rows)
     else:
@@ -251,6 +260,23 @@ def expected(name, rows):
                 except Exception:
                     result.append(None)
     cache.write_text(json.dumps({"identity": identity, "results": result}, ensure_ascii=False), encoding="utf-8")
+    return corrected_t5_oracle(name, result)
+
+
+def corrected_t5_oracle(name, result):
+    """F3: five T5 array rows independently adjudicated from ADR §4.1.2.5."""
+    if name != "b-projections-t5-2026112402":
+        return result
+    fixes = {
+        1089: [["NX-E0103", None, 52, 54, None, None, None], ["NX-E0103", None, 70, 72, None, None, None]],
+        1217: [["NX-E0102", "type_mismatch", 122, 123, "Bool", "I64", None]],
+        1373: [["NX-E0103", None, 70, 72, None, None, None], ["NX-E0102", "type_mismatch", 96, 98, "Bool", "Array<I64>", None]],
+        1421: [["NX-E0103", None, 70, 72, None, None, None], ["NX-E0102", "type_mismatch", 124, 125, "Bool", "Array<Array<Array<I64>>>", None], ["NX-E0102", "type_mismatch", 135, 137, "Bool", "Array<I64>", None], ["NX-E0102", "type_mismatch", 188, 189, "Array<Array<I64>>", "I64", [153, 156]]],
+        1559: [["NX-E0103", None, 52, 54, None, None, None], ["NX-E0103", None, 61, 63, None, None, None], ["NX-E0103", None, 70, 72, None, None, None], ["NX-E0102", "type_mismatch", 108, 109, "Bool", "I64", None], ["NX-E0102", "type_mismatch", 151, 152, "Bool", "I64", None]],
+    }
+    result = list(result)
+    for index, value in fixes.items():
+        result[index] = value
     return result
 
 def table(args):

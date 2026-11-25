@@ -80,7 +80,7 @@ def main():
     if not base_hash.startswith("44bef374"):
         raise RuntimeError(f"unexpected main binary {base_hash}")
     base_tag = "main-" + base_hash[:12]
-    candidate_tag = "proto-" + candidate_hash[:12] + "-r6"
+    candidate_tag = "proto-" + candidate_hash[:12] + "-r6-r5"
     session_started = time.monotonic()
     print(json.dumps({"base_sha256": base_hash, "candidate_sha256": candidate_hash,
                       "base_tag": base_tag, "candidate_tag": candidate_tag}), flush=True)
@@ -115,7 +115,7 @@ def main():
         summary = json.loads(result.stdout)
         summary.update({"base_sha256": base_hash, "candidate_sha256": candidate_hash,
                         "flags": FLAGS})
-        output = DEST / ("r6-summary-" + corpus.replace("@", "-") + ".json")
+        output = DEST / ("r6-r5-summary-" + corpus.replace("@", "-") + ".json")
         output.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({"corpus": corpus, "core": summary["core"],
                           "full": summary["full"], "unmodeled": summary["unmodeled"]}), flush=True)

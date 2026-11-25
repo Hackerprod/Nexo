@@ -94,6 +94,11 @@ def main():
             )
             try:
                 payload = json.loads(completed.stdout)
+                outcome = payload.get("outcome") or {}
+                if (payload.get("driver_error") is not None
+                        or payload.get("internal_error") is not None
+                        or outcome.get("kind") not in ("checked", "rejected")):
+                    raise ValueError(f"abnormal outcome: {outcome!r}; driver_error={payload.get('driver_error')!r}; internal_error={payload.get('internal_error')!r}")
                 actual = [(d["code"], d["primary_span"]["start"], d["primary_span"]["end"])
                           for d in payload["diagnostics"]]
                 detail = [{"code": d["code"], "subcause": d.get("subcause"),

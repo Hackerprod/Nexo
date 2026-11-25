@@ -1,0 +1,4553 @@
+{
+  "binary": "C:\\nexo-work\\target-r6\\release\\nexo.exe",
+  "binary_sha256": "9defe2f5cc9eb4045090eba804e2300ffd03878c1d4971845976f252c9d19453",
+  "profile": "f0-0002-b-v2",
+  "flags": "pendfa,retfa,nojoin,atomic0,e0103rule,retfail,nojoinr,skipv3,r5prefix,r1t5,r5t5,noshape,r6witness",
+  "fixture": "C:\\Projects\\Nexo-i07c-rd-proto\\docs\\validation\\i07c-rediseno\\b3-acceptance.json",
+  "rows": [
+    {
+      "name": "B_M1",
+      "bytes": 100,
+      "source": "fn Main(){var q=[];var r=[];let b=q[0];(if true then [q] else (if true then [1] else q));r=q;q=[1];}",
+      "expected": [
+        [
+          "NX-E1303",
+          76,
+          79
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          76,
+          79
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            76,
+            79
+          ],
+          "related": [
+            [
+              "expected_type",
+              53,
+              56
+            ],
+            [
+              "found_type",
+              76,
+              79
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B_M2",
+      "bytes": 108,
+      "source": "fn Main(){var q=[];var r=[];let z=r[0];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "planned",
+      "bytes": 115,
+      "source": "fn Main(){let x=1;var q=[];var s=[];let a=[s[x],(if 0 then true else q),(if x then q else s)];q=[true];s=[[true]];}",
+      "expected": [
+        [
+          "NX-E0102",
+          52,
+          53
+        ],
+        [
+          "NX-E1303",
+          69,
+          70
+        ],
+        [
+          "NX-E0102",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          106,
+          112
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          52,
+          53
+        ],
+        [
+          "NX-E1303",
+          69,
+          70
+        ],
+        [
+          "NX-E0102",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          106,
+          112
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            52,
+            53
+          ],
+          "related": [
+            [
+              "found_type",
+              52,
+              53
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            69,
+            70
+          ],
+          "related": [
+            [
+              "expected_type",
+              59,
+              63
+            ],
+            [
+              "found_type",
+              69,
+              70
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<Bool>"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            76,
+            77
+          ],
+          "related": [
+            [
+              "found_type",
+              76,
+              77
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            106,
+            112
+          ],
+          "related": [
+            [
+              "expected_type",
+              96,
+              102
+            ],
+            [
+              "found_type",
+              106,
+              112
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<Bool>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "X_02",
+      "bytes": 67,
+      "source": "fn Main(){let a:I64=(if true then 1 else (if 0 then true else 3));}",
+      "expected": [
+        [
+          "NX-E0102",
+          45,
+          46
+        ],
+        [
+          "NX-E0102",
+          52,
+          56
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          45,
+          46
+        ],
+        [
+          "NX-E0102",
+          52,
+          56
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            45,
+            46
+          ],
+          "related": [
+            [
+              "found_type",
+              45,
+              46
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            52,
+            56
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              52,
+              56
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "X_03_array_annotation_equiv",
+      "bytes": 80,
+      "source": "fn Main(){let a:Array<I64>=(if true then [1] else (if 0 then [true] else [3]));}",
+      "expected": [
+        [
+          "NX-E0102",
+          54,
+          55
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          54,
+          55
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            54,
+            55
+          ],
+          "related": [
+            [
+              "found_type",
+              54,
+              55
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            62,
+            66
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              26
+            ],
+            [
+              "found_type",
+              62,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "X_04_argument_equiv",
+      "bytes": 78,
+      "source": "fn F(x:view I64){}fn Main(){F((if true then 1 else (if 0 then true else 3)));}",
+      "expected": [
+        [
+          "NX-E0102",
+          55,
+          56
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          55,
+          56
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            55,
+            56
+          ],
+          "related": [
+            [
+              "found_type",
+              55,
+              56
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            62,
+            66
+          ],
+          "related": [
+            [
+              "expected_type",
+              12,
+              15
+            ],
+            [
+              "found_type",
+              62,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "X_05_return_equiv",
+      "bytes": 81,
+      "source": "fn F()->I64{return (if true then 1 else (if 0 then true else 3));}fn Main(){F();}",
+      "expected": [
+        [
+          "NX-E0102",
+          44,
+          45
+        ],
+        [
+          "NX-E0102",
+          51,
+          55
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          44,
+          45
+        ],
+        [
+          "NX-E0102",
+          51,
+          55
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            44,
+            45
+          ],
+          "related": [
+            [
+              "found_type",
+              44,
+              45
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            51,
+            55
+          ],
+          "related": [
+            [
+              "expected_type",
+              8,
+              11
+            ],
+            [
+              "found_type",
+              51,
+              55
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "X_06_operand_equiv",
+      "bytes": 65,
+      "source": "fn Main(){let a=1+(if true then 1 else (if 0 then true else 3));}",
+      "expected": [
+        [
+          "NX-E0102",
+          43,
+          44
+        ],
+        [
+          "NX-E0102",
+          50,
+          54
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          43,
+          44
+        ],
+        [
+          "NX-E0102",
+          50,
+          54
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            43,
+            44
+          ],
+          "related": [
+            [
+              "found_type",
+              43,
+              44
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            50,
+            54
+          ],
+          "related": [
+            [
+              "found_type",
+              50,
+              54
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "X_07_three_levels_equiv",
+      "bytes": 89,
+      "source": "fn Main(){let a:I64=(if true then (if true then 1 else 2) else (if 0 then true else 3));}",
+      "expected": [
+        [
+          "NX-E0102",
+          67,
+          68
+        ],
+        [
+          "NX-E0102",
+          74,
+          78
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          67,
+          68
+        ],
+        [
+          "NX-E0102",
+          74,
+          78
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            67,
+            68
+          ],
+          "related": [
+            [
+              "found_type",
+              67,
+              68
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            74,
+            78
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              74,
+              78
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "X_08_outer_condition_equiv",
+      "bytes": 70,
+      "source": "fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}",
+      "expected": [
+        [
+          "NX-E0102",
+          24,
+          25
+        ],
+        [
+          "NX-E0102",
+          31,
+          35
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          24,
+          25
+        ],
+        [
+          "NX-E0102",
+          31,
+          35
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            24,
+            25
+          ],
+          "related": [
+            [
+              "found_type",
+              24,
+              25
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            31,
+            35
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              31,
+              35
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            62,
+            66
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              62,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "SB_equivalent",
+      "bytes": 100,
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}",
+      "expected": [
+        [
+          "NX-E0102",
+          72,
+          74
+        ],
+        [
+          "NX-E0103",
+          47,
+          49
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          47,
+          49
+        ],
+        [
+          "NX-E0102",
+          72,
+          74
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            47,
+            49
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            72,
+            74
+          ],
+          "related": [
+            [
+              "found_type",
+              72,
+              74
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "T5_constructor_equivalent",
+      "bytes": 96,
+      "source": "fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}",
+      "expected": [
+        [
+          "NX-E0103",
+          36,
+          38
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          36,
+          38
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            36,
+            38
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "S_A_independent_constructor_equiv",
+      "bytes": 33,
+      "source": "fn Main(){var q=[];let z=true+1;}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0102",
+          25,
+          29
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0102",
+          25,
+          29
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            25,
+            29
+          ],
+          "related": [
+            [
+              "found_type",
+              25,
+              29
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "recursive_69",
+      "bytes": 69,
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "expected": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            60,
+            63
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "recursive_78_equivalent",
+      "bytes": 78,
+      "source": "fn Main(){var q=[];var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          69,
+          72
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          69,
+          72
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            69,
+            72
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "recursive_127_equivalent",
+      "bytes": 127,
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;var w=(if true then {return;}else{return;});var b=[w];w=b;}",
+      "expected": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ],
+        [
+          "NX-E0103",
+          118,
+          121
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ],
+        [
+          "NX-E0103",
+          118,
+          121
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            60,
+            63
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            118,
+            121
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "atomic_78",
+      "bytes": 78,
+      "source": "fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}",
+      "expected": [
+        [
+          "NX-E1303",
+          52,
+          53
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          52,
+          53
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            52,
+            53
+          ],
+          "related": [
+            [
+              "expected_type",
+              42,
+              46
+            ],
+            [
+              "found_type",
+              52,
+              53
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<Array<Bool>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "completion_conflict",
+      "bytes": 41,
+      "source": "fn Main(){var q=[];let a=[q,1];q=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          28,
+          29
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          28,
+          29
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            28,
+            29
+          ],
+          "related": [
+            [
+              "expected_type",
+              26,
+              27
+            ],
+            [
+              "found_type",
+              28,
+              29
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Bool>",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "completion_unresolved",
+      "bytes": 32,
+      "source": "fn Main(){var q=[];let a=[q,1];}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "suspended_68",
+      "bytes": 68,
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);q=[1];r=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          61,
+          65
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          61,
+          65
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            61,
+            65
+          ],
+          "related": [
+            [
+              "expected_type",
+              54,
+              57
+            ],
+            [
+              "found_type",
+              61,
+              65
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "waiting_projection_valid",
+      "bytes": 80,
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[true];}",
+      "expected": [],
+      "actual": [],
+      "observed_detail": [],
+      "matches": true,
+      "exit": 0,
+      "error": null
+    },
+    {
+      "name": "waiting_projection_candidate_conflict",
+      "bytes": 77,
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}",
+      "expected": [
+        [
+          "NX-E0102",
+          73,
+          74
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          73,
+          74
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            73,
+            74
+          ],
+          "related": [
+            [
+              "expected_type",
+              60,
+              64
+            ],
+            [
+              "found_type",
+              73,
+              74
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "waiting_projection_refuted",
+      "bytes": 75,
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=3;}",
+      "expected": [
+        [
+          "NX-E0102",
+          65,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          65,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "not_indexable",
+          "primary": [
+            65,
+            66
+          ],
+          "related": [
+            [
+              "found_type",
+              65,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "domain:array",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "join_record",
+      "bytes": 73,
+      "source": "fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}",
+      "expected": [
+        [
+          "NX-E1303",
+          56,
+          60
+        ],
+        [
+          "NX-E1303",
+          67,
+          70
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          56,
+          60
+        ],
+        [
+          "NX-E1303",
+          67,
+          70
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            56,
+            60
+          ],
+          "related": [
+            [
+              "expected_type",
+              49,
+              50
+            ],
+            [
+              "found_type",
+              56,
+              60
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            67,
+            70
+          ],
+          "related": [
+            [
+              "expected_type",
+              39,
+              60
+            ],
+            [
+              "found_type",
+              67,
+              70
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "ST1_equivalent",
+      "bytes": 89,
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}",
+      "expected": [
+        [
+          "NX-E1303",
+          68,
+          71
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          68,
+          71
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            68,
+            71
+          ],
+          "related": [
+            [
+              "expected_type",
+              45,
+              48
+            ],
+            [
+              "found_type",
+              68,
+              71
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "W1_atomic_compound",
+      "bytes": 221,
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+      "expected": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            99,
+            100
+          ],
+          "related": [
+            [
+              "found_type",
+              99,
+              100
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            147,
+            148
+          ],
+          "related": [
+            [
+              "expected_type",
+              137,
+              141
+            ],
+            [
+              "found_type",
+              147,
+              148
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<Array<Array<Array<I64>>>>>"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            199,
+            200
+          ],
+          "related": [
+            [
+              "expected_type",
+              85,
+              149
+            ],
+            [
+              "found_type",
+              199,
+              200
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<Array<I64>>>"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            209,
+            212
+          ],
+          "related": [
+            [
+              "expected_type",
+              74,
+              202
+            ],
+            [
+              "found_type",
+              209,
+              212
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<I64>>"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            216,
+            219
+          ],
+          "related": [
+            [
+              "expected_type",
+              170,
+              171
+            ],
+            [
+              "found_type",
+              216,
+              219
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<Array<I64>>>>>",
+            "found_type": "Array<Array<I64>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "W1a_without_later_assignment",
+      "bytes": 215,
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);}",
+      "expected": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            99,
+            100
+          ],
+          "related": [
+            [
+              "found_type",
+              99,
+              100
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            147,
+            148
+          ],
+          "related": [
+            [
+              "expected_type",
+              137,
+              141
+            ],
+            [
+              "found_type",
+              147,
+              148
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<Array<Array<Array<I64>>>>>"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            199,
+            200
+          ],
+          "related": [
+            [
+              "expected_type",
+              85,
+              149
+            ],
+            [
+              "found_type",
+              199,
+              200
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<Array<I64>>>"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            209,
+            212
+          ],
+          "related": [
+            [
+              "expected_type",
+              74,
+              202
+            ],
+            [
+              "found_type",
+              209,
+              212
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<I64>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "M2_partial_witness_chain",
+      "bytes": 161,
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];(if p then (if p then (if p then (if 1 then true else false) else (if p then q[0] else q)) else [[true]]) else aar);}",
+      "expected": [
+        [
+          "NX-E0102",
+          81,
+          82
+        ],
+        [
+          "NX-E1303",
+          131,
+          132
+        ],
+        [
+          "NX-E1303",
+          155,
+          158
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          81,
+          82
+        ],
+        [
+          "NX-E1303",
+          131,
+          132
+        ],
+        [
+          "NX-E1303",
+          155,
+          158
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            81,
+            82
+          ],
+          "related": [
+            [
+              "found_type",
+              81,
+              82
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            131,
+            132
+          ],
+          "related": [
+            [
+              "expected_type",
+              121,
+              125
+            ],
+            [
+              "found_type",
+              131,
+              132
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Bool>>",
+            "found_type": "Array<Array<Array<Bool>>>"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            155,
+            158
+          ],
+          "related": [
+            [
+              "expected_type",
+              56,
+              148
+            ],
+            [
+              "found_type",
+              155,
+              158
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Bool>>",
+            "found_type": "Array<Array<I64>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "RC1_read_context_variable",
+      "bytes": 66,
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then 1 else true)];s=[1];}",
+      "expected": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            52,
+            56
+          ],
+          "related": [
+            [
+              "expected_type",
+              45,
+              46
+            ],
+            [
+              "found_type",
+              52,
+              56
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "RC2_read_context_committed",
+      "bytes": 66,
+      "source": "fn Main(){var q=[];q=[1];let a=[q[0],(if true then 1 else true)];}",
+      "expected": [
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            58,
+            62
+          ],
+          "related": [
+            [
+              "expected_type",
+              32,
+              36
+            ],
+            [
+              "found_type",
+              58,
+              62
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "RC3_read_context_no_retroactive",
+      "bytes": 75,
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then 1 else true)];let b:I64=q[0];}",
+      "expected": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            52,
+            56
+          ],
+          "related": [
+            [
+              "expected_type",
+              45,
+              46
+            ],
+            [
+              "found_type",
+              52,
+              56
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "SU1_suspended_order",
+      "bytes": 68,
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);r=[true];q=[1];}",
+      "expected": [
+        [
+          "NX-E0102",
+          64,
+          65
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          64,
+          65
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            64,
+            65
+          ],
+          "related": [
+            [
+              "expected_type",
+              54,
+              60
+            ],
+            [
+              "found_type",
+              64,
+              65
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "SU2_suspended_chain",
+      "bytes": 101,
+      "source": "fn Main(){var q=[];var r=[];var s=[];(if true then q else r);(if true then r else s);s=[1];q=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          94,
+          98
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          94,
+          98
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            94,
+            98
+          ],
+          "related": [
+            [
+              "expected_type",
+              87,
+              90
+            ],
+            [
+              "found_type",
+              94,
+              98
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "RS1_condition_contaminated",
+      "bytes": 67,
+      "source": "fn Main(){let a=(if true then (if 1 then true else false) else 2);}",
+      "expected": [
+        [
+          "NX-E0102",
+          34,
+          35
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          34,
+          35
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            34,
+            35
+          ],
+          "related": [
+            [
+              "found_type",
+              34,
+              35
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "RS2_independent_child_errors",
+      "bytes": 71,
+      "source": "fn Main(){let a=(if true then true+1 else (if true then 1 else true));}",
+      "expected": [
+        [
+          "NX-E0102",
+          30,
+          34
+        ],
+        [
+          "NX-E1303",
+          63,
+          67
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          30,
+          34
+        ],
+        [
+          "NX-E1303",
+          63,
+          67
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            30,
+            34
+          ],
+          "related": [
+            [
+              "found_type",
+              30,
+              34
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            63,
+            67
+          ],
+          "related": [
+            [
+              "expected_type",
+              56,
+              57
+            ],
+            [
+              "found_type",
+              63,
+              67
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "RS3_partial_in_array",
+      "bytes": 50,
+      "source": "fn Main(){let a=[(if true then 1 else true),[1]];}",
+      "expected": [
+        [
+          "NX-E1303",
+          38,
+          42
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          38,
+          42
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            38,
+            42
+          ],
+          "related": [
+            [
+              "expected_type",
+              31,
+              32
+            ],
+            [
+              "found_type",
+              38,
+              42
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "CD1_independent_constructor",
+      "bytes": 50,
+      "source": "fn Main(){var q=[];var r=[];let a=[q,1];r=[true];}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "CD2_independent_error_and_duties",
+      "bytes": 66,
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);let z=true+1;}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          25,
+          27
+        ],
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          25,
+          27
+        ],
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            25,
+            27
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            58,
+            62
+          ],
+          "related": [
+            [
+              "found_type",
+              58,
+              62
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "W2_no_retroactive_context",
+      "bytes": 169,
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}",
+      "expected": [
+        [
+          "NX-E0103",
+          77,
+          79
+        ],
+        [
+          "NX-E1303",
+          140,
+          145
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          77,
+          79
+        ],
+        [
+          "NX-E1303",
+          140,
+          145
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            77,
+            79
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            140,
+            145
+          ],
+          "related": [
+            [
+              "expected_type",
+              108,
+              112
+            ],
+            [
+              "found_type",
+              140,
+              145
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Array<Array<Array<I64>>>>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_01",
+      "bytes": 67,
+      "source": "fn Main(){let a:I64=(if true then 1 else (if 0 then true else 3));}",
+      "expected": [
+        [
+          "NX-E0102",
+          45,
+          46
+        ],
+        [
+          "NX-E0102",
+          52,
+          56
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          45,
+          46
+        ],
+        [
+          "NX-E0102",
+          52,
+          56
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            45,
+            46
+          ],
+          "related": [
+            [
+              "found_type",
+              45,
+              46
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            52,
+            56
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              52,
+              56
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_02",
+      "bytes": 80,
+      "source": "fn Main(){let a:Array<I64>=(if true then [1] else (if 0 then [true] else [3]));}",
+      "expected": [
+        [
+          "NX-E0102",
+          54,
+          55
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          54,
+          55
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            54,
+            55
+          ],
+          "related": [
+            [
+              "found_type",
+              54,
+              55
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            62,
+            66
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              26
+            ],
+            [
+              "found_type",
+              62,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_03",
+      "bytes": 78,
+      "source": "fn F(x:view I64){}fn Main(){F((if true then 1 else (if 0 then true else 3)));}",
+      "expected": [
+        [
+          "NX-E0102",
+          55,
+          56
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          55,
+          56
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            55,
+            56
+          ],
+          "related": [
+            [
+              "found_type",
+              55,
+              56
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            62,
+            66
+          ],
+          "related": [
+            [
+              "expected_type",
+              12,
+              15
+            ],
+            [
+              "found_type",
+              62,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_04",
+      "bytes": 81,
+      "source": "fn F()->I64{return (if true then 1 else (if 0 then true else 3));}fn Main(){F();}",
+      "expected": [
+        [
+          "NX-E0102",
+          44,
+          45
+        ],
+        [
+          "NX-E0102",
+          51,
+          55
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          44,
+          45
+        ],
+        [
+          "NX-E0102",
+          51,
+          55
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            44,
+            45
+          ],
+          "related": [
+            [
+              "found_type",
+              44,
+              45
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            51,
+            55
+          ],
+          "related": [
+            [
+              "expected_type",
+              8,
+              11
+            ],
+            [
+              "found_type",
+              51,
+              55
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_05",
+      "bytes": 65,
+      "source": "fn Main(){let a=1+(if true then 1 else (if 0 then true else 3));}",
+      "expected": [
+        [
+          "NX-E0102",
+          43,
+          44
+        ],
+        [
+          "NX-E0102",
+          50,
+          54
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          43,
+          44
+        ],
+        [
+          "NX-E0102",
+          50,
+          54
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            43,
+            44
+          ],
+          "related": [
+            [
+              "found_type",
+              43,
+              44
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            50,
+            54
+          ],
+          "related": [
+            [
+              "found_type",
+              50,
+              54
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_06",
+      "bytes": 89,
+      "source": "fn Main(){let a:I64=(if true then (if true then 1 else 2) else (if 0 then true else 3));}",
+      "expected": [
+        [
+          "NX-E0102",
+          67,
+          68
+        ],
+        [
+          "NX-E0102",
+          74,
+          78
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          67,
+          68
+        ],
+        [
+          "NX-E0102",
+          74,
+          78
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            67,
+            68
+          ],
+          "related": [
+            [
+              "found_type",
+              67,
+              68
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            74,
+            78
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              74,
+              78
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_07",
+      "bytes": 70,
+      "source": "fn Main(){let a:I64=(if 0 then true else (if true then 1 else true));}",
+      "expected": [
+        [
+          "NX-E0102",
+          24,
+          25
+        ],
+        [
+          "NX-E0102",
+          31,
+          35
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          24,
+          25
+        ],
+        [
+          "NX-E0102",
+          31,
+          35
+        ],
+        [
+          "NX-E0102",
+          62,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            24,
+            25
+          ],
+          "related": [
+            [
+              "found_type",
+              24,
+              25
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            31,
+            35
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              31,
+              35
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            62,
+            66
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              19
+            ],
+            [
+              "found_type",
+              62,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_08",
+      "bytes": 64,
+      "source": "fn Main(){let a=(if true then 1 else (if 0 then [1] else [2]));}",
+      "expected": [
+        [
+          "NX-E0102",
+          41,
+          42
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          41,
+          42
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            41,
+            42
+          ],
+          "related": [
+            [
+              "found_type",
+              41,
+              42
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_09",
+      "bytes": 49,
+      "source": "fn Main(){var q=[];let a=(if 0 then q else [1]);}",
+      "expected": [
+        [
+          "NX-E0102",
+          29,
+          30
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          29,
+          30
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            29,
+            30
+          ],
+          "related": [
+            [
+              "found_type",
+              29,
+              30
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_10",
+      "bytes": 69,
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "expected": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            60,
+            63
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_11",
+      "bytes": 78,
+      "source": "fn Main(){var q=[];var v=(if true then {return;}else{return;});var a=[v];v=a;}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          69,
+          72
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ],
+        [
+          "NX-E0103",
+          69,
+          72
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            69,
+            72
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_12",
+      "bytes": 127,
+      "source": "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;var w=(if true then {return;}else{return;});var b=[w];w=b;}",
+      "expected": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ],
+        [
+          "NX-E0103",
+          118,
+          121
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          60,
+          63
+        ],
+        [
+          "NX-E0103",
+          118,
+          121
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            60,
+            63
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            118,
+            121
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_13",
+      "bytes": 78,
+      "source": "fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}",
+      "expected": [
+        [
+          "NX-E1303",
+          52,
+          53
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          52,
+          53
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            52,
+            53
+          ],
+          "related": [
+            [
+              "expected_type",
+              42,
+              46
+            ],
+            [
+              "found_type",
+              52,
+              53
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<Array<Bool>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_14",
+      "bytes": 41,
+      "source": "fn Main(){var q=[];let a=[q,1];q=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          28,
+          29
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          28,
+          29
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            28,
+            29
+          ],
+          "related": [
+            [
+              "expected_type",
+              26,
+              27
+            ],
+            [
+              "found_type",
+              28,
+              29
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Bool>",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_15",
+      "bytes": 32,
+      "source": "fn Main(){var q=[];let a=[q,1];}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_16",
+      "bytes": 68,
+      "source": "fn Main(){var q=[];var r=[];(if true then q else r);q=[1];r=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          61,
+          65
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          61,
+          65
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            61,
+            65
+          ],
+          "related": [
+            [
+              "expected_type",
+              54,
+              57
+            ],
+            [
+              "found_type",
+              61,
+              65
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_17",
+      "bytes": 80,
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[true];}",
+      "expected": [],
+      "actual": [],
+      "observed_detail": [],
+      "matches": true,
+      "exit": 0,
+      "error": null
+    },
+    {
+      "name": "B3_18",
+      "bytes": 77,
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=[1];}",
+      "expected": [
+        [
+          "NX-E0102",
+          73,
+          74
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          73,
+          74
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            73,
+            74
+          ],
+          "related": [
+            [
+              "expected_type",
+              60,
+              64
+            ],
+            [
+              "found_type",
+              73,
+              74
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_19",
+      "bytes": 75,
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let a:Bool=q[0];q=3;}",
+      "expected": [
+        [
+          "NX-E0102",
+          65,
+          66
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          65,
+          66
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "not_indexable",
+          "primary": [
+            65,
+            66
+          ],
+          "related": [
+            [
+              "found_type",
+              65,
+              66
+            ]
+          ],
+          "data": {
+            "expected_type": "domain:array",
+            "found_type": "I64"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_20",
+      "bytes": 73,
+      "source": "fn Main(){let p=true;let a=(if p then (if p then 1 else true) else [1]);}",
+      "expected": [
+        [
+          "NX-E1303",
+          56,
+          60
+        ],
+        [
+          "NX-E1303",
+          67,
+          70
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          56,
+          60
+        ],
+        [
+          "NX-E1303",
+          67,
+          70
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            56,
+            60
+          ],
+          "related": [
+            [
+              "expected_type",
+              49,
+              50
+            ],
+            [
+              "found_type",
+              56,
+              60
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            67,
+            70
+          ],
+          "related": [
+            [
+              "expected_type",
+              39,
+              60
+            ],
+            [
+              "found_type",
+              67,
+              70
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_21",
+      "bytes": 221,
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];var s=[];(if p then (if p then (if p then (if 1 then aar else s[0]) else (if p then q[0] else q)) else (if p then [r,s] else (if p then q[0] else r))) else aar);q=aar;}",
+      "expected": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          99,
+          100
+        ],
+        [
+          "NX-E1303",
+          147,
+          148
+        ],
+        [
+          "NX-E1303",
+          199,
+          200
+        ],
+        [
+          "NX-E1303",
+          209,
+          212
+        ],
+        [
+          "NX-E0102",
+          216,
+          219
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            99,
+            100
+          ],
+          "related": [
+            [
+              "found_type",
+              99,
+              100
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            147,
+            148
+          ],
+          "related": [
+            [
+              "expected_type",
+              137,
+              141
+            ],
+            [
+              "found_type",
+              147,
+              148
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<Array<Array<Array<I64>>>>>"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            199,
+            200
+          ],
+          "related": [
+            [
+              "expected_type",
+              85,
+              149
+            ],
+            [
+              "found_type",
+              199,
+              200
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<Array<I64>>>"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            209,
+            212
+          ],
+          "related": [
+            [
+              "expected_type",
+              74,
+              202
+            ],
+            [
+              "found_type",
+              209,
+              212
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<I64>>"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            216,
+            219
+          ],
+          "related": [
+            [
+              "expected_type",
+              170,
+              171
+            ],
+            [
+              "found_type",
+              216,
+              219
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<Array<Array<Array<I64>>>>>",
+            "found_type": "Array<Array<I64>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_22",
+      "bytes": 169,
+      "source": "fn Main(){let p=true;let aar=[[1]];var q=[];var r=[];let a0=[r[0],(if p then [] else 1)];let a1=[(if p then q[0] else (if p then (if p then [[q]] else aar) else r)),1];}",
+      "expected": [
+        [
+          "NX-E0103",
+          77,
+          79
+        ],
+        [
+          "NX-E1303",
+          140,
+          145
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          77,
+          79
+        ],
+        [
+          "NX-E1303",
+          140,
+          145
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            77,
+            79
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            140,
+            145
+          ],
+          "related": [
+            [
+              "expected_type",
+              108,
+              112
+            ],
+            [
+              "found_type",
+              140,
+              145
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Array<Array<Array<I64>>>>>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_23",
+      "bytes": 100,
+      "source": "fn Main(){var q=[];var r=[];let b=q[0];(if true then [q] else (if true then [1] else q));r=q;q=[1];}",
+      "expected": [
+        [
+          "NX-E1303",
+          76,
+          79
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          76,
+          79
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            76,
+            79
+          ],
+          "related": [
+            [
+              "expected_type",
+              53,
+              56
+            ],
+            [
+              "found_type",
+              76,
+              79
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_24",
+      "bytes": 108,
+      "source": "fn Main(){var q=[];var r=[];let z=r[0];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}",
+      "expected": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          16,
+          18
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            16,
+            18
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_25",
+      "bytes": 115,
+      "source": "fn Main(){let x=1;var q=[];var s=[];let a=[s[x],(if 0 then true else q),(if x then q else s)];q=[true];s=[[true]];}",
+      "expected": [
+        [
+          "NX-E0102",
+          52,
+          53
+        ],
+        [
+          "NX-E1303",
+          69,
+          70
+        ],
+        [
+          "NX-E0102",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          106,
+          112
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          52,
+          53
+        ],
+        [
+          "NX-E1303",
+          69,
+          70
+        ],
+        [
+          "NX-E0102",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          106,
+          112
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            52,
+            53
+          ],
+          "related": [
+            [
+              "found_type",
+              52,
+              53
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            69,
+            70
+          ],
+          "related": [
+            [
+              "expected_type",
+              59,
+              63
+            ],
+            [
+              "found_type",
+              69,
+              70
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<Bool>"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            76,
+            77
+          ],
+          "related": [
+            [
+              "found_type",
+              76,
+              77
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "I64"
+          }
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            106,
+            112
+          ],
+          "related": [
+            [
+              "expected_type",
+              96,
+              102
+            ],
+            [
+              "found_type",
+              106,
+              112
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<Bool>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_26",
+      "bytes": 100,
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);}",
+      "expected": [
+        [
+          "NX-E0102",
+          72,
+          74
+        ],
+        [
+          "NX-E0103",
+          47,
+          49
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          47,
+          49
+        ],
+        [
+          "NX-E0102",
+          72,
+          74
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            47,
+            49
+          ],
+          "related": [],
+          "data": {}
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            72,
+            74
+          ],
+          "related": [
+            [
+              "found_type",
+              72,
+              74
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_27",
+      "bytes": 96,
+      "source": "fn Main(){let p=true;var q=[];var r=[];let a0=[q,(if p then q else (if q then true else [r]))];}",
+      "expected": [
+        [
+          "NX-E0103",
+          36,
+          38
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0103",
+          36,
+          38
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            36,
+            38
+          ],
+          "related": [],
+          "data": {}
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_28",
+      "bytes": 89,
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}",
+      "expected": [
+        [
+          "NX-E1303",
+          68,
+          71
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E1303",
+          68,
+          71
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            68,
+            71
+          ],
+          "related": [
+            [
+              "expected_type",
+              45,
+              48
+            ],
+            [
+              "found_type",
+              68,
+              71
+            ]
+          ],
+          "data": {
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_29",
+      "bytes": 53,
+      "source": "fn Main(){let a:I64=(if true then 1 else {return;});}",
+      "expected": [],
+      "actual": [],
+      "observed_detail": [],
+      "matches": true,
+      "exit": 0,
+      "error": null
+    },
+    {
+      "name": "B3_30",
+      "bytes": 109,
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if ar then r else ar) else s);s=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          72,
+          74
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          72,
+          74
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            72,
+            74
+          ],
+          "related": [
+            [
+              "found_type",
+              72,
+              74
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_31",
+      "bytes": 108,
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then (if p then r else ar) else s);s=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          101,
+          105
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          101,
+          105
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            101,
+            105
+          ],
+          "related": [
+            [
+              "expected_type",
+              69,
+              88
+            ],
+            [
+              "found_type",
+              101,
+              105
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_32",
+      "bytes": 109,
+      "source": "fn Main(){let p=true;let ar=[1];var r=[];var s=[];let a0=(if p then s else (if ar then r else ar));s=[true];}",
+      "expected": [
+        [
+          "NX-E0102",
+          79,
+          81
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          79,
+          81
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            79,
+            81
+          ],
+          "related": [
+            [
+              "found_type",
+              79,
+              81
+            ]
+          ],
+          "data": {
+            "expected_type": "Bool",
+            "found_type": "Array<I64>"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_33",
+      "bytes": 43,
+      "source": "fn Main(){let a:Result<I64,Bool>=Ok(true);}",
+      "expected": [
+        [
+          "NX-E0102",
+          36,
+          40
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0102",
+          36,
+          40
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            36,
+            40
+          ],
+          "related": [
+            [
+              "expected_type",
+              16,
+              32
+            ],
+            [
+              "found_type",
+              36,
+              40
+            ]
+          ],
+          "data": {
+            "expected_type": "I64",
+            "found_type": "Bool"
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_34",
+      "bytes": 23,
+      "source": "fn Main(){let q=Ok(1);}",
+      "expected": [
+        [
+          "NX-E0113",
+          16,
+          21
+        ]
+      ],
+      "actual": [
+        [
+          "NX-E0113",
+          16,
+          21
+        ]
+      ],
+      "observed_detail": [
+        {
+          "code": "NX-E0113",
+          "subcause": null,
+          "primary": [
+            16,
+            21
+          ],
+          "related": [],
+          "data": {
+            "unresolved_components": [
+              "$.err"
+            ]
+          }
+        }
+      ],
+      "matches": true,
+      "exit": 1,
+      "error": null
+    },
+    {
+      "name": "B3_35",
+      "bytes": 35,
+      "source": "fn Main(){var q=Ok(1);q=Err(true);}",
+      "expected": [],
+      "actual": [],
+      "observed_detail": [],
+      "matches": true,
+      "exit": 0,
+      "error": null
+    }
+  ]
+}
