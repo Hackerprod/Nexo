@@ -37,6 +37,10 @@ for family, size in (("directed74_normative_ids", 74), ("matrix45_normative_ids"
     assert len(previous) == size
 assert gates["directed74_unique_sources"] == 48
 assert gates["commits"]["C1"]["c1_excluded_until_c3"]
+assert gates["commits"]["C1"]["c1_independent_probes"] == [
+    "atomic_78", "recursive_69", "recursive_78_equivalent",
+    "recursive_127_equivalent", "F06", "W0", "W0nounion",
+]
 assert not gates["commits"]["C1"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["match_conservation_24_full_main"]

@@ -187,8 +187,7 @@
         "recursive_127_equivalent",
         "F06",
         "W0",
-        "W0nounion",
-        "invalid_condition_own_C_99_100"
+        "W0nounion"
       ],
       "c1_excluded_until_c3": [
         "W1_atomic_compound",
@@ -196,7 +195,8 @@
         "M2_partial_witness_chain",
         "M1-simple",
         "M1-nested",
-        "match_conservation"
+        "match_conservation",
+        "match_88_byte_checked"
       ],
       "match_conservation_24_full_main": false,
       "match103_full_main": false
@@ -299,7 +299,15 @@
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": true,
       "match_conservation_24_full_main": true,
-      "match103_full_main": true
+      "match103_full_main": true,
+      "additional_named_probes": [
+        "W1_atomic_compound",
+        "W1a_without_later_assignment",
+        "M2_partial_witness_chain",
+        "M1-simple",
+        "M1-nested",
+        "match_88_byte_checked"
+      ]
     },
     "C4": {
       "directed74_normative_ids": [
