@@ -12,9 +12,11 @@ from i07c_rd_drive6 import free_virtual_memory_kb
 def main():
     env = os.environ.copy()
     env["I07C_RD_LOCK_HELD"] = "1"
+    work = (["scripts/i07c_rd_followup_work.py"] if sys.argv[1:] == ["--followup"]
+            else ["scripts/i07c_rd_drive6.py", *sys.argv[1:]])
     command = [sys.executable, "-B", "scripts/heavy-lock.py", "run",
                "--session", "i07c-rediseno", "--", sys.executable, "-B",
-               "scripts/i07c_rd_drive6.py", *sys.argv[1:]]
+               *work]
     low_memory_since = None
     while True:
         if free_virtual_memory_kb() <= 25 * 1024 * 1024:
