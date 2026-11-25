@@ -44,3 +44,23 @@ La disposición de B en `I07c-S5c-tests-B-r1.md` se conserva. «Reescribir» sig
 | `quota::failed_branch_join_keeps_reduced_quota_error_prefix` | Esperado relacional, sin 30/31. |
 
 `quota::i07c_survivor2_nested_shape_hints_reach_the_leaf` se conserva con su función de matador de M00123/M00125. La lista de defectos `F0-0002-I07c-defectos-abiertos.md` §§2.1–2.2 sigue abierta fila a fila; la matriz de 45 cubre varios mínimos pero no sustituye la adjudicación de FAM-E/FAM-O y todas las filas anidadas.
+
+## Filas nominales de la lista de defectos
+
+Esta disposición fija qué reproduce cada fila y qué comprobación falta; **no afirma que R5 la haya cerrado**. La fuente y salida esperada exactas son las de `docs/validation/F0-0002-I07c-defectos-abiertos.md` §§2.1–2.2 y los dos documentos de laguna de O; no se generan esperados a partir del prototipo.
+
+| Filas | Disposición de arquitectura y validación pendiente |
+|---|---|
+| FAM-O O01, O03, O07, O08 | Ejecutar fuentes `reduced` completas además de sus mínimos en matriz 45; cotejar cada C, orden y ausencia de E0103 derivado. O08 comprueba T5 y conservación de los cuatro C interiores. |
+| FAM-O O02, O04, O05, O06 | Ejecutar sus `reduced` completas con esperados de las propuestas O; O04–O06 ejercitan también S5a.2. O05 conserva la parte no derivada como INCONCLUSA, sin convertirla en PASS por desaparición de E0103. |
+| FAM-E F01, F02, F04, F05 | Medir cada `reduced`: dos constructores pendientes y asignación compatible posterior; el rechazo de una igualdad no deshace la otra (§4.1.2.2). |
+| FAM-E F07, F09, F10, F11 | F07/F10 por sus mínimos y fuentes con preludio; F11 por `B_qr` y permutación; F09 por `reduced`. Cotejar orden de asignaciones y hoja de proyección (§4.1.2.3, .7). |
+| FAM-E F12, F13, F14, F15 | Cada `reduced`; F15 también mínimo y permutación. Contrastar hojas de unión y asignación posterior sin E0103 espurio (§4.1.2.2, .4). |
+| FAM-E F16, F17, F18, F19 | Cada `reduced`; F16 mínimo con anotación, F18 primer C de unión todavía por derivar nominalmente antes del veredicto. F03 ya está CERRADA en la lista y F08 es control legítimo, no defectos abiertos. |
+| FAM-2 F06 | Fuente `reduced` y mínimo F06 de §2.2 fila 5: E1303 en `r`, E0102 del `3`, sin E0103 ni traslado a `ar`. |
+| Anidada 1–6 | A/A_noasg/A_reord, B_qr/B_rq, F06 y M2; cada orden de asignación y cada C de hoja, no solo el recuento. |
+| Anidada 7–13 | R4, X_R1na, X_R1ord, X_flat3, Y_pend_if/2 y X_R1inc; una denuncia por unión propia, ancla de primera continuación y conservación de asignación posterior. |
+| Anidada 14–20 | X_P03/04/05/15/16/17 y W0; distinguir unión denunciada, testigo parcial y constructor propio. |
+| Anidada 21–25 | P1/c3/w1, P2/w3, P3, P4pos y readplan; comprobar la relación de procedencia A, que la asignación rechazada no retipa y que `read_plan` no adelanta un contexto. P4pos y readplan exigen oráculo manual porque el oráculo base no modela su fuente. |
+
+Cada una de esas filas se marcará PASA/FALLA/INCONCLUSO con salida esperada y obtenida después del barrido del binario fijado por SHA. La agrupación por causa no elimina la obligación de una fila individual.
