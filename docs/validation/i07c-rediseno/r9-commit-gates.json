@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r14-commit-gates-v5",
+  "schema": "i07c-r15-commit-gates-v6",
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "directed74_unique_sources": 48,
   "directed74_duplicate_rows": 26,
@@ -110,7 +110,7 @@
     "A_noasg": "C5",
     "B_qr": "C5",
     "B_rq": "C5",
-    "F06": "C1",
+    "F06": "C3",
     "M2": "C3",
     "O01": "C4",
     "O03": "C4",
@@ -166,7 +166,6 @@
         "recursive_78_equivalent"
       ],
       "matrix45_normative_ids": [
-        "F06",
         "W0",
         "W0nounion"
       ],
@@ -185,10 +184,13 @@
         "recursive_69",
         "recursive_78_equivalent",
         "recursive_127_equivalent",
-        "F06",
         "W0",
         "W0nounion"
       ],
+      "f06_cross_gate": {
+        "expected": "main_or_full_adr_oracle",
+        "no_oracle_to_main": true
+      },
       "c1_excluded_until_c3": [
         "W1_atomic_compound",
         "W1a_without_later_assignment",
@@ -216,7 +218,6 @@
         "recursive_78_equivalent"
       ],
       "matrix45_normative_ids": [
-        "F06",
         "W0",
         "W0nounion"
       ],
@@ -2745,7 +2746,10 @@
     "Checker::pending_operation_type -> graph.obligations DomainNominal/GuardedComparison",
     "Checker::root/concrete/concrete_with_depth -> published type_nodes view"
   ],
-  "frozen_v8_sha256": {
+  "frozen_v10_sha256": {
+    "docs/correcciones/I07c-rediseno-restauracion-atomica-R6-final.md": "d5f7b288676a21c161861ee9aec6eeece7b57f988d8311cbb9e033a7e7145dcd",
+    "docs/validation/i07c-rediseno/README.md": "4c7668749f46749a9e418df70cb4aaa0c04318243dbc06b60b6300d031e83206",
+    "docs/validation/i07c-rediseno/verify_r9_contract.py": "214afa77d4d09f347f392427a05f0fd24ec3d1275bf80b7fb498d2760bc5b7ce",
     "docs/validation/i07c-rediseno/candidate_gate.py": "48df7fb62c839a165fd99b40af2e626385e70476b2def09d7422cda600f1281c",
     "scripts/i07c_rd_oracle.py": "afc2459da8f539b5958223f6f972e46c4aeef8b6fd266803b7079fbbeb137967",
     "docs/validation/i07c-rediseno/r13-match-d6.json": "bea8fad7a533d23b74a14ec9424541f6e158a62a75727cf5ade9d830079c455a",

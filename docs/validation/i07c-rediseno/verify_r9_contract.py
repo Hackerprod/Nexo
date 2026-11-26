@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the structural integrity of the R6 v9 frozen specification."""
+"""Check the structural integrity of the R6 v10 frozen specification."""
 
 import hashlib
 import importlib.util
@@ -34,7 +34,8 @@ for row in data("r8-matrix45.json")["rows"]:
 print("matrix oracle", 45)
 
 gates = data("r9-commit-gates.json")
-for relative, expected_sha in gates["frozen_v8_sha256"].items():
+assert gates["schema"] == "i07c-r15-commit-gates-v6"
+for relative, expected_sha in gates["frozen_v10_sha256"].items():
     blob = subprocess.run(
         ["git", "show", f"HEAD:{relative}"], cwd=HERE.parents[2],
         check=True, capture_output=True,
@@ -51,11 +52,29 @@ for family, size in (
         assert previous <= current
         previous = current
     assert len(previous) == size
+for family, owner_key in (
+    ("directed74_normative_ids", "owner_directed"),
+    ("matrix45_normative_ids", "owner_matrix"),
+    ("frozen13_normative_ids", "owner_frozen13"),
+):
+    owners = gates[owner_key]
+    for number in range(7):
+        expected = {id_ for id_, at in owners.items() if int(at[1]) <= number}
+        assert set(gates["commits"][f"C{number}"][family]) == expected, (family, number)
 assert gates["directed74_unique_sources"] == 48
 assert gates["commits"]["C1"]["c1_independent_probes"] == [
     "atomic_78", "recursive_69", "recursive_78_equivalent",
-    "recursive_127_equivalent", "F06", "W0", "W0nounion",
+    "recursive_127_equivalent", "W0", "W0nounion",
 ]
+assert gates["owner_matrix"]["F06"] == "C3"
+assert gates["commits"]["C1"]["f06_cross_gate"] == {
+    "expected": "main_or_full_adr_oracle", "no_oracle_to_main": True,
+}
+assert [len(gates["commits"][f"C{i}"]["matrix45_normative_ids"]) for i in range(7)] == [
+    0, 2, 2, 9, 13, 45, 45,
+]
+assert all("F06" not in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(3))
+assert all("F06" in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(3, 7))
 assert not gates["commits"]["C1"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["match_observations_29_expected_by_authority"]
@@ -107,7 +126,7 @@ baseline = data("r14-main-baseline.json")
 assert baseline["complete"] and not baseline["failures"]
 assert len(baseline["corpora"]) == 20 and len(baseline["class_by_row"]) == 151188
 assert {key for key, label in baseline["class_by_row"].items() if label == "H"} == set(hard["rows"])
-assert baseline["classifier_sha256"] == gates["frozen_v8_sha256"]["docs/validation/i07c-rediseno/candidate_gate.py"]
+assert baseline["classifier_sha256"] == gates["frozen_v10_sha256"]["docs/validation/i07c-rediseno/candidate_gate.py"]
 for index in (4, 20, 44, 46):
     probe = next(row for row in witnesses if row["id"] == f"match-index-{index}")
     assert probe["expected_main"] == matrix_match[index]["expected_main"]
@@ -155,4 +174,4 @@ assert all(next(x for x in migration if x["source_test"] == name)["private_check
 assert len(manifest["explicit_approval_31"]["existing_quota_and_precedence"]) == 17
 assert len(manifest["explicit_approval_31"]["new_fixed_cost_quota"]) == 10
 assert len(manifest["explicit_approval_31"]["formerly_preserved_fixed_cost_quota"]) == 4
-print("r10 contract structure OK")
+print("R6 v10 contract structure OK")
