@@ -3858,7 +3858,7 @@ fn deferred_join_has_one_diagnostic_per_source_site() {
         (
             "fn Main(){var a=(if true then {return;} else {return;});var b=(if true then {return;} else {return;});a=[b];b=[a];}",
             "NX-E0103",
-            (110, 113),
+            (104, 107),
         ),
     ] {
         let diagnostics = rejected(source);
