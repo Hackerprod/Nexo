@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r15-commit-gates-v6",
+  "schema": "i07c-r16-commit-gates-v7",
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "directed74_unique_sources": 48,
   "directed74_duplicate_rows": 26,
@@ -2746,10 +2746,11 @@
     "Checker::pending_operation_type -> graph.obligations DomainNominal/GuardedComparison",
     "Checker::root/concrete/concrete_with_depth -> published type_nodes view"
   ],
-  "frozen_v10_sha256": {
-    "docs/correcciones/I07c-rediseno-restauracion-atomica-R6-final.md": "d5f7b288676a21c161861ee9aec6eeece7b57f988d8311cbb9e033a7e7145dcd",
-    "docs/validation/i07c-rediseno/README.md": "4c7668749f46749a9e418df70cb4aaa0c04318243dbc06b60b6300d031e83206",
-    "docs/validation/i07c-rediseno/verify_r9_contract.py": "214afa77d4d09f347f392427a05f0fd24ec3d1275bf80b7fb498d2760bc5b7ce",
+  "frozen_v11_sha256": {
+    "docs/correcciones/I07c-rediseno-restauracion-atomica-R6-final.md": "64d42c22219beda3650812339e8d6021f79d4af8fe5f3ccecbc89ad8a3b8f300",
+    "docs/validation/i07c-rediseno/README.md": "2f591af03eca37e5f95737b8deb9a0d758cac85bcfad71cb48cc12c2ab396f2f",
+    "docs/validation/i07c-rediseno/verify_r9_contract.py": "3a07243c0b3d721f3f269a56dac0bba028cb3726ba04084cfc97bde4e43960ac",
+    "docs/validation/i07c-rediseno/owned_rows_gate.py": "1820ce8bb26374c9630d309a9abc509cf4e9452d0e9cce25e76df80959fb3e78",
     "docs/validation/i07c-rediseno/candidate_gate.py": "48df7fb62c839a165fd99b40af2e626385e70476b2def09d7422cda600f1281c",
     "scripts/i07c_rd_oracle.py": "afc2459da8f539b5958223f6f972e46c4aeef8b6fd266803b7079fbbeb137967",
     "docs/validation/i07c-rediseno/r13-match-d6.json": "bea8fad7a533d23b74a14ec9424541f6e158a62a75727cf5ade9d830079c455a",

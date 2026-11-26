@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the structural integrity of the R6 v10 frozen specification."""
+"""Check the structural integrity of the R6 v11 frozen specification."""
 
 import hashlib
 import importlib.util
@@ -34,8 +34,8 @@ for row in data("r8-matrix45.json")["rows"]:
 print("matrix oracle", 45)
 
 gates = data("r9-commit-gates.json")
-assert gates["schema"] == "i07c-r15-commit-gates-v6"
-for relative, expected_sha in gates["frozen_v10_sha256"].items():
+assert gates["schema"] == "i07c-r16-commit-gates-v7"
+for relative, expected_sha in gates["frozen_v11_sha256"].items():
     blob = subprocess.run(
         ["git", "show", f"HEAD:{relative}"], cwd=HERE.parents[2],
         check=True, capture_output=True,
@@ -126,7 +126,18 @@ baseline = data("r14-main-baseline.json")
 assert baseline["complete"] and not baseline["failures"]
 assert len(baseline["corpora"]) == 20 and len(baseline["class_by_row"]) == 151188
 assert {key for key, label in baseline["class_by_row"].items() if label == "H"} == set(hard["rows"])
-assert baseline["classifier_sha256"] == gates["frozen_v10_sha256"]["docs/validation/i07c-rediseno/candidate_gate.py"]
+assert baseline["classifier_sha256"] == gates["frozen_v11_sha256"]["docs/validation/i07c-rediseno/candidate_gate.py"]
+import owned_rows_gate as owned  # noqa: E402
+assert tuple(name for name, _ in owned.FAMILIES) == (
+    "directed74_normative_ids", "matrix45_normative_ids", "frozen13_normative_ids")
+for family, filename in owned.FAMILIES:
+    available = {row["id"] for row in data(filename)["rows"]}
+    assert set(gates["owner_" + {"directed74_normative_ids": "directed",
+                                  "matrix45_normative_ids": "matrix",
+                                  "frozen13_normative_ids": "frozen13"}[family]]) <= available
+    for number in range(1, 7):
+        assert set(gates["commits"][f"C{number}"][family]) <= available
+assert owned.matrix_signature(next(row for row in data("r8-matrix45.json")["rows"] if row["id"] == "F06"))[0] == "rejected"
 for index in (4, 20, 44, 46):
     probe = next(row for row in witnesses if row["id"] == f"match-index-{index}")
     assert probe["expected_main"] == matrix_match[index]["expected_main"]
@@ -174,4 +185,4 @@ assert all(next(x for x in migration if x["source_test"] == name)["private_check
 assert len(manifest["explicit_approval_31"]["existing_quota_and_precedence"]) == 17
 assert len(manifest["explicit_approval_31"]["new_fixed_cost_quota"]) == 10
 assert len(manifest["explicit_approval_31"]["formerly_preserved_fixed_cost_quota"]) == 4
-print("R6 v10 contract structure OK")
+print("R6 v11 contract structure OK")
