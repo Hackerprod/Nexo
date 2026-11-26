@@ -1,0 +1,2419 @@
+{
+  "base": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
+  "archivo": "src/check/types.rs",
+  "sha256_blob": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93",
+  "criterio_g3": "Comparar cada llamada por (archivo, función, expresión Rust normalizada, ordinal de esa expresión en la función), sin depender del número de línea. Cada uso semántico migra al dominio indicado; solo las filas 'span de salida' conservan los bytes como clave de comparación o serialización. Ningún cambio de línea por refactor crea o elimina una fila.",
+  "total": 240,
+  "por_dominio": {
+    "Completion": 1,
+    "ConstructorDuty": 7,
+    "FactId": 47,
+    "JoinRecord": 1,
+    "OccurrenceId": 17,
+    "Pending": 42,
+    "ResultStatus": 120,
+    "span de salida": 5
+  },
+  "usos": [
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "span_key",
+      "expresion": "fn span_key(span: &Span) -> (u64, u64) {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 710,
+      "uso": "definición del conversor",
+      "dominio_destino": "span de salida",
+      "regla_decision": "La función solo extrae límites de un Span; se conserva para salida y comparación de spans."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "Self::Constructor { span, .. } => (ObligationClass::Constructor, span_key(span)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1189,
+      "uso": "clave de deber de constructor",
+      "dominio_destino": "ConstructorDuty",
+      "regla_decision": "La variante de obligación identifica el constructor dueño, no el intervalo fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "(ObligationClass::VariantConstructor, span_key(span))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1191,
+      "uso": "clave de deber de constructor",
+      "dominio_destino": "ConstructorDuty",
+      "regla_decision": "La variante de obligación identifica el constructor dueño, no el intervalo fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "(ObligationClass::PatternConstructor, span_key(span))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1194,
+      "uso": "clave de deber de constructor",
+      "dominio_destino": "ConstructorDuty",
+      "regla_decision": "La variante de obligación identifica el constructor dueño, no el intervalo fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "Self::Join(join) => (ObligationClass::Join, span_key(&join.found)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1196,
+      "uso": "clave de unión pendiente",
+      "dominio_destino": "JoinRecord",
+      "regla_decision": "La unión se identifica por la expresión dueña y el índice de continuación."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "Self::Domain(domain) => (ObligationClass::Domain, span_key(&domain.operand)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1197,
+      "uso": "clave de obligación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "El dominio/proyección pendiente se identifica por OccurrenceId y clase de obligación."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "Self::DomainNominal(domain) => (ObligationClass::DomainNominal, span_key(&domain.call)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1198,
+      "uso": "clave de obligación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "El dominio/proyección pendiente se identifica por OccurrenceId y clase de obligación."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "Self::BinaryDomain(domain) => (ObligationClass::BinaryDomain, span_key(&domain.result)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1199,
+      "uso": "clave de obligación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "El dominio/proyección pendiente se identifica por OccurrenceId y clase de obligación."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "span_key(&comparison.result),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1202,
+      "uso": "clave de obligación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "El dominio/proyección pendiente se identifica por OccurrenceId y clase de obligación."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "occurrence",
+      "expresion": "span_key(&projection.result_span),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1206,
+      "uso": "clave de obligación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "El dominio/proyección pendiente se identifica por OccurrenceId y clase de obligación."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "record_unresolved_sites",
+      "expresion": ".entry(span_key(expr.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1650,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "record_unresolved_sites",
+      "expresion": ".entry(span_key(&selection.span))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 1737,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "closure_body_advance",
+      "expresion": "span_key(parse::statement_span(statement)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 3004,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resolve_pending_projections",
+      "expresion": "let result_site = span_key(&projection.result_span);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 3838,
+      "uso": "sitio de proyección pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "El resultado de proyección pertenece a su obligación y a su ocurrencia AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "defer_nominal_domain",
+      "expresion": ".mark(span_key(call), OccurrenceFlag::PendingDomain);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 3998,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "defer_nominal_domain",
+      "expresion": "self.graph.mark(span_key(call), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4005,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "pending_operation_guard",
+      "expresion": "let site = span_key(&Self::primary_span(operand));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4022,
+      "uso": "búsqueda de operación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "Compara la ocurrencia del operando con la del deber nominal/binario/guardado, nunca sus bytes."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "pending_operation_guard",
+      "expresion": "ObligationKind::DomainNominal(result) if span_key(&result.call) == site => {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4027,
+      "uso": "búsqueda de operación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "Compara la ocurrencia del operando con la del deber nominal/binario/guardado, nunca sus bytes."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "pending_operation_guard",
+      "expresion": "ObligationKind::BinaryDomain(result) if span_key(&result.result) == site => {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4030,
+      "uso": "búsqueda de operación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "Compara la ocurrencia del operando con la del deber nominal/binario/guardado, nunca sus bytes."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "pending_operation_guard",
+      "expresion": "ObligationKind::GuardedComparison(result) if span_key(&result.result) == site => {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4033,
+      "uso": "búsqueda de operación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "Compara la ocurrencia del operando con la del deber nominal/binario/guardado, nunca sus bytes."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "pending_operation_type",
+      "expresion": "let site = span_key(&Self::primary_span(operand));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4102,
+      "uso": "búsqueda de operación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "Compara la ocurrencia del operando con la del deber nominal/binario/guardado, nunca sus bytes."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "pending_operation_type",
+      "expresion": "ObligationKind::DomainNominal(result) if span_key(&result.call) == site => {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4113,
+      "uso": "búsqueda de operación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "Compara la ocurrencia del operando con la del deber nominal/binario/guardado, nunca sus bytes."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "pending_operation_type",
+      "expresion": "if span_key(&result.result) == site =>",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4117,
+      "uso": "búsqueda de operación pendiente",
+      "dominio_destino": "Pending",
+      "regla_decision": "Compara la ocurrencia del operando con la del deber nominal/binario/guardado, nunca sus bytes."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "capture_expression_dependencies",
+      "expresion": "let site = span_key(expression.span());",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4161,
+      "uso": "fuentes nominales de expresión",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "El estado/dependencias se registra por ocurrencia de la expresión."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "capture_expression_dependencies",
+      "expresion": "if let Some(state) = self.graph.occurrences.get(&span_key(child.span())) {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4219,
+      "uso": "fuentes nominales de expresión",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "El estado/dependencias se registra por ocurrencia de la expresión."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "suppress_result_dependents",
+      "expresion": "let result_site = error.primary_span.as_ref().map(span_key);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4276,
+      "uso": "supresión de dependiente nominal",
+      "dominio_destino": "Pending",
+      "regla_decision": "La dependencia del resultado se enlaza a la obligación nominal dueña; los spans del error quedan para salida."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "suppress_result_dependents",
+      "expresion": ".map(|relation| span_key(&relation.span));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4281,
+      "uso": "supresión de dependiente nominal",
+      "dominio_destino": "Pending",
+      "regla_decision": "La dependencia del resultado se enlaza a la obligación nominal dueña; los spans del error quedan para salida."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "require_union",
+      "expresion": "let result = self.with_independent_fact(span_key(origin), |checker, fact| {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4409,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "bind_independent",
+      "expresion": "self.with_independent_fact(span_key(&found), |checker, fact| {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 4812,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "unify_independent",
+      "expresion": "self.with_independent_fact(span_key(&found), |checker, fact| {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 5160,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "unify_with_expected_origin_independent",
+      "expresion": "self.with_independent_fact(span_key(&found), |checker, fact| {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 5175,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "union",
+      "expresion": "let result = self.with_independent_fact(span_key(&found), |checker, fact| {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 5241,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "solve",
+      "expresion": "span_key(&request.found),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 5341,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "solve",
+      "expresion": "span_key(&origin),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 5568,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "solve",
+      "expresion": "span_key(&request.found),",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 5666,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "solve",
+      "expresion": "span_key(&request.found),",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 5684,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expression_variable",
+      "expresion": "self.graph.expr_vars.get(&span_key(e.span())).copied()",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 6914,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "normal_witness_span",
+      "expresion": ".has(&span_key(e.span()), OccurrenceFlag::Divergent)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7102,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "normal_witness_span",
+      "expresion": ".has(&span_key(e.span()), OccurrenceFlag::Divergent)",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 7106,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "while seen.insert(span_key(&site)) {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7655,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": ".filter_map(|error| error.primary_span.as_ref().map(span_key))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7797,
+      "uso": "causalidad de inferencia de constructor",
+      "dominio_destino": "ConstructorDuty",
+      "regla_decision": "La causa E0103 se atribuye al deber de constructor; el span se usa solo al serializarla."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": ".is_some_and(|span| causal_inference_sites.contains(&span_key(span)));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7808,
+      "uso": "causalidad de inferencia de constructor",
+      "dominio_destino": "ConstructorDuty",
+      "regla_decision": "La causa E0103 se atribuye al deber de constructor; el span se usa solo al serializarla."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": ".contains(&span_key(&span))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7817,
+      "uso": "causalidad de inferencia de constructor",
+      "dominio_destino": "ConstructorDuty",
+      "regla_decision": "La causa E0103 se atribuye al deber de constructor; el span se usa solo al serializarla."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "start <= span.start && span.end <= end && (start, end) != span_key(&span)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7832,
+      "uso": "causalidad de inferencia de constructor",
+      "dominio_destino": "ConstructorDuty",
+      "regla_decision": "La causa E0103 se atribuye al deber de constructor; el span se usa solo al serializarla."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "failed_dependencies.insert(span_key(&pending.call));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7917,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": ".is_some_and(|site| failed_dependencies.contains(&span_key(site)))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7929,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "changed |= failed_dependencies.insert(span_key(&pending.call));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7931,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": ".is_some_and(|site| failed_dependencies.contains(&span_key(site)));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7944,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "failed_results.insert(span_key(&pending.call));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7946,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "span_key(&pending.call),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7949,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "failed_results.insert(span_key(&pending.result));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7980,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "failed_dependencies.insert(span_key(&pending.result));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7981,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "span_key(&pending.result),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7983,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "if failed_binary_operations.insert(span_key(&pending.result)) {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 7991,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "span_key(&pending.result),",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 8002,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": ".filter_map(|error| error.primary_span.as_ref().map(span_key))",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 8018,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "failed_results.contains(&span_key(site))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8054,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": ".has(&span_key(site), OccurrenceFlag::FailedProjection)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8057,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "span_key(&pending.result),",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 8066,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "if !failed_results.contains(&span_key(&pending.expected_origin))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8079,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "&& !failed_results.contains(&span_key(&pending.found_site))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8080,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "failed_results.insert(span_key(&pending.result));",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 8096,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "span_key(&pending.result),",
+      "ordinal_misma_expresion_en_funcion": 4,
+      "linea_base_solo_localizador": 8098,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "failed_results.insert(span_key(&pending.result));",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 8104,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "span_key(&pending.result),",
+      "ordinal_misma_expresion_en_funcion": 5,
+      "linea_base_solo_localizador": 8106,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "if !failed_results.contains(&span_key(&pending.result)) {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8113,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "span_key(&pending.result),",
+      "ordinal_misma_expresion_en_funcion": 6,
+      "linea_base_solo_localizador": 8115,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "function",
+      "expresion": "if !failed_results.contains(&span_key(&pending.result))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8120,
+      "uso": "cadena de obligaciones o resultados fallidos",
+      "dominio_destino": "Pending",
+      "regla_decision": "La clave sigue la obligación y su dependencia causal por ID, no la posición fuente."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_statement_at_site",
+      "expresion": "if self.graph.has(&span_key(value.span()), OccurrenceFlag::Tainted));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8167,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_statement_at_site",
+      "expresion": ".conditional_result(&span_key(value.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8180,
+      "uso": "resultado condicional",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "El resultado condicional es estado de la ocurrencia de valor."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_statement_at_site",
+      "expresion": ".get(&span_key(value.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8200,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_let",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8580,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_let",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8587,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_let",
+      "expresion": ".get(&span_key(value.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8606,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "enter_binary",
+      "expresion": "let operator_site = span_key(expr.span());",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 8994,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_expression_match",
+      "expresion": "span_key(value.span()),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9250,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "index_failed_base",
+      "expresion": "span_key(index.span()),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9303,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(value.span()),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9435,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9640,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(target.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9673,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(target.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9715,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 9742,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 9824,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "&span_key(&Checker::primary_span(left)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9840,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(left.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9846,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(left.span()), OccurrenceFlag::ContextRejected),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9860,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(left.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9866,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 4,
+      "linea_base_solo_localizador": 9906,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(left.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 9922,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 5,
+      "linea_base_solo_localizador": 9948,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "&span_key(&Checker::primary_span(left)),",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 9964,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(left.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 9969,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".has(&span_key(left.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 9973,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 6,
+      "linea_base_solo_localizador": 10002,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": ".mark(span_key(expr.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 10103,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 7,
+      "linea_base_solo_localizador": 10210,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 8,
+      "linea_base_solo_localizador": 10257,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 9,
+      "linea_base_solo_localizador": 10333,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(expr.span()),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 10370,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 10,
+      "linea_base_solo_localizador": 10495,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(value.span()),",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 10531,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(value.span()),",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 10568,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "DriveStart::Expression(expr, _) => (span_key(expr.span()), FactRole::Expression),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 10610,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "DriveStart::Block(block) => (span_key(&block.span), FactRole::Statement),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 10611,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(parse::statement_span(statement)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 10663,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(value.span()),",
+      "ordinal_misma_expresion_en_funcion": 4,
+      "linea_base_solo_localizador": 10909,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 11,
+      "linea_base_solo_localizador": 10972,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 12,
+      "linea_base_solo_localizador": 11000,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 13,
+      "linea_base_solo_localizador": 11101,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 14,
+      "linea_base_solo_localizador": 11160,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 15,
+      "linea_base_solo_localizador": 11173,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 16,
+      "linea_base_solo_localizador": 11202,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 17,
+      "linea_base_solo_localizador": 11232,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 18,
+      "linea_base_solo_localizador": 11261,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 19,
+      "linea_base_solo_localizador": 11287,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "resume_non_match",
+      "expresion": "span_key(inner.span()),",
+      "ordinal_misma_expresion_en_funcion": 20,
+      "linea_base_solo_localizador": 11350,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".get(&span_key(inner.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11455,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": "self.graph.expression_types.insert(span_key(span), partial);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11458,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".conditional_result(&span_key(inner.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11462,
+      "uso": "resultado condicional",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "El resultado condicional pertenece al estado de la ocurrencia."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": "self.graph.set_conditional_result(span_key(span), nominal);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11465,
+      "uso": "resultado condicional",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "El resultado condicional pertenece al estado de la ocurrencia."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".has(&span_key(inner.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11469,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": "self.graph.mark(span_key(span), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11471,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": "self.graph.expr_vars.insert(span_key(span), id);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11474,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".has(&span_key(inner.span()), OccurrenceFlag::Divergent)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11478,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": "self.graph.mark(span_key(span), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11480,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".has(&span_key(inner.span()), OccurrenceFlag::PartialNormal)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11484,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".mark(span_key(span), OccurrenceFlag::PartialNormal);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11487,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".has(&span_key(inner.span()), OccurrenceFlag::ContextRejected)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11491,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".mark(span_key(span), OccurrenceFlag::ContextRejected);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11494,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".has(&span_key(inner.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11498,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": "self.graph.mark(span_key(span), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11500,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".has(&span_key(inner.span()), OccurrenceFlag::PendingDomain)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11504,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "propagate_group",
+      "expresion": ".mark(span_key(span), OccurrenceFlag::PendingDomain);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11507,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": "span_key(e.span()),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11565,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".has(&span_key(e.span()), OccurrenceFlag::PendingDomain)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11715,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": "span_key(e.span()),",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 11722,
+      "uso": "resultado condicional",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "El resultado condicional pertenece al estado de la ocurrencia."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": "self.graph.mark(span_key(e.span()), OccurrenceFlag::Tainted);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11732,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11737,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11744,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 11748,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".insert(span_key(e.span()), got.clone());",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11756,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".has(&span_key(e.span()), OccurrenceFlag::PendingDomain)",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 11763,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".has(&span_key(e.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11766,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11853,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_against_context_one",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::ContextRejected);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11863,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": "self.graph.mark(span_key(span), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11982,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": "self.graph.expr_vars.insert(span_key(span), id);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 11983,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": "self.graph.expr_vars.insert(span_key(e.span()), *id);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12112,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": "self.graph.expr_vars.insert(span_key(e.span()), array);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12145,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12147,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": "&span_key(&Self::primary_span(left)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12196,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::PendingDomain);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12256,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12278,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(left.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12284,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12288,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12303,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 12353,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12355,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(target.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12360,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(index.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12372,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": "self.graph.expr_vars.insert(span_key(e.span()), child);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12406,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 4,
+      "linea_base_solo_localizador": 12409,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(target.span()), OccurrenceFlag::Divergent)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12414,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 5,
+      "linea_base_solo_localizador": 12420,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12422,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(index.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12465,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 12534,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::PartialNormal);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12542,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::ContextRejected)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12547,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::ContextRejected)",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12551,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::ContextRejected),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12555,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::ContextRejected);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12560,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::PartialNormal);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12569,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": "self.graph.expr_vars.insert(span_key(e.span()), id);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12583,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 6,
+      "linea_base_solo_localizador": 12585,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 7,
+      "linea_base_solo_localizador": 12592,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "expr_inner",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 3,
+      "linea_base_solo_localizador": 12594,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_accept",
+      "expresion": ".has(&span_key(item.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12675,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_accept",
+      "expresion": ".has(&span_key(item.span()), OccurrenceFlag::PendingDomain)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12710,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_accept",
+      "expresion": ".has(&span_key(item.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12734,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_accept",
+      "expresion": ".has(&span_key(origin), OccurrenceFlag::PendingDomain)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12744,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_accept",
+      "expresion": ".has(&span_key(item.span()), OccurrenceFlag::PendingDomain)",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12747,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_accept",
+      "expresion": ".has(&span_key(item.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12755,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_accept",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12795,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_finish",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12929,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_finish",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12934,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_finish",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 12937,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_finish",
+      "expresion": "self.graph.expr_vars.insert(span_key(e.span()), id);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12949,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "array_finish",
+      "expresion": "self.graph.expr_vars.insert(span_key(e.span()), array);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 12971,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_deferred_binary_right",
+      "expresion": "&span_key(&Self::primary_span(right)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13017,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_deferred_binary_right",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::PendingDomain);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13066,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_deferred_binary_right",
+      "expresion": ".has(&span_key(right.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13079,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_deferred_binary_right",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13116,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_deferred_binary_right",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 13192,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_binary_right",
+      "expresion": ".has(&span_key(right.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13218,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_binary_right",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13221,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_binary_right",
+      "expresion": ".has(&span_key(right.span()), OccurrenceFlag::ContextRejected)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13230,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_binary_right",
+      "expresion": "&span_key(&Self::primary_span(right)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13244,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_binary_right",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::PendingDomain);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13273,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_binary_right",
+      "expresion": ".mark(span_key(e.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 13317,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_binary_right",
+      "expresion": ".has(&span_key(right.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13322,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "option_none",
+      "expresion": "self.graph.expr_vars.insert(span_key(span), result);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13353,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "option_none",
+      "expresion": "self.graph.mark(span_key(span), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 13354,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "if_advance",
+      "expresion": ".has(&span_key(other.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14052,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "if_after_first",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14071,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "if_after_first",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14074,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "if_after_first",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 14078,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch",
+      "expresion": "span_key(expr.span()),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14207,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14291,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14294,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::PendingDomain)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14297,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::PendingDomain)))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14308,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::PartialNormal);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14311,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::PartialNormal);",
+      "ordinal_misma_expresion_en_funcion": 2,
+      "linea_base_solo_localizador": 14314,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".has(&span_key(expr.span()), OccurrenceFlag::FailedJoin);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14320,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "branch_accept",
+      "expresion": ".get(&span_key(expr.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14332,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "comparison_domain_error",
+      "expresion": ".has(&span_key(right.span()), OccurrenceFlag::FailedJoin)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14530,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_union_call",
+      "expresion": "self.graph.expr_vars.insert(span_key(call_span), result);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14764,
+      "uso": "tipo o variable de expresión",
+      "dominio_destino": "OccurrenceId",
+      "regla_decision": "El tipo/variable se indexa por la ocurrencia AST, incluso si comparte span."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "finish_union_call",
+      "expresion": ".mark(span_key(call_span), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14766,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "assert_eq_accept",
+      "expresion": ".or_else(|| self.graph.conditional_result(&span_key(&site)).cloned())",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14836,
+      "uso": "resultado condicional",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "El resultado condicional pertenece al estado de la ocurrencia."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "assert_eq_accept",
+      "expresion": ".has(&span_key(arg.value.span()), OccurrenceFlag::FailedJoin) =>",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 14858,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_intrinsic",
+      "expresion": ".has(&span_key(ordered(0).span()), OccurrenceFlag::Divergent)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 15109,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_intrinsic",
+      "expresion": ".mark(span_key(call_span), OccurrenceFlag::Deferred);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 15112,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_intrinsic",
+      "expresion": ".mark(span_key(call_span), OccurrenceFlag::Divergent);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 15114,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_with_partial_limit",
+      "expresion": ".entry(span_key(&origin))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 15432,
+      "uso": "profundidad tardía",
+      "dominio_destino": "Completion",
+      "regla_decision": "La comprobación tardía pertenece a la completación del origen, con span solo para diagnóstico."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_with_partial_limit",
+      "expresion": "ObligationKind::BinaryDomain(domain) => Some(span_key(&domain.result)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 15609,
+      "uso": "sitio de obligación tras cuota",
+      "dominio_destino": "Pending",
+      "regla_decision": "El deber pendiente conserva su OccurrenceId aunque el análisis agote presupuesto."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "check_with_partial_limit",
+      "expresion": "ObligationKind::DomainNominal(result) => Some(span_key(&result.call)),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 15610,
+      "uso": "sitio de obligación tras cuota",
+      "dominio_destino": "Pending",
+      "regla_decision": "El deber pendiente conserva su OccurrenceId aunque el análisis agote presupuesto."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
+      "expresion": "full.errors[0].primary_span.as_ref().map(span_key),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 16100,
+      "uso": "aserción de diagnóstico",
+      "dominio_destino": "span de salida",
+      "regla_decision": "Compara los bytes del span primario emitido, sin identificar un hecho semántico."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
+      "expresion": "full.errors[1].primary_span.as_ref().map(span_key),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 16105,
+      "uso": "aserción de diagnóstico",
+      "dominio_destino": "span de salida",
+      "regla_decision": "Compara los bytes del span primario emitido, sin identificar un hecho semántico."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
+      "expresion": "full.errors[2].primary_span.as_ref().map(span_key),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 16110,
+      "uso": "aserción de diagnóstico",
+      "dominio_destino": "span de salida",
+      "regla_decision": "Compara los bytes del span primario emitido, sin identificar un hecho semántico."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "contextual_all_divergent_if_retains_expected_type_and_divergence",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::Deferred)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 16600,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "contextual_all_divergent_if_retains_expected_type_and_divergence",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::Divergent)",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 16605,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "nested_divergent_branch_contributes_no_normal_type_under_context",
+      "expresion": ".with_independent_fact(span_key(&then_block.span), |checker, fact| {",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 16628,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "concrete_arrays_record_divergence_only_from_never_elements",
+      "expresion": ".has(&span_key(value.span()), OccurrenceFlag::Divergent),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 16933,
+      "uso": "bandera o estado de ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "Los bits y dependencias de resultado se indexan por OccurrenceId dentro de ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "bind_with_parent",
+      "expresion": ".begin_visit(span_key(&found), FactRole::Solver(SolverBindSite::Ordinary));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 17018,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "boundary_context_owner_closes_constructor_before_comparison",
+      "expresion": ".begin_visit(span_key(value.span()), FactRole::Expression);",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 17223,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "i07c_survivor2_concrete_closure_result_does_not_bind_pending_return",
+      "expresion": "span_key(parse::statement_span(&closure.body.statements[1])),",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 19385,
+      "uso": "sitio de visita transitoria",
+      "dominio_destino": "FactId",
+      "regla_decision": "El span aportaba el sitio al hecho de visita; FactId queda transitorio y transporta el OccurrenceId del AST."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "assert_child",
+      "expresion": ".entry(span_key(child.span()))",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 19513,
+      "uso": "prueba de dependencia por ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "La prueba accede al estado de la expresión hija/padre; la clave pasa a OccurrenceId del ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "assert_child",
+      "expresion": "checker.graph.occurrences[&span_key(parent.span())]",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 19519,
+      "uso": "prueba de dependencia por ocurrencia",
+      "dominio_destino": "ResultStatus",
+      "regla_decision": "La prueba accede al estado de la expresión hija/padre; la clave pasa a OccurrenceId del ResultStatus."
+    },
+    {
+      "archivo": "src/check/types.rs",
+      "funcion": "i07c_survivor2_shape_conflicts_continue_past_irrelevant_children",
+      "expresion": "assert_eq!(diagnostic.primary_span.as_ref().map(span_key), Some((7, 8)));",
+      "ordinal_misma_expresion_en_funcion": 1,
+      "linea_base_solo_localizador": 19693,
+      "uso": "aserción de diagnóstico",
+      "dominio_destino": "span de salida",
+      "regla_decision": "Compara los bytes del span primario emitido, sin identificar un hecho semántico."
+    }
+  ]
+}
