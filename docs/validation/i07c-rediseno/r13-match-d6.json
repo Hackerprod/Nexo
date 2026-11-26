@@ -1,0 +1,5555 @@
+{
+  "schema": "i07c-r13-d6-v1",
+  "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
+  "main_binary_sha256": "0ee60ea3e739ce9b09584062ecab3e652cb3daf66e6c05c5489a561346610410",
+  "oracle_script_sha256": "afc2459da8f539b5958223f6f972e46c4aeef8b6fd266803b7079fbbeb137967",
+  "rule": "15 D6 rows: standalone if derivation is independent of match. Proposed full match output is separate and requires independent B validation per row; no PASS is asserted.",
+  "rows": [
+    {
+      "index": 5,
+      "id": "rejilla1-anidada-else-denunciada",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then 1 else (if p then s else true));},None=>{value: true;}};}",
+      "source_sha256": "6b0e359c4431bfdd827be757580e51fe7640b6cb038e5293113d4f31a2283b66",
+      "source_bytes": 181,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              73,
+              75
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              149,
+              153
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  124,
+                  125
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  149,
+                  153
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 64,
+              "end": 66
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 73,
+              "end": 75
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 149,
+              "end": 153
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 124,
+                  "end": 125
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 149,
+                  "end": 153
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Bool"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];var q=[];var s=[];let a0=(if p then 1 else (if p then s else true));}",
+      "standalone_if_source_sha256": "053bd2f67c6c3d26df43b62809f9796f2fe9897cdd5441daa5a9a5723dbece63",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            38,
+            40
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            47,
+            49
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            64,
+            66
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            73,
+            75
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              73,
+              75
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 7,
+      "id": "rejilla1-anidada-else-denunciada2",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then ar else (if p then 1 else q));},None=>{value: true;}};}",
+      "source_sha256": "01d24cddd09d696758a85c0f99d026c62684f1ab68df95e31c03c637305c183a",
+      "source_bytes": 179,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              73,
+              75
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              143,
+              144
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  124,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  143,
+                  144
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 64,
+              "end": 66
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 73,
+              "end": 75
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 143,
+              "end": 144
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 124,
+                  "end": 126
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 143,
+                  "end": 144
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<I64>",
+              "found_type": "I64"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];var q=[];var s=[];let a0=(if p then ar else (if p then 1 else q));}",
+      "standalone_if_source_sha256": "c60d454bca3019d80d1a9a87c35b0263740c7ddb7f0b7fbe0607e0749ea2c88f",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            47,
+            49
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            87,
+            88
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            68,
+            70
+          ],
+          "rel_found": [
+            87,
+            88
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            73,
+            75
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            143,
+            144
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            124,
+            126
+          ],
+          "rel_found": [
+            143,
+            144
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              73,
+              75
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              143,
+              144
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  124,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  143,
+                  144
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 37,
+      "id": "B-161-anidada-else-pendiente-denunciada",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;var s=[];let a0=match move o{Some(n)=>{value: (if p then 1 else (if p then s else true));},None=>{value: true;}};}",
+      "source_sha256": "88ae7fccf40f5f32fa337e3c85cb12c24dbaeffea145f77129aba38782b0cf33",
+      "source_bytes": 161,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              53,
+              55
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              129,
+              133
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  104,
+                  105
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  129,
+                  133
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 53,
+              "end": 55
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 129,
+              "end": 133
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 104,
+                  "end": 105
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 129,
+                  "end": 133
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Bool"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;var s=[];let a0=(if p then 1 else (if p then s else true));}",
+      "standalone_if_source_sha256": "bb696f802b0f43deaac11d68945a47388f0a618a4484025184ac4c2b3e9752ba",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            27,
+            29
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            53,
+            55
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              53,
+              55
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 57,
+      "id": "dif-s7021993-78-anadido",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=[[ar]];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else s) else (if p then q[0] else r[0])) else s);},None=>{value: r;}};q=r;}",
+      "source_sha256": "e5884d846255114b9b8b72fb31574de64468b71279acb5ba3c30abc4e244fac4",
+      "source_bytes": 270,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              219,
+              223
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<Array<I64>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  183,
+                  201
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  219,
+                  223
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 219,
+              "end": 223
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 183,
+                  "end": 201
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 219,
+                  "end": 223
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<Array<I64>>>",
+              "found_type": "Array<Array<I64>>"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=[[ar]];let a0=(if p then (if p then (if p then q else s) else (if p then q[0] else r[0])) else s);q=r;}",
+      "standalone_if_source_sha256": "aff225a55b2056ef2d15691f33da1509f4183178311175856b6f6b5146c261a3",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            163,
+            167
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            127,
+            145
+          ],
+          "rel_found": [
+            163,
+            167
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            190,
+            191
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<Array<Array<I64>>>>",
+          "rel_expected": [
+            144,
+            145
+          ],
+          "rel_found": [
+            190,
+            191
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            219,
+            223
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            183,
+            201
+          ],
+          "rel_found": [
+            219,
+            223
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            267,
+            268
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<Array<Array<I64>>>>",
+          "rel_expected": [
+            200,
+            201
+          ],
+          "rel_found": [
+            267,
+            268
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            260,
+            261
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<Array<Array<I64>>>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                161,
+                242
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                260,
+                261
+              ]
+            }
+          ]
+        }
+      ],
+      "additional_cause": "match-arm join after q=r completes an arm",
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              219,
+              223
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<Array<I64>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  183,
+                  201
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  219,
+                  223
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              260,
+              261
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<Array<Array<Array<I64>>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  161,
+                  242
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  260,
+                  261
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              267,
+              268
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<Array<Array<Array<I64>>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  200,
+                  201
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  267,
+                  268
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 59,
+      "id": "dif-s7021993-561-quitado",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else (if p then false else s)) else ar) else [s,q]);},None=>{value: 1;}};}",
+      "source_sha256": "1e9ea9c2d76aa0a3b33f98d2b0bc368bf7bb9f19e2e7c979b645e04059d46a28",
+      "source_bytes": 260,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              93,
+              95
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              102,
+              104
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              111,
+              113
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              222,
+              224
+            ],
+            "expected_type": "Bool",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  174,
+                  215
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  222,
+                  224
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              254,
+              255
+            ],
+            "expected_type": "Bool",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  152,
+                  236
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  254,
+                  255
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 93,
+              "end": 95
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 102,
+              "end": 104
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 111,
+              "end": 113
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 222,
+              "end": 224
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 174,
+                  "end": 215
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 222,
+                  "end": 224
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Bool",
+              "found_type": "Array<I64>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 254,
+              "end": 255
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 152,
+                  "end": 236
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 254,
+                  "end": 255
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Bool",
+              "found_type": "I64"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then (if p then (if p then q else (if p then false else s)) else ar) else [s,q]);}",
+      "standalone_if_source_sha256": "71840b5cf375133412b081bca2c6c402bb6386e3ff3d2a084c7d42e43f0b36cb",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            146,
+            151
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "rel_expected": [
+            128,
+            129
+          ],
+          "rel_found": [
+            146,
+            151
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            175,
+            180
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            107,
+            168
+          ],
+          "rel_found": [
+            175,
+            180
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            102,
+            104
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            202,
+            207
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "rel_expected": [
+            184,
+            185
+          ],
+          "rel_found": [
+            202,
+            207
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            231,
+            236
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            163,
+            224
+          ],
+          "rel_found": [
+            231,
+            236
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              102,
+              104
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              202,
+              207
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  184,
+                  185
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  202,
+                  207
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              231,
+              236
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "Array<Array<I64>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  163,
+                  224
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  231,
+                  236
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 62,
+      "id": "dif-s7021993-1569-anadido",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r[0] else (if p then q else r)) else [ar]);},None=>{value: ar;}};}",
+      "source_sha256": "2b349b9650eb6278a7a1c9da4843c5308aa1efbaa11c1fbc750c95c47da880f0",
+      "source_bytes": 239,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              93,
+              95
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              111,
+              113
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 93,
+              "end": 95
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 111,
+              "end": 113
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then (if p then r[0] else (if p then q else r)) else [ar]);}",
+      "standalone_if_source_sha256": "801e268e7a41dc98a68f6dc986cda75d5f91658aee8d14e2b23bd47ce3ac6aa1",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            85,
+            87
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            145,
+            146
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            117,
+            121
+          ],
+          "rel_found": [
+            145,
+            146
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            111,
+            113
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            201,
+            202
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            173,
+            177
+          ],
+          "rel_found": [
+            201,
+            202
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            232,
+            234
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                152,
+                214
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                232,
+                234
+              ]
+            }
+          ]
+        }
+      ],
+      "additional_cause": "match-arm join against the None-arm ar",
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              111,
+              113
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              201,
+              202
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  173,
+                  177
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  201,
+                  202
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              232,
+              234
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  152,
+                  214
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  232,
+                  234
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 65,
+      "id": "dif-s4417061-996-quitado",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then r else aar) else (if p then (if p then q else r) else [s,q])) else r[0]);},None=>{value: r;}};}",
+      "source_sha256": "32f24528428d07369ffa11a716504e950b7a5000368cdcac86b8c08f604b3eed",
+      "source_bytes": 279,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              238,
+              243
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  213,
+                  231
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  238,
+                  243
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              273,
+              274
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "Array<Array<I64>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  152,
+                  255
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  273,
+                  274
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 238,
+              "end": 243
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 213,
+                  "end": 231
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 238,
+                  "end": 243
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<I64>>",
+              "found_type": "Array<Array<Array<I64>>>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 273,
+              "end": 274
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 152,
+                  "end": 255
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 273,
+                  "end": 274
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<I64>",
+              "found_type": "Array<Array<I64>>"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then (if p then (if p then r else aar) else (if p then (if p then q else r) else [s,q])) else r[0]);}",
+      "standalone_if_source_sha256": "9baa67c53e8b0dbae7ed6c744da34eed0f2a4d5757d55999ca958c3d7641b6e9",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            182,
+            187
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            118,
+            138
+          ],
+          "rel_found": [
+            182,
+            187
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            195,
+            199
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            107,
+            188
+          ],
+          "rel_found": [
+            195,
+            199
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            238,
+            243
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            174,
+            194
+          ],
+          "rel_found": [
+            238,
+            243
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            251,
+            255
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            163,
+            244
+          ],
+          "rel_found": [
+            251,
+            255
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              238,
+              243
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  174,
+                  194
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  238,
+                  243
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              251,
+              255
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  163,
+                  244
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  251,
+                  255
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 67,
+      "id": "dif-s4417061-1190-quitado",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else q) else (if p then 2 else r[0])) else [q,r]);},None=>{value: [r];}};r=[true];}",
+      "source_sha256": "05c0a3433cc40f9d3b659145411d8e413f1121ea7e3193a286907629f7b4e089",
+      "source_bytes": 260,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              208,
+              212
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  201,
+                  202
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  208,
+                  212
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              220,
+              225
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  154,
+                  213
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  220,
+                  225
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              243,
+              246
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  143,
+                  225
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  243,
+                  246
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 208,
+              "end": 212
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 201,
+                  "end": 202
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 208,
+                  "end": 212
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Bool"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 220,
+              "end": 225
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 154,
+                  "end": 213
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 220,
+                  "end": 225
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Array<Array<Bool>>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 243,
+              "end": 246
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 143,
+                  "end": 225
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 243,
+                  "end": 246
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Array<Array<Bool>>"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then (if p then q else q) else (if p then 2 else r[0])) else [q,r]);r=[true];}",
+      "standalone_if_source_sha256": "7c40b1e7be9db3a7e6e6d0bd9adfc96684c19ceecbbcc77b8f4450c6046c2aa0",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            93,
+            95
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              93,
+              95
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 68,
+      "id": "dif-s4417061-2805-quitado",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r3 else (if p then ar else q)) else (if p then (if p then q[0] else r3) else (if p then r else [q,r])));},None=>{value: ar;}};}",
+      "source_sha256": "a3d74b67b2bbe7915a95fbd4cdcf51d4262422a381f2377db1b7a4bbc1755552",
+      "source_bytes": 291,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              183,
+              185
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  164,
+                  166
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  183,
+                  185
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              262,
+              263
+            ],
+            "expected_type": "Array<Array<Array<Array<I64>>>>",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  260,
+                  261
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  262,
+                  263
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              284,
+              286
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  143,
+                  266
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  284,
+                  286
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 183,
+              "end": 185
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 164,
+                  "end": 166
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 183,
+                  "end": 185
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<Array<I64>>>",
+              "found_type": "Array<I64>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "rule": "NX-E0102/type_mismatch",
+            "explanation_id": "NX-E0102/type_mismatch",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 262,
+              "end": 263
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 260,
+                  "end": 261
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 262,
+                  "end": 263
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<Array<Array<I64>>>>",
+              "found_type": "Array<Array<Array<I64>>>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 284,
+              "end": 286
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 143,
+                  "end": 266
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 284,
+                  "end": 286
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<Array<I64>>>",
+              "found_type": "Array<I64>"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then r3 else (if p then ar else q)) else (if p then (if p then q[0] else r3) else (if p then r else [q,r])));}",
+      "standalone_if_source_sha256": "f8a453e1509084936fe3d45211e874e95023879bb04d17ae7adf7e5c497be775",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            127,
+            129
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            108,
+            110
+          ],
+          "rel_found": [
+            127,
+            129
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            166,
+            170
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            98,
+            137
+          ],
+          "rel_found": [
+            166,
+            170
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            183,
+            185
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            164,
+            166
+          ],
+          "rel_found": [
+            183,
+            185
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            222,
+            226
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "rel_expected": [
+            154,
+            193
+          ],
+          "rel_found": [
+            222,
+            226
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              183,
+              185
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  164,
+                  166
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  183,
+                  185
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              222,
+              226
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<Array<I64>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  154,
+                  193
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  222,
+                  226
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 69,
+      "id": "dif-s4417061-3243-anadido",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r[0] else (if p then r else r[0])) else 1);},None=>{value: q;}};q=[3];}",
+      "source_sha256": "b6a224e9cbd90ef81cdffb70bf4e2dc455cc7c291aeadde9f74cbeb8b41f89eb",
+      "source_bytes": 235,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              102,
+              104
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              185,
+              186
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 102,
+              "end": 104
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 185,
+              "end": 186
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then r[0] else (if p then r else r[0])) else 1);q=[3];}",
+      "standalone_if_source_sha256": "1d9f4fd734c80e757e6d5c133810fa04c56e54f46ec672388231183512af927d",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            129,
+            130
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            108,
+            112
+          ],
+          "rel_found": [
+            129,
+            130
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            185,
+            186
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            164,
+            168
+          ],
+          "rel_found": [
+            185,
+            186
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            223,
+            224
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                143,
+                205
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                223,
+                224
+              ]
+            }
+          ]
+        }
+      ],
+      "additional_cause": "match-arm join after q=[3] completes the None arm",
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              185,
+              186
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  164,
+                  168
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  185,
+                  186
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              223,
+              224
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  143,
+                  205
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  223,
+                  224
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 71,
+      "id": "dif-s4417061-3389-anadido",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then r else [r])) else [ar]);},None=>{value: [r];}};}",
+      "source_sha256": "a5fe7758b902257fe3cee83bd739cb3775eb1705b4a7bc02ab2932e99b856011",
+      "source_bytes": 239,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              93,
+              95
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              102,
+              104
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              111,
+              113
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 93,
+              "end": 95
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 102,
+              "end": 104
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 111,
+              "end": 113
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then (if p then r else (if p then r else [r])) else [ar]);}",
+      "standalone_if_source_sha256": "1a899a02328f6cfd8c34bc83b049d82a28c14217336707969fb496aa1cd8d5a1",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            85,
+            87
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            142,
+            145
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            117,
+            118
+          ],
+          "rel_found": [
+            142,
+            145
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            93,
+            95
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            111,
+            113
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            198,
+            201
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            173,
+            174
+          ],
+          "rel_found": [
+            198,
+            201
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            231,
+            234
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                152,
+                213
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                231,
+                234
+              ]
+            }
+          ]
+        }
+      ],
+      "additional_cause": "match-arm join against the None-arm [r]",
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              93,
+              95
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              111,
+              113
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              198,
+              201
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  173,
+                  174
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  198,
+                  201
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              231,
+              234
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  152,
+                  213
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  231,
+                  234
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 72,
+      "id": "dif-s4417061-3509-anadido",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=[true];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then [s,q] else (if p then (if p then q else r) else q)) else (if p then 1 else aar)) else [q,r]);},None=>{value: [r];}};r=[[3]];r=[3];}",
+      "source_sha256": "aae8304cb4b3bbb28bbc41f81bfbf23a374d454027ecb8a5f6990c6042f09194",
+      "source_bytes": 324,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              226,
+              227
+            ],
+            "expected_type": "Array<Array<Bool>>",
+            "found_type": "Array<Bool>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  193,
+                  198
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  226,
+                  227
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              233,
+              234
+            ],
+            "expected_type": "Array<Array<Bool>>",
+            "found_type": "Array<Bool>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  193,
+                  198
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  233,
+                  234
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              261,
+              262
+            ],
+            "expected_type": "Array<Bool>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  183,
+                  243
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  261,
+                  262
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              279,
+              284
+            ],
+            "expected_type": "Array<Bool>",
+            "found_type": "Array<Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  172,
+                  272
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  279,
+                  284
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              312,
+              315
+            ],
+            "expected_type": "Bool",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  116,
+                  122
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  312,
+                  315
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              320,
+              321
+            ],
+            "expected_type": "Bool",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  116,
+                  122
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  320,
+                  321
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 226,
+              "end": 227
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 193,
+                  "end": 198
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 226,
+                  "end": 227
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<Bool>>",
+              "found_type": "Array<Bool>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 233,
+              "end": 234
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 193,
+                  "end": 198
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 233,
+                  "end": 234
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<Bool>>",
+              "found_type": "Array<Bool>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 261,
+              "end": 262
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 183,
+                  "end": 243
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 261,
+                  "end": 262
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Bool>",
+              "found_type": "I64"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 279,
+              "end": 284
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 172,
+                  "end": 272
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 279,
+                  "end": 284
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Bool>",
+              "found_type": "Array<Array<Bool>>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "rule": "NX-E0102/type_mismatch",
+            "explanation_id": "NX-E0102/type_mismatch",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 312,
+              "end": 315
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 116,
+                  "end": 122
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 312,
+                  "end": 315
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Bool",
+              "found_type": "Array<I64>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "rule": "NX-E0102/type_mismatch",
+            "explanation_id": "NX-E0102/type_mismatch",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 320,
+              "end": 321
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 116,
+                  "end": 122
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 320,
+                  "end": 321
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Bool",
+              "found_type": "I64"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=[true];let a0=(if p then (if p then (if p then [s,q] else (if p then (if p then q else r) else q)) else (if p then 1 else aar)) else [q,r]);r=[[3]];r=[3];}",
+      "standalone_if_source_sha256": "08c3c876e3490f8447ec6f9b02248a81144602158a4fc04076a6f6188fb2c44c",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            170,
+            171
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            137,
+            142
+          ],
+          "rel_found": [
+            170,
+            171
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            205,
+            206
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "rel_expected": [
+            127,
+            187
+          ],
+          "rel_found": [
+            205,
+            206
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            226,
+            227
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Bool>",
+          "rel_expected": [
+            224,
+            225
+          ],
+          "rel_found": [
+            226,
+            227
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            233,
+            236
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            90,
+            96
+          ],
+          "rel_found": [
+            233,
+            236
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            241,
+            242
+          ],
+          "expected_type": "Bool",
+          "found_type": "I64",
+          "rel_expected": [
+            90,
+            96
+          ],
+          "rel_found": [
+            241,
+            242
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            226,
+            227
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            193,
+            198
+          ],
+          "rel_found": [
+            226,
+            227
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            261,
+            262
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "rel_expected": [
+            183,
+            243
+          ],
+          "rel_found": [
+            261,
+            262
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            282,
+            283
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Bool>",
+          "rel_expected": [
+            280,
+            281
+          ],
+          "rel_found": [
+            282,
+            283
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            312,
+            315
+          ],
+          "expected_type": "Bool",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            116,
+            122
+          ],
+          "rel_found": [
+            312,
+            315
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        },
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            320,
+            321
+          ],
+          "expected_type": "Bool",
+          "found_type": "I64",
+          "rel_expected": [
+            116,
+            122
+          ],
+          "rel_found": [
+            320,
+            321
+          ],
+          "cls": "C",
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            302,
+            305
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Bool>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                161,
+                284
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                302,
+                305
+              ]
+            }
+          ]
+        }
+      ],
+      "additional_cause": "match-arm join after the later r assignments",
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              226,
+              227
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  193,
+                  198
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  226,
+                  227
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              261,
+              262
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  183,
+                  243
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  261,
+                  262
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              282,
+              283
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "Array<Bool>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  280,
+                  281
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  282,
+                  283
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              302,
+              305
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Array<Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  161,
+                  284
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  302,
+                  305
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              312,
+              315
+            ],
+            "expected_type": "Bool",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  116,
+                  122
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  312,
+                  315
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              320,
+              321
+            ],
+            "expected_type": "Bool",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  116,
+                  122
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  320,
+                  321
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 78,
+      "id": "dif-s9908255-1377-anadido",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=[[ar]];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then 2 else q) else (if p then true else 1)) else (if p then (if p then ar else r[0]) else [[q]]));},None=>{value: (if p then q else r);}};}",
+      "source_sha256": "8070375429233df667cdcfc229fe8bc73f1819eae190fba2a117f3046e170cbc",
+      "source_bytes": 319,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              191,
+              192
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  184,
+                  185
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  191,
+                  192
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              210,
+              214
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  174,
+                  192
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  210,
+                  214
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              251,
+              253
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  163,
+                  222
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  251,
+                  253
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              270,
+              275
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<Array<Array<Array<Array<I64>>>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  163,
+                  222
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  270,
+                  275
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 191,
+              "end": 192
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 184,
+                  "end": 185
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 191,
+                  "end": 192
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Array<Array<Array<I64>>>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 210,
+              "end": 214
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 174,
+                  "end": 192
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 210,
+                  "end": 214
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Bool"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 251,
+              "end": 253
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 163,
+                  "end": 222
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 251,
+                  "end": 253
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Array<I64>"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 270,
+              "end": 275
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 163,
+                  "end": 222
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 270,
+                  "end": 275
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Array<Array<Array<Array<Array<I64>>>>>"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=[[ar]];let a0=(if p then (if p then (if p then 2 else q) else (if p then true else 1)) else (if p then (if p then ar else r[0]) else [[q]]));}",
+      "standalone_if_source_sha256": "39628e6d8e7604161efa9a1cd5df360615e90fddd8bb3815a0fecb2909645cf7",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            135,
+            136
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            128,
+            129
+          ],
+          "rel_found": [
+            135,
+            136
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            154,
+            158
+          ],
+          "expected_type": "I64",
+          "found_type": "Bool",
+          "rel_expected": [
+            118,
+            136
+          ],
+          "rel_found": [
+            154,
+            158
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            195,
+            197
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            107,
+            166
+          ],
+          "rel_found": [
+            195,
+            197
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            191,
+            192
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<Array<Array<I64>>>",
+          "rel_expected": [
+            184,
+            185
+          ],
+          "rel_found": [
+            191,
+            192
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            210,
+            214
+          ],
+          "expected_type": "I64",
+          "found_type": "Bool",
+          "rel_expected": [
+            174,
+            192
+          ],
+          "rel_found": [
+            210,
+            214
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            251,
+            253
+          ],
+          "expected_type": "I64",
+          "found_type": "Array<I64>",
+          "rel_expected": [
+            163,
+            222
+          ],
+          "rel_found": [
+            251,
+            253
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            312,
+            313
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                305,
+                306
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                312,
+                313
+              ]
+            }
+          ]
+        }
+      ],
+      "additional_cause": "normative if in the None arm, absent from the isolated Some-arm derivation",
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              191,
+              192
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<Array<Array<I64>>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  184,
+                  185
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  191,
+                  192
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              210,
+              214
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  174,
+                  192
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  210,
+                  214
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              251,
+              253
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  163,
+                  222
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  251,
+                  253
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              312,
+              313
+            ],
+            "expected_type": "Array<Array<Array<I64>>>",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  305,
+                  306
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  312,
+                  313
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 79,
+      "id": "dif-s9908255-1876-quitado",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];q=[[ar]];let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then ar else 1)) else r[0]);},None=>{value: 1;}};}",
+      "source_sha256": "a620d7a6c8e8adf52b0a7d7a2a92e149333bd20bd916cbbceb0ce63720abc9f2",
+      "source_bytes": 245,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              111,
+              113
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              208,
+              209
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  200,
+                  202
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  208,
+                  209
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              239,
+              240
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  161,
+                  221
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  239,
+                  240
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0103",
+            "subcause": null,
+            "rule": "NX-E0103",
+            "explanation_id": "NX-E0103",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.infer",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 111,
+              "end": 113
+            },
+            "related_spans": [],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {}
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 208,
+              "end": 209
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 200,
+                  "end": 202
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 208,
+                  "end": 209
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<I64>",
+              "found_type": "I64"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 239,
+              "end": 240
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 161,
+                  "end": 221
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 239,
+                  "end": 240
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<I64>",
+              "found_type": "I64"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];q=[[ar]];let a0=(if p then (if p then r else (if p then ar else 1)) else r[0]);}",
+      "standalone_if_source_sha256": "46c769f2855dd963859ab6bcbefe0298f85a4c4fce03d5275545aa272af0800d",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            85,
+            87
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            152,
+            153
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            126,
+            127
+          ],
+          "rel_found": [
+            152,
+            153
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            161,
+            165
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            116,
+            154
+          ],
+          "rel_found": [
+            161,
+            165
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            111,
+            113
+          ],
+          "expected_type": "",
+          "found_type": "",
+          "rel_expected": null,
+          "rel_found": null,
+          "cls": "C",
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            208,
+            209
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            182,
+            183
+          ],
+          "rel_found": [
+            208,
+            209
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            217,
+            221
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "rel_expected": [
+            172,
+            210
+          ],
+          "rel_found": [
+            217,
+            221
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [],
+      "additional_cause": null,
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              111,
+              113
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              208,
+              209
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  182,
+                  183
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  208,
+                  209
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              217,
+              221
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  172,
+                  210
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  217,
+                  221
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    },
+    {
+      "index": 102,
+      "id": "rmm3fuera-s4417061-3751",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then aar else (if p then true else [r]));},None=>{value: [q,r];}};q=aar;}",
+      "source_sha256": "664c7c2281378ea9e3ca424737ed389374e704abb17ed5898c74016eed22be4f",
+      "source_bytes": 221,
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              173,
+              177
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  153,
+                  156
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  173,
+                  177
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main_full_json": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E1303",
+            "subcause": null,
+            "rule": "NX-E1303",
+            "explanation_id": "NX-E1303",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 173,
+              "end": 177
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 153,
+                  "end": 156
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 173,
+                  "end": 177
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Array<Array<I64>>",
+              "found_type": "Bool"
+            }
+          }
+        ]
+      },
+      "standalone_if_source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then aar else (if p then true else [r]));q=aar;}",
+      "standalone_if_source_sha256": "f4df1bfaeaa329588d042001ad211cf1d675fdc88de5961eb035b3ed08fe1a43",
+      "standalone_if_adr": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            117,
+            121
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "rel_expected": [
+            97,
+            100
+          ],
+          "rel_found": [
+            117,
+            121
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_if_adr_spans_mapped_to_match": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            173,
+            177
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "rel_expected": [
+            153,
+            156
+          ],
+          "rel_found": [
+            173,
+            177
+          ],
+          "cls": "C",
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "standalone_unresolved_constructors_completed_by_match": [],
+      "additional_match_join_or_later_completion": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            216,
+            219
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                208,
+                209
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                216,
+                219
+              ]
+            }
+          ]
+        }
+      ],
+      "additional_cause": "later q=aar assignment after the match-arm join",
+      "proposed_r6_full_match": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              173,
+              177
+            ],
+            "expected_type": "Array<Array<I64>>",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  153,
+                  156
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  173,
+                  177
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              216,
+              219
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "Array<Array<I64>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  208,
+                  209
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  216,
+                  219
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clause": "F0-0002 4.1.2.1-5, 4.1.2.7, 13.9; D6 applies one if union algorithm inside and outside match; D5 preserves only arm joining and match state",
+      "validation_status": "A proposal; B must derive the full expected output for this row independently before C3"
+    }
+  ]
+}

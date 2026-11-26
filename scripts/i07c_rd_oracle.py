@@ -710,7 +710,15 @@ class Checker:
             return
         a_ty, a_sp = st["anchor"]
         sp = span(g)
-        if self.unify(a_ty, v.ty, sb=sp, sa=a_sp):
+        pending_before = has_var(a_ty)
+        # ADR, Origen de la relación expected_type (6): the first normal
+        # continuation keeps the join's diagnostic anchor, while a later
+        # continuation that completes a pending component becomes the origin
+        # lent to a subsequent variable continuation.
+        lending_origin = st.get("completion_origin", a_sp)
+        if self.unify(a_ty, v.ty, sb=sp, sa=lending_origin):
+            if pending_before and not has_var(a_ty):
+                st["completion_origin"] = sp
             return
         st["any_conflict"] = True
         if st["denounced"]:

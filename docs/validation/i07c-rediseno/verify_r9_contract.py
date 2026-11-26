@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the structural integrity of the R6 v5 frozen specification."""
+"""Check the structural integrity of the R6 v8 frozen specification."""
 
 import hashlib
 import importlib.util
@@ -33,6 +33,9 @@ for row in data("r8-matrix45.json")["rows"]:
 print("matrix oracle", 45)
 
 gates = data("r9-commit-gates.json")
+for relative, expected_sha in gates["frozen_v8_sha256"].items():
+    actual_sha = hashlib.sha256((HERE.parents[2] / relative).read_bytes()).hexdigest()
+    assert actual_sha == expected_sha, relative
 for family, size in (
     ("directed74_normative_ids", 74), ("matrix45_normative_ids", 45),
     ("frozen13_normative_ids", 13),
@@ -52,6 +55,11 @@ assert not gates["commits"]["C1"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["match_observations_29_expected_by_authority"]
 assert all(len(gates["owned_corpus_ids"][f"C{i}"]["match_rows"]) == 103 for i in range(7))
+assert all(gates["commits"][f"C{i}"]["match103_main_conservation"] for i in range(3))
+assert all(gates["commits"][f"C{i}"]["match88_main_exact"] and
+           gates["commits"][f"C{i}"]["match15_d6_adr_by_row"] and
+           gates["commits"][f"C{i}"]["match_exterior7_main_exact"] for i in range(3, 7))
+assert all(gates["commits"][f"C{i}"]["f2_ne_if_completion_then_assignment"] for i in range(2, 7))
 assert len(gates["owned_corpus_ids"]["C3"]["match_extra_main"]) == 27
 assert len(gates["owned_corpus_ids"]["C3"]["match_extra_adr"]) == 2
 corpus_ids = [item["id"] for item in data("r7-frozen-batteries.json")["corpora"]]
@@ -62,6 +70,27 @@ assert all(not gates["owned_corpus_ids"][f"C{i}"]["all_modelable_corpus_ids"] fo
 witnesses = data("r9-witness-discriminator.json")["rows"]
 assert len(witnesses) == len({row["id"] for row in witnesses}) == 29
 matrix_match = data("r8-match-main.json")["rows"]
+d6 = data("r13-match-d6.json")["rows"]
+assert [row["index"] for row in d6] == [5, 7, 37, 57, 59, 62, 65, 67, 68, 69, 71, 72, 78, 79, 102]
+for row in d6:
+    old = matrix_match[row["index"]]
+    assert row["source"] == old["source"] and row["expected_main"] == old["expected_main"]
+    assert row["proposed_r6_full_match"] != row["expected_main"]
+    assert hashlib.sha256(row["standalone_if_source"].encode("ascii")).hexdigest() == row["standalone_if_source_sha256"]
+    assert oracle.derive(row["standalone_if_source"])["diagnostics"] == row["standalone_if_adr"]
+exterior = data("r13-match-exterior.json")["rows"]
+assert len(exterior) >= 6
+for row in exterior:
+    assert hashlib.sha256(row["source"].encode("ascii")).hexdigest() == row["source_sha256"]
+    assert row["if_value_events_with_expected"]
+    assert all(event["expected_in_branch_accept"] == 1 for event in row["if_value_events_with_expected"])
+ne = data("r13-f2-ne.json")["rows"][0]
+assert oracle.derive(ne["source"])["diagnostics"] == ne["expected_adr"]["diagnostics"]
+assert ne["expected_adr"]["diagnostics"][0]["rel_expected"] == [65, 66]
+family = data("r13-family-audit.json")
+assert sum(family["corpora"]["c1"]["counts"].values()) == 24000
+assert family["corpora"]["c1"]["counts"]["provenance_relation"] == 524
+assert family["corpora"]["c1"]["counts"]["equal"] == 20649
 for index in (4, 20, 44, 46):
     probe = next(row for row in witnesses if row["id"] == f"match-index-{index}")
     assert probe["expected_main"] == matrix_match[index]["expected_main"]

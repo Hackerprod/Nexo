@@ -1,0 +1,105 @@
+{
+  "schema": "i07c-r13-f2-ne-v1",
+  "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
+  "main_binary_sha256": "0ee60ea3e739ce9b09584062ecab3e652cb3daf66e6c05c5489a561346610410",
+  "rows": [
+    {
+      "id": "NE_if_completion_then_assignment",
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let c=[1];var q=[];var v=[];let a=(if true then q else c);v=q;v=[true];}",
+      "source_sha256": "77a800f8619bc91422192fea46e50968958f79502a3396e7fb153ea889f119b4",
+      "source_bytes": 82,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0002-b-v2",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0002-b-v2",
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "rule": "NX-E0102/type_mismatch",
+            "explanation_id": "NX-E0102/type_mismatch",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 75,
+              "end": 79
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 65,
+                  "end": 66
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 75,
+                  "end": 79
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Bool"
+            }
+          }
+        ]
+      },
+      "expected_adr": {
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              75,
+              79
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "rel_expected": [
+              65,
+              66
+            ],
+            "rel_found": [
+              75,
+              79
+            ],
+            "cls": "C",
+            "clause": "cl.2-4 / cl.6"
+          }
+        ],
+        "d_optional": [],
+        "notes": [],
+        "no_fijado": [],
+        "unmodeled": []
+      },
+      "clause": "F0-0002-lagunas, Origen de la relacion expected_type (6): first if continuation operand, including nested completion, remains c [65,66) when v=q is later checked"
+    }
+  ]
+}

@@ -9,7 +9,8 @@ Base: `main` `31d91dbebd31c35b3cd09095c2d8e65b96c80548`; cada corpus usa el perf
 | F3. Igual cardinalidad, cambia código, subcausa o primario | 243 | Arreglo núcleo | F0-0002 §§4.1.2.1–4, 4.1.2.6, 13.9 y 13.17 | No, por el mismo criterio. |
 | F4. Igual código y primario, cambia tipo o una relación distinta de solo `expected_type` | 54 | Arreglo núcleo | F0-0002 §§4.1.2.4–6 y 13.15–17: el testigo parcial no es el tipo nominal del resultado inválido | No, por el mismo criterio. |
 | F5. Solo cambia la relación `expected_type`, incluida ausencia en `main` | 549 | Procedencia I | F0-0002 §4.1.2.6 y §13.15; addendum «Origen de la relación `expected_type` en la NX-E0102 de una asignación» cuando corresponda | No, por el mismo criterio. |
-| **Total distinto** | **3.370** | | | |
+| **Subtotal núcleo F1–F4** | **2.821** | Arreglo núcleo | 2.277 + 247 + 243 + 54 | |
+| **Total distinto** | **3.370** | | 2.821 + 549 | |
 
 La partición por firma observable permite cotejar los 3.370 IDs sin una causa inferida del código. Para **autorizar** una fila, B deriva del ADR su diagnóstico y su clase C/D/V; una firma F1–F4 no convierte una presencia D/V opcional en arreglo de núcleo. Si una derivación no respalda la clase, se corrige la tabla y el oráculo antes de implementar esa fila. B muestrea al menos 20 diferencias por familia, con fuentes y esperados propios. Una fila de igualdad `main`–oráculo jamás puede entrar en F1–F5; una diferencia del candidato en ella es A y bloquea.
 
@@ -68,4 +69,4 @@ El testigo solicitado `c1:12348` es exactamente `fn Main(){let p=true;let ar=[1]
 
 ## Reglas de aceptación de la tabla
 
-Por cada corpus/perfil, `r12-family-audit.json` fija denominador, SHA, recuentos F1–F5 y los IDs discrepantes; la suma de las cinco familias más las filas iguales y sin oráculo debe ser el total. En C1–C5, una fila no propia puede seguir en `main` o alcanzar el oráculo, pero no volver atrás; toda fila donde `main` ya coincide con el oráculo exige A=0. En C6, **toda** fila modelable coincide con el oráculo, y cada diferencia frente a `main` pertenece a exactamente una familia; sin oráculo coincide con `main`. Las 103 filas de `match` y las filas de conservación D5 coinciden exactamente con `main` en todos los commits, con independencia de la tabla. Ninguna familia concede una dispensa contra estas igualdades.
+Por cada corpus/perfil, `r12-family-audit.json` fija denominador, SHA, recuentos F1–F5 y los IDs discrepantes; la suma de las cinco familias más las filas iguales y sin oráculo debe ser el total. Esta tabla conserva la medición histórica r12. El contrato vigente por commit y la adjudicación D6 de las 15 filas de `match` están en R6-final v8, `r9-commit-gates.json` y `r13-family-table.md`; la igualdad histórica de las 103 filas con `main` ya no rige desde C3.
