@@ -5367,6 +5367,34 @@ impl Checker<'_> {
         )
     }
 
+    fn recursive_equality_diagnostic(&self, left: u64, right: u64, found: Span) -> Box<Diagnostic> {
+        // A recursive constructor owns the inference error, even when a
+        // later equality is the operation that exposes its cycle.
+        let origin = self
+            .pending_constructors()
+            .into_iter()
+            .filter(|(child, array, _)| {
+                let root = |mut id| {
+                    while self.graph.type_nodes[&id].parent != id {
+                        id = self.graph.type_nodes[&id].parent;
+                    }
+                    id
+                };
+                let pair = (root(*child), root(*array));
+                pair.0 == left || pair.0 == right || pair.1 == left || pair.1 == right
+            })
+            .map(|(_, _, span)| span)
+            .min_by_key(|span| (span.start, span.end))
+            .unwrap_or(found);
+        names::diagnostic(
+            "NX-E0103",
+            None,
+            Stage::Types,
+            Operation::TypesInfer,
+            origin,
+        )
+    }
+
     fn unresolved_constructor_shape_conflict(
         &mut self,
         id: u64,
@@ -6572,12 +6600,8 @@ impl Checker<'_> {
                                 self.fail_constructed_dependents(l);
                                 self.fail_constructed_dependents(r);
                             }
-                            return Err(names::diagnostic(
-                                "NX-E0103",
-                                None,
-                                Stage::Types,
-                                Operation::TypesInfer,
-                                request.found.clone(),
+                            return Err(self.recursive_equality_diagnostic(
+                                l, r, request.found.clone(),
                             ));
                         }
                         let (a, b) = if self.graph.type_nodes[&l].size
@@ -7039,6 +7063,10 @@ impl Checker<'_> {
                             )));
                             outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));
                         } else if error.code == "NX-E0103" {
+                            let recursive_origin = error
+                                .primary_span
+                                .clone()
+                                .unwrap_or_else(|| request.found.clone());
                             let constructor = self.root(a);
                             let node = self.graph.type_nodes.get_mut(&constructor).unwrap();
                             node.deferred_join = true;
@@ -7049,7 +7077,7 @@ impl Checker<'_> {
                                     right: Type::Deferred(b),
                                     constructor,
                                     left_origin: request.left_origin,
-                                    found: request.found,
+                                    found: recursive_origin,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
                                     numeric_domain_owner: self
