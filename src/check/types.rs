@@ -1055,6 +1055,7 @@ struct PendingDeferredJoin {
     constructor: u64,
     left_origin: Span,
     found: Span,
+    recursive_origin: Option<Span>,
     branch: bool,
     related_expected: bool,
     numeric_domain_owner: Option<(u64, u64)>,
@@ -1156,9 +1157,20 @@ enum ShapeHint {
 
 #[derive(Clone)]
 enum ObligationKind {
-    Constructor { child: u64, array: u64, span: Span },
-    VariantConstructor { union: u64, span: Span },
-    PatternConstructor { union: u64, span: Span },
+    Constructor {
+        child: u64,
+        array: u64,
+        span: Span,
+        has_element_witness: bool,
+    },
+    VariantConstructor {
+        union: u64,
+        span: Span,
+    },
+    PatternConstructor {
+        union: u64,
+        span: Span,
+    },
     Join(Box<PendingDeferredJoin>),
     Domain(PendingDomain),
     DomainNominal(Box<PendingNominalDomain>),
@@ -3896,9 +3908,9 @@ impl Checker<'_> {
             .obligations
             .iter()
             .filter_map(|entry| match entry {
-                ObligationKind::Constructor { child, array, span } => {
-                    Some((*child, *array, span.clone()))
-                }
+                ObligationKind::Constructor {
+                    child, array, span, ..
+                } => Some((*child, *array, span.clone())),
                 _ => None,
             })
             .collect()
@@ -5367,24 +5379,72 @@ impl Checker<'_> {
         )
     }
 
-    fn recursive_equality_diagnostic(&self, left: u64, right: u64, found: Span) -> Box<Diagnostic> {
-        // A recursive constructor owns the inference error, even when a
-        // later equality is the operation that exposes its cycle.
-        let origin = self
-            .pending_constructors()
-            .into_iter()
-            .filter(|(child, array, _)| {
-                let root = |mut id| {
-                    while self.graph.type_nodes[&id].parent != id {
-                        id = self.graph.type_nodes[&id].parent;
-                    }
-                    id
-                };
-                let pair = (root(*child), root(*array));
-                pair.0 == left || pair.0 == right || pair.1 == left || pair.1 == right
+    fn recursive_path_origin(&self, start: u64, target: u64) -> Option<Span> {
+        let root = |mut id| {
+            while self.graph.type_nodes[&id].parent != id {
+                id = self.graph.type_nodes[&id].parent;
+            }
+            id
+        };
+        let constructors: Vec<_> = self
+            .graph
+            .obligations
+            .iter()
+            .filter_map(|entry| match entry {
+                ObligationKind::Constructor {
+                    child,
+                    array,
+                    span,
+                    has_element_witness,
+                } => Some((*child, *array, span, *has_element_witness)),
+                _ => None,
             })
-            .map(|(_, _, span)| span)
-            .min_by_key(|span| (span.start, span.end))
+            .collect();
+        let mut work = vec![(start, None::<Span>)];
+        let mut seen = HashSet::new();
+        while let Some((id, origin)) = work.pop() {
+            let id = root(id);
+            if !seen.insert(id) {
+                continue;
+            }
+            if id == target {
+                return origin;
+            }
+            let node = &self.graph.type_nodes[&id];
+            if let Some(child) = node.array_child {
+                let child = root(child);
+                let edges: Vec<_> = constructors
+                    .iter()
+                    .filter(|(element, array, _, _)| root(*array) == id && root(*element) == child)
+                    .collect();
+                let edge = edges
+                    .iter()
+                    .filter(|(_, _, _, witnessed)| *witnessed)
+                    .min_by_key(|(_, _, span, _)| (span.start, span.end))
+                    .map(|(_, _, span, _)| (*span).clone());
+                let earliest = match (origin.clone(), edge) {
+                    (Some(a), Some(b)) if b.start < a.start => Some(b),
+                    (a @ Some(_), _) => a,
+                    (None, b) => b,
+                };
+                work.push((child, earliest));
+            }
+            if let Some(union) = node.variant_children {
+                for variant in union.variants {
+                    if let Some(child) = variant.payload {
+                        work.push((child, origin.clone()));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn recursive_equality_diagnostic(&self, left: u64, right: u64, found: Span) -> Box<Diagnostic> {
+        // Only constructors on the path that closes this cycle can own its E3.
+        let origin = self
+            .recursive_path_origin(left, right)
+            .or_else(|| self.recursive_path_origin(right, left))
             .unwrap_or(found);
         names::diagnostic(
             "NX-E0103",
@@ -5596,6 +5656,7 @@ impl Checker<'_> {
                 constructor,
                 left_origin,
                 found,
+                recursive_origin: None,
                 branch: policy.branch,
                 related_expected: policy.related_expected,
                 numeric_domain_owner: self.graph.fact(fact).numeric_domain_owner,
@@ -7052,6 +7113,7 @@ impl Checker<'_> {
                                     constructor,
                                     left_origin: request.left_origin,
                                     found: request.found,
+                                    recursive_origin: None,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
                                     numeric_domain_owner: self
@@ -7077,7 +7139,8 @@ impl Checker<'_> {
                                     right: Type::Deferred(b),
                                     constructor,
                                     left_origin: request.left_origin,
-                                    found: recursive_origin,
+                                    found: request.found,
+                                    recursive_origin: Some(recursive_origin),
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
                                     numeric_domain_owner: self
@@ -7131,6 +7194,7 @@ impl Checker<'_> {
                                     constructor: root,
                                     left_origin: request.left_origin,
                                     found: request.found,
+                                    recursive_origin: None,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
                                     numeric_domain_owner: self
@@ -8287,7 +8351,10 @@ impl Checker<'_> {
                 {
                     continue;
                 }
-                self.unresolved_constructor_diagnostic(constructor, join.found)
+                self.unresolved_constructor_diagnostic(
+                    constructor,
+                    join.recursive_origin.unwrap_or(join.found),
+                )
             };
             if error.code == "NX-E0102"
                 && numeric_owner.is_some_and(|owner| !failed_numeric_operations.insert(owner))
@@ -12698,6 +12765,7 @@ impl Checker<'_> {
                         child,
                         array,
                         span: span.clone(),
+                        has_element_witness: false,
                     });
                     return Ok(Type::Array(Arc::new(Type::Deferred(child))));
                 };
@@ -13509,6 +13577,7 @@ impl Checker<'_> {
                     child: *child,
                     array: id,
                     span: span.clone(),
+                    has_element_witness: true,
                 });
                 Ok(Type::Array(Arc::new(Type::Deferred(*child))))
             } else if diverges {
@@ -13527,6 +13596,7 @@ impl Checker<'_> {
                     child,
                     array,
                     span: span.clone(),
+                    has_element_witness: false,
                 });
                 Ok(Type::Array(Arc::new(Type::Deferred(child))))
             } else {
