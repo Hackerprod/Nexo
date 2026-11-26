@@ -355,6 +355,12 @@ def audit_lowering() -> None:
     print("lowering span baseline: PASS")
 
 
+def audit_non_types() -> None:
+    others = audit_plain(NAMES, REVIEWED_NAMES) + audit_plain(EFFECTS, REVIEWED_EFFECTS)
+    print(f"reviewed names/effects: {others}/{len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)}")
+    audit_lowering()
+
+
 def audit() -> None:
     source_lines = SOURCE.read_text(encoding="utf-8").splitlines()
     check_helper(source_lines)
@@ -406,9 +412,12 @@ def audit() -> None:
     print(f"total: {sum(map(len, classes.values()))}")
 
 
-def self_test() -> None:
+def self_test(include_types: bool = True) -> None:
     def run(script: Path) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, "-B", str(script)], capture_output=True, text=True)
+        args = [sys.executable, "-B", str(script)]
+        if not include_types:
+            args.append("--names-effects-lowering")
+        return subprocess.run(args, capture_output=True, text=True)
 
     with tempfile.TemporaryDirectory(prefix="i07c-span-") as folder:
         root = Path(folder)
@@ -447,31 +456,35 @@ def self_test() -> None:
 
         write(original, original_helper)
         good = run(script)
-        assert good.returncode == 0 and all(f"{n} " in good.stdout for n in REVIEWED), good.stderr
-        assert f"reviewed: {len(REVIEWED)}/{len(REVIEWED)}" in good.stdout, good.stdout
-        write(original.replace("mod quota_tests {", "fn zz(e:&Expr)->Span{ e.span().clone() }\nmod quota_tests {", 1), original_helper)
-        bad = run(script)
-        assert bad.returncode == 1 and "unreviewed raw span" in bad.stderr, (bad.stdout, bad.stderr)
-        # Each edited site, reverted on its own, must be rejected.
-        loop = "    while let Expr::Group(inner, _) = current {\n        current = inner;\n    }\n"
-        assert loop in original_helper
-        reverts = [
-            ("primary_span without delegation",
-             revert(7078, "crate::frontend::parse::expression_primary_span(e)", "e.span().clone()"),
-             original_helper, "must only delegate"),
-            ("helper without its removal loop", original, original_helper.replace(loop, "", 1),
-             "helper changed or missing"),
-        ]
-        for number, old, new in ((8279, "Self::primary_span(iterable)", "iterable.span().clone()"),
-                                 (12484, "Self::primary_span(target)", "target.span().clone()"),
-                                 (14797, "Self::primary_span(target)", "target.span().clone()"),
-                                 (14811, "&Self::primary_span(target)", "target.span()")):
-            reverts.append((f"site {number} back to a raw span", revert(number, old, new),
-                            original_helper, "reviewed span changed"))
-        for label, types_text, parse_text, message in reverts:
-            write(types_text, parse_text)
-            result = run(script)
-            assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
+        if include_types:
+            assert good.returncode == 0 and all(f"{n} " in good.stdout for n in REVIEWED), good.stderr
+            assert f"reviewed: {len(REVIEWED)}/{len(REVIEWED)}" in good.stdout, good.stdout
+            write(original.replace("mod quota_tests {", "fn zz(e:&Expr)->Span{ e.span().clone() }\nmod quota_tests {", 1), original_helper)
+            bad = run(script)
+            assert bad.returncode == 1 and "unreviewed raw span" in bad.stderr, (bad.stdout, bad.stderr)
+            # Each edited type site, reverted on its own, must be rejected.
+            loop = "    while let Expr::Group(inner, _) = current {\n        current = inner;\n    }\n"
+            assert loop in original_helper
+            reverts = [
+                ("primary_span without delegation",
+                 revert(7078, "crate::frontend::parse::expression_primary_span(e)", "e.span().clone()"),
+                 original_helper, "must only delegate"),
+                ("helper without its removal loop", original, original_helper.replace(loop, "", 1),
+                 "helper changed or missing"),
+            ]
+            for number, old, new in ((8279, "Self::primary_span(iterable)", "iterable.span().clone()"),
+                                     (12484, "Self::primary_span(target)", "target.span().clone()"),
+                                     (14797, "Self::primary_span(target)", "target.span().clone()"),
+                                     (14811, "&Self::primary_span(target)", "target.span()")):
+                reverts.append((f"site {number} back to a raw span", revert(number, old, new),
+                                original_helper, "reviewed span changed"))
+            for label, types_text, parse_text, message in reverts:
+                write(types_text, parse_text)
+                result = run(script)
+                assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
+        else:
+            assert good.returncode == 0 and "lowering span baseline: PASS" in good.stdout, (good.stdout, good.stderr)
+            reverts = []
         # names.rs and effects.rs: a new raw use anywhere in product code fails (including product
         # code that follows a test module), the reversion of a reviewed site fails, and the same
         # use inside a real test module is accepted.
@@ -543,12 +556,26 @@ def self_test() -> None:
             result = run(script)
             assert result.returncode == 1 and (f"group site {ident}" in result.stderr or "unreviewed raw span" in result.stderr), (ident, result.stdout, result.stderr)
         reverts = reverts + lowering + [(ident, None, None, None) for ident in GROUP_SITES]
-    print(f"span auditor self-test: PASS ({len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)} "
-          f"reviewed in 3 files; novel raw use and {len(reverts)} site reversions rejected)")
+    if include_types:
+        print(f"span auditor self-test: PASS ({len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)} "
+              f"reviewed in 3 files; novel raw use and {len(reverts)} site reversions rejected)")
+    else:
+        print(f"span auditor non-types self-test: PASS ({len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)} "
+              f"reviewed in names.rs/effects.rs; lower.rs/lower_match.rs baselines and "
+              f"{len(GROUP_SITES)} group sites; novel raw use and {len(reverts)} reversions rejected)")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--self-test-names-effects-lowering", action="store_true")
+    parser.add_argument("--names-effects-lowering", action="store_true")
     args = parser.parse_args()
-    self_test() if args.self_test else audit()
+    if args.self_test:
+        self_test()
+    elif args.self_test_names_effects_lowering:
+        self_test(include_types=False)
+    elif args.names_effects_lowering:
+        audit_non_types()
+    else:
+        audit()

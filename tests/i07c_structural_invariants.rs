@@ -168,6 +168,21 @@ fn grouped_operands_keep_one_causal_primary() {
         text.contains("G3 span_key audit passed: 240 sites"),
         "{text}"
     );
+    let legacy = Command::new("python")
+        .args([
+            "-B",
+            "scripts/i07c_span_audit.py",
+            "--self-test-names-effects-lowering",
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .expect("the raw .span() audit for names, effects, and lowering must run");
+    assert!(
+        legacy.status.success(),
+        "stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&legacy.stdout),
+        String::from_utf8_lossy(&legacy.stderr)
+    );
 }
 
 #[test]

@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/check/types.rs"
 INVENTORY = ROOT / "docs/validation/i07c-rediseno/c0-span-key-usos.json"
+INVENTORY_SHA256 = "01929eeaec2d9d25278b6d408f52dda72dc4f51559ee5faa9186935e17f4c32d"
 FUNCTION = re.compile(r"^\s*(?:(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?)?fn\s+([A-Za-z_][A-Za-z_0-9]*)")
 DOMAINS = {
     "Completion",
@@ -23,6 +24,16 @@ DOMAINS = {
     "Pending",
     "ResultStatus",
     "span de salida",
+}
+DOMAIN_COUNTS = {
+    "Completion": 1,
+    "ConstructorDuty": 7,
+    "FactId": 47,
+    "JoinRecord": 1,
+    "OccurrenceId": 17,
+    "Pending": 42,
+    "ResultStatus": 120,
+    "span de salida": 5,
 }
 
 
@@ -47,7 +58,11 @@ def sites(path):
 
 
 def audit(root=ROOT):
-    inventory = json.loads((root / "docs/validation/i07c-rediseno/c0-span-key-usos.json").read_text(encoding="utf-8"))
+    inventory_bytes = (root / "docs/validation/i07c-rediseno/c0-span-key-usos.json").read_bytes()
+    canonical_inventory = inventory_bytes.replace(b"\r\n", b"\n")
+    if hashlib.sha256(canonical_inventory).hexdigest() != INVENTORY_SHA256:
+        raise SystemExit("G3 frozen classification SHA-256 mismatch")
+    inventory = json.loads(canonical_inventory)
     if inventory["base"] != "31d91dbebd31c35b3cd09095c2d8e65b96c80548":
         raise SystemExit(f"unexpected G3 base commit: {inventory['base']}")
     if inventory["archivo"] != "src/check/types.rs":
@@ -59,8 +74,12 @@ def audit(root=ROOT):
         raise SystemExit("G3 inventory base blob SHA mismatch")
     if len(inventory["usos"]) != inventory["total"]:
         raise SystemExit("G3 classification row count mismatch")
-    if {row["dominio_destino"] for row in inventory["usos"]} != DOMAINS:
-        raise SystemExit("G3 classification domains differ from the frozen C0 table")
+    counts = {}
+    for row in inventory["usos"]:
+        domain = row["dominio_destino"]
+        counts[domain] = counts.get(domain, 0) + 1
+    if counts != DOMAIN_COUNTS or set(counts) != DOMAINS:
+        raise SystemExit(f"G3 classification domain counts differ from the frozen C0 table: {counts}")
     expected = [
         (row["archivo"], row["funcion"], normalized(row["expresion"]), row["ordinal_misma_expresion_en_funcion"])
         for row in inventory["usos"]
@@ -86,6 +105,8 @@ def self_test():
         (root / "src/check").mkdir(parents=True)
         shutil.copy2(Path(__file__), root / "scripts/i07c_c0_span_audit.py")
         shutil.copy2(INVENTORY, root / "docs/validation/i07c-rediseno/c0-span-key-usos.json")
+        inventory_path = root / "docs/validation/i07c-rediseno/c0-span-key-usos.json"
+        frozen_inventory = inventory_path.read_bytes()
         source = SOURCE.read_text(encoding="utf-8")
         target = root / "src/check/types.rs"
         target.write_text("\n\n" + source, encoding="utf-8")
@@ -97,6 +118,15 @@ def self_test():
             assert "unreviewed or changed span_key" in str(error), error
         else:
             raise AssertionError("a planted raw span_key use passed the audit")
+        changed = json.loads(frozen_inventory)
+        changed["usos"][0]["dominio_destino"] = "Pending"
+        inventory_path.write_text(json.dumps(changed), encoding="utf-8")
+        try:
+            audit(root)
+        except SystemExit as error:
+            assert "classification SHA-256 mismatch" in str(error), error
+        else:
+            raise AssertionError("a reclassified span_key use passed the audit")
 
 
 if __name__ == "__main__":

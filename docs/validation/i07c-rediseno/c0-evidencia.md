@@ -12,7 +12,9 @@ El inventario congelado contiene 145.189 pares únicos fuente/perfil: 151.188 fi
 
 ## G3 y pila
 
-El auditor estructural verificó los 240 usos de `span_key`: Completion 1, ConstructorDuty 7, FactId 47, JoinRecord 1, OccurrenceId 17, Pending 42, ResultStatus 120 y span de salida 5. El self-test confirmó que acepta desplazamientos de línea y rechaza un uso crudo plantado. SHA-256 de `c0-span-key-usos.json`: `c95db5a629d17e576075628bd7c96af9b2ae6438a66879174baf3c320c9d39cf`.
+El auditor estructural verificó los 240 usos de `span_key`: Completion 1, ConstructorDuty 7, FactId 47, JoinRecord 1, OccurrenceId 17, Pending 42, ResultStatus 120 y span de salida 5. El self-test confirma que acepta desplazamientos de línea y rechaza tanto un uso crudo plantado como una reclasificación del inventario; fija sus recuentos y su SHA-256. SHA-256 del blob LF de `c0-span-key-usos.json`: `01929eeaec2d9d25278b6d408f52dda72dc4f51559ee5faa9186935e17f4c32d`.
+
+El test estructural conserva también el self-test de `scripts/i07c_span_audit.py`, que cubre accesos `.span()` crudos en `names.rs`, `effects.rs` y lowering. El oráculo `scripts/i07c_rd_oracle.py` se importa de `origin/i07c-rediseno` con SHA-256 `afc2459da8f539b5958223f6f972e46c4aeef8b6fd266803b7079fbbeb137967` para que las herramientas de medición funcionen desde esta rama.
 
 Con rustc 1.99.1 y perfil test con debuginfo: base, `drive` 27.536 B, `resume_non_match` 33.080 B, pareja 60.616 B y margen 5.944 B; C0, 27.680 B, 33.144 B, pareja 60.824 B y margen 5.736 B. Aumento de pareja: 208 B (menor que 500 B); margen final sobre 66.560 B: 5.736 B. `scripts/f5-stack65.py`: `option_match126` 5/5 y `result_match126` 5/5.
 
