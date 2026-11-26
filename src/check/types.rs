@@ -13,6 +13,10 @@ use crate::frontend::{
 };
 use crate::union::{UnionDescriptor, UnionKind};
 
+#[cfg(test)]
+#[path = "types/pass_meter.rs"]
+mod pass_meter;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum InferTy {
     I64,
@@ -1127,6 +1131,7 @@ struct PendingProjection {
     base_span: Span,
     result_span: Span,
     selector: Arc<Expr>,
+    selector_occurrence_aliases: Vec<(OccurrenceKey, OccurrenceId)>,
     selector_variable: Option<u64>,
     checked_without_context: bool,
     selector_invalid: bool,
@@ -1285,6 +1290,7 @@ struct IndexSelectorProgress<'a> {
 struct ArrayFrameState<'a> {
     expr: &'a Expr,
     items: &'a [Expr],
+    consumer: ConsumerId,
     span: &'a Span,
     context: OwnedCheckContext,
     parent_fact: FactId,
@@ -1620,8 +1626,469 @@ fn closure_has_value_return(block: &Block) -> bool {
 
 #[allow(clippy::vec_box)] // Shared semantic diagnostics retain the boxed representation.
 pub(crate) struct TypeCheckReport {
-    pub inferred: InferredTypes,
-    pub errors: Vec<Box<Diagnostic>>,
+    pub(crate) inferred: InferredTypes,
+    pub(crate) errors: Vec<Box<Diagnostic>>,
+    #[cfg(test)]
+    stats: Vec<FunctionCheckStats>,
+}
+
+/// Read-only checker traversal counts for one function.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FunctionCheckStats {
+    pub function_ordinal: u32,
+    pub passes: u32,
+    pub planning_calls: u32,
+}
+
+#[cfg(test)]
+impl TypeCheckReport {
+    /// Returns the type-check traversal counters without changing diagnostics or CLI output.
+    pub(crate) fn function_stats(&self) -> &[FunctionCheckStats] {
+        &self.stats
+    }
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+enum OccurrenceRole {
+    Statement,
+    Expression,
+    Block,
+    Pattern,
+    Arm,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+struct OccurrenceId {
+    function_ordinal: u32,
+    preorder: u32,
+    role: OccurrenceRole,
+    local_index: u32,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+enum ConsumerClass {
+    ArrayElement,
+    IfContinuation,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+struct ConsumerId {
+    owner: OccurrenceId,
+    class: ConsumerClass,
+    slot: u32,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+struct OccurrenceKey(OccurrenceRole, usize);
+
+#[derive(Clone, Default)]
+struct OccurrenceIndex {
+    by_node: HashMap<OccurrenceKey, OccurrenceId>,
+}
+
+impl OccurrenceIndex {
+    fn for_function(function_ordinal: u32, body: &Block) -> Self {
+        enum Node<'a> {
+            Statement(&'a Statement),
+            Expression(&'a Expr),
+            Block(&'a Block),
+            Pattern(&'a Pattern),
+            Arm(&'a parse::Arm),
+        }
+        fn push_match<'a>(selection: &'a parse::Match, pending: &mut Vec<Node<'a>>) {
+            for arm in selection.arms.iter().rev() {
+                pending.push(Node::Arm(arm));
+            }
+            pending.push(Node::Expression(&selection.scrutinee));
+        }
+        fn push_statement<'a>(statement: &'a Statement, pending: &mut Vec<Node<'a>>) {
+            match statement {
+                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                    pending.push(Node::Expression(value));
+                }
+                Statement::Assign { place, value, .. } => {
+                    pending.push(Node::Expression(value));
+                    pending.push(Node::Expression(place));
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        pending.push(Node::Expression(value));
+                    }
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(otherwise) = otherwise {
+                        pending.push(Node::Statement(otherwise));
+                    }
+                    pending.push(Node::Block(then_block));
+                    pending.push(Node::Expression(condition));
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    pending.push(Node::Block(body));
+                    pending.push(Node::Expression(condition));
+                }
+                Statement::For { iterable, body, .. } => {
+                    pending.push(Node::Block(body));
+                    pending.push(Node::Expression(iterable));
+                }
+                Statement::Match(selection) => push_match(selection, pending),
+                Statement::Block(block) => pending.push(Node::Block(block)),
+            }
+        }
+        let mut result = Self::default();
+        let mut pending = vec![Node::Block(body)];
+        let mut preorder = 0u32;
+        while let Some(node) = pending.pop() {
+            let (role, address) = match node {
+                Node::Statement(value) => {
+                    push_statement(value, &mut pending);
+                    (OccurrenceRole::Statement, std::ptr::from_ref(value).addr())
+                }
+                Node::Expression(value) => {
+                    match value {
+                        Expr::Closure(closure) => pending.push(Node::Block(&closure.body)),
+                        Expr::Array(items, _) => {
+                            pending.extend(items.iter().rev().map(Node::Expression))
+                        }
+                        Expr::Group(inner, _)
+                        | Expr::Unary { value: inner, .. }
+                        | Expr::Neg { value: inner, .. }
+                        | Expr::Not { value: inner, .. } => pending.push(Node::Expression(inner)),
+                        Expr::Binary { left, right, .. }
+                        | Expr::Index {
+                            target: left,
+                            index: right,
+                            ..
+                        } => {
+                            pending.push(Node::Expression(right));
+                            pending.push(Node::Expression(left));
+                        }
+                        Expr::Call { target, args, .. } => {
+                            for arg in args.iter().rev() {
+                                pending.push(Node::Expression(&arg.value));
+                            }
+                            pending.push(Node::Expression(target));
+                        }
+                        Expr::If {
+                            condition,
+                            then_block,
+                            otherwise,
+                            ..
+                        } => {
+                            if let Some(otherwise) = otherwise {
+                                match otherwise.as_ref() {
+                                    Else::Block(block) => pending.push(Node::Block(block)),
+                                    Else::If(expr) => pending.push(Node::Expression(expr)),
+                                }
+                            }
+                            pending.push(Node::Block(then_block));
+                            pending.push(Node::Expression(condition));
+                        }
+                        Expr::Match(selection) => push_match(selection, &mut pending),
+                        Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+                    }
+                    let address = std::ptr::from_ref(value).addr();
+                    (OccurrenceRole::Expression, address)
+                }
+                Node::Block(value) => {
+                    pending.extend(value.statements.iter().rev().map(Node::Statement));
+                    (OccurrenceRole::Block, std::ptr::from_ref(value).addr())
+                }
+                Node::Pattern(value) => {
+                    if let Pattern::Constructor { args, .. } = value {
+                        pending.extend(args.iter().rev().map(Node::Pattern));
+                    }
+                    (OccurrenceRole::Pattern, std::ptr::from_ref(value).addr())
+                }
+                Node::Arm(value) => {
+                    if let Some(guard) = &value.guard {
+                        pending.push(Node::Expression(guard));
+                    }
+                    pending.push(Node::Block(&value.body));
+                    pending.push(Node::Pattern(&value.pattern));
+                    (OccurrenceRole::Arm, std::ptr::from_ref(value).addr())
+                }
+            };
+            let id = OccurrenceId {
+                function_ordinal,
+                preorder,
+                role,
+                local_index: 0,
+            };
+            preorder = preorder
+                .checked_add(1)
+                .expect("function occurrence index exhausted");
+            result.by_node.insert(OccurrenceKey(role, address), id);
+        }
+        result
+    }
+
+    fn get(&self, role: OccurrenceRole, address: usize) -> Option<OccurrenceId> {
+        self.by_node.get(&OccurrenceKey(role, address)).copied()
+    }
+
+    fn map_cloned_expression(
+        &mut self,
+        original: &Expr,
+        cloned: &Expr,
+    ) -> Vec<(OccurrenceKey, OccurrenceId)> {
+        enum Pair<'a> {
+            Expression(&'a Expr, &'a Expr),
+            Statement(&'a Statement, &'a Statement),
+            Block(&'a Block, &'a Block),
+            Arm(&'a parse::Arm, &'a parse::Arm),
+            Match(&'a parse::Match, &'a parse::Match),
+        }
+        let mut pending = vec![Pair::Expression(original, cloned)];
+        let mut aliases = Vec::new();
+        while let Some(pair) = pending.pop() {
+            match pair {
+                Pair::Expression(source, copy) => {
+                    let source_id = self.get(
+                        OccurrenceRole::Expression,
+                        std::ptr::from_ref(source).addr(),
+                    );
+                    #[cfg(test)]
+                    assert!(
+                        source_id.is_some(),
+                        "cloned selector source lacks prepassed ID"
+                    );
+                    if let Some(id) = source_id {
+                        let key = OccurrenceKey(
+                            OccurrenceRole::Expression,
+                            std::ptr::from_ref(copy).addr(),
+                        );
+                        self.by_node.insert(key, id);
+                        aliases.push((key, id));
+                    }
+                    match (source, copy) {
+                        (Expr::Array(left, _), Expr::Array(right, _)) => {
+                            pending.extend(
+                                left.iter()
+                                    .zip(right)
+                                    .rev()
+                                    .map(|(a, b)| Pair::Expression(a, b)),
+                            );
+                        }
+                        (Expr::Group(a, _), Expr::Group(b, _))
+                        | (Expr::Unary { value: a, .. }, Expr::Unary { value: b, .. })
+                        | (Expr::Neg { value: a, .. }, Expr::Neg { value: b, .. })
+                        | (Expr::Not { value: a, .. }, Expr::Not { value: b, .. }) => {
+                            pending.push(Pair::Expression(a, b))
+                        }
+                        (
+                            Expr::Binary {
+                                left: al,
+                                right: ar,
+                                ..
+                            },
+                            Expr::Binary {
+                                left: bl,
+                                right: br,
+                                ..
+                            },
+                        )
+                        | (
+                            Expr::Index {
+                                target: al,
+                                index: ar,
+                                ..
+                            },
+                            Expr::Index {
+                                target: bl,
+                                index: br,
+                                ..
+                            },
+                        ) => {
+                            pending.push(Pair::Expression(ar, br));
+                            pending.push(Pair::Expression(al, bl));
+                        }
+                        (
+                            Expr::Call {
+                                target: at,
+                                args: aa,
+                                ..
+                            },
+                            Expr::Call {
+                                target: bt,
+                                args: ba,
+                                ..
+                            },
+                        ) => {
+                            pending.extend(
+                                aa.iter()
+                                    .zip(ba)
+                                    .rev()
+                                    .map(|(a, b)| Pair::Expression(&a.value, &b.value)),
+                            );
+                            pending.push(Pair::Expression(at, bt));
+                        }
+                        (
+                            Expr::If {
+                                condition: ac,
+                                then_block: ab,
+                                otherwise: ao,
+                                ..
+                            },
+                            Expr::If {
+                                condition: bc,
+                                then_block: bb,
+                                otherwise: bo,
+                                ..
+                            },
+                        ) => {
+                            if let (Some(a), Some(b)) = (ao.as_deref(), bo.as_deref()) {
+                                match (a, b) {
+                                    (Else::Block(a), Else::Block(b)) => {
+                                        pending.push(Pair::Block(a, b))
+                                    }
+                                    (Else::If(a), Else::If(b)) => {
+                                        pending.push(Pair::Expression(a, b))
+                                    }
+                                    _ => unreachable!("cloned else shape changed"),
+                                }
+                            }
+                            pending.push(Pair::Block(ab, bb));
+                            pending.push(Pair::Expression(ac, bc));
+                        }
+                        (Expr::Match(a), Expr::Match(b)) => pending.push(Pair::Match(a, b)),
+                        (Expr::Closure(a), Expr::Closure(b)) => {
+                            pending.push(Pair::Block(&a.body, &b.body))
+                        }
+                        (Expr::Name(..), Expr::Name(..))
+                        | (Expr::Integer(..), Expr::Integer(..))
+                        | (Expr::Bool(..), Expr::Bool(..))
+                        | (Expr::Unit(..), Expr::Unit(..)) => {}
+                        _ => unreachable!("cloned expression shape changed"),
+                    }
+                }
+                Pair::Statement(source, copy) => match (source, copy) {
+                    (Statement::Let { value: a, .. }, Statement::Let { value: b, .. })
+                    | (Statement::Expr { value: a, .. }, Statement::Expr { value: b, .. }) => {
+                        pending.push(Pair::Expression(a, b))
+                    }
+                    (
+                        Statement::Assign {
+                            place: ap,
+                            value: av,
+                            ..
+                        },
+                        Statement::Assign {
+                            place: bp,
+                            value: bv,
+                            ..
+                        },
+                    ) => {
+                        pending.push(Pair::Expression(av, bv));
+                        pending.push(Pair::Expression(ap, bp));
+                    }
+                    (Statement::Return { value: a, .. }, Statement::Return { value: b, .. })
+                    | (
+                        Statement::GuardControl { value: a, .. },
+                        Statement::GuardControl { value: b, .. },
+                    )
+                    | (Statement::Value { value: a, .. }, Statement::Value { value: b, .. }) => {
+                        if let (Some(a), Some(b)) = (a.as_ref(), b.as_ref()) {
+                            pending.push(Pair::Expression(a, b));
+                        }
+                    }
+                    (
+                        Statement::If {
+                            condition: ac,
+                            then_block: ab,
+                            otherwise: ao,
+                            ..
+                        },
+                        Statement::If {
+                            condition: bc,
+                            then_block: bb,
+                            otherwise: bo,
+                            ..
+                        },
+                    ) => {
+                        if let (Some(a), Some(b)) = (ao.as_deref(), bo.as_deref()) {
+                            pending.push(Pair::Statement(a, b));
+                        }
+                        pending.push(Pair::Block(ab, bb));
+                        pending.push(Pair::Expression(ac, bc));
+                    }
+                    (
+                        Statement::While {
+                            condition: ac,
+                            body: ab,
+                            ..
+                        },
+                        Statement::While {
+                            condition: bc,
+                            body: bb,
+                            ..
+                        },
+                    ) => {
+                        pending.push(Pair::Block(ab, bb));
+                        pending.push(Pair::Expression(ac, bc));
+                    }
+                    (
+                        Statement::For {
+                            iterable: a,
+                            body: ab,
+                            ..
+                        },
+                        Statement::For {
+                            iterable: b,
+                            body: bb,
+                            ..
+                        },
+                    ) => {
+                        pending.push(Pair::Block(ab, bb));
+                        pending.push(Pair::Expression(a, b));
+                    }
+                    (Statement::Match(a), Statement::Match(b)) => pending.push(Pair::Match(a, b)),
+                    (Statement::Block(a), Statement::Block(b)) => pending.push(Pair::Block(a, b)),
+                    _ => unreachable!("cloned statement shape changed"),
+                },
+                Pair::Block(source, copy) => pending.extend(
+                    source
+                        .statements
+                        .iter()
+                        .zip(&copy.statements)
+                        .rev()
+                        .map(|(a, b)| Pair::Statement(a, b)),
+                ),
+                Pair::Arm(source, copy) => {
+                    if let (Some(a), Some(b)) = (source.guard.as_ref(), copy.guard.as_ref()) {
+                        pending.push(Pair::Expression(a, b));
+                    }
+                    pending.push(Pair::Block(&source.body, &copy.body));
+                }
+                Pair::Match(source, copy) => {
+                    for (a, b) in source.arms.iter().zip(&copy.arms).rev() {
+                        pending.push(Pair::Arm(a, b));
+                    }
+                    pending.push(Pair::Expression(&source.scrutinee, &copy.scrutinee));
+                }
+            }
+        }
+        aliases
+    }
+
+    fn restore_aliases(&mut self, aliases: &[(OccurrenceKey, OccurrenceId)]) {
+        self.by_node.extend(aliases.iter().copied());
+    }
+}
+
+impl ConsumerId {
+    fn new(owner: OccurrenceId, class: ConsumerClass, slot: u32) -> Self {
+        Self { owner, class, slot }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1926,6 +2393,8 @@ enum MatchAction<'a> {
 
 struct IfProgress<'a> {
     expr: &'a Expr,
+    consumer: ConsumerId,
+    next_child_index: u32,
     condition: &'a Expr,
     then_block: &'a Block,
     otherwise: Option<&'a Else>,
@@ -2540,6 +3009,10 @@ struct Checker<'a> {
     // spending the normative solver budget or emitting diagnostics. The
     // checking traversal owns both charges and diagnostic occurrences.
     planning: bool,
+    occurrences: OccurrenceIndex,
+    function_ordinal: u32,
+    current_passes: u32,
+    current_planning_calls: u32,
     block_depth: usize,
     top_statement_start: u64,
     top_statement_end: u64,
@@ -3781,6 +4254,8 @@ impl Checker<'_> {
                         // The selector has independent constraints of its own.
                         // Synthesize them in source order even though its I64
                         // context depends on the still-unknown base shape.
+                        self.occurrences
+                            .restore_aliases(&projection.selector_occurrence_aliases);
                         let (selector, selector_tainted) =
                             self.expr_with_visit_result(&projection.selector, None, None);
                         projection.selector_invalid |= selector_tainted || selector.is_err();
@@ -3823,6 +4298,8 @@ impl Checker<'_> {
                 } else {
                     None
                 };
+                self.occurrences
+                    .restore_aliases(&projection.selector_occurrence_aliases);
                 let (selector, selector_tainted) = self.expr_with_visit_result(
                     &projection.selector,
                     (indexable && later_conflict.is_none()).then_some(&Type::I64),
@@ -7456,6 +7933,11 @@ impl Checker<'_> {
     }
 
     fn function(&mut self, f: &Function) -> Result<(), Box<Diagnostic>> {
+        if self.planning {
+            self.current_planning_calls = self.current_planning_calls.saturating_add(1);
+        } else {
+            self.current_passes = self.current_passes.saturating_add(1);
+        }
         if f.is_generator {
             for (parameter, signature) in f
                 .params
@@ -8144,6 +8626,33 @@ impl Checker<'_> {
         let refuted_results = self.graph.refuted_result_sites();
         self.suppress_result_dependents(&refuted_results);
         Ok(())
+    }
+
+    #[inline(never)]
+    fn frame_occurrence_id(&self, expression: &Expr) -> OccurrenceId {
+        if let Some(id) = self.occurrences.get(
+            OccurrenceRole::Expression,
+            std::ptr::from_ref(expression).addr(),
+        ) {
+            return id;
+        }
+        #[cfg(test)]
+        {
+            // Private unit tests can drive an isolated expression directly; production checks
+            // always use the function prepass above.
+            OccurrenceId {
+                function_ordinal: self.function_ordinal,
+                preorder: u32::MAX,
+                role: OccurrenceRole::Expression,
+                local_index: std::ptr::from_ref(expression).addr() as u32,
+            }
+        }
+        #[cfg(not(test))]
+        panic!(
+            "expression frame has no prepassed occurrence: {:?} (function {})",
+            expression.span(),
+            self.function_ordinal
+        );
     }
 
     fn block(&mut self, b: &Block) -> Result<(), Box<Diagnostic>> {
@@ -9632,6 +10141,7 @@ impl Checker<'_> {
                     visit = parent_fact;
                     if accepted.is_ok() {
                         state.next += 1;
+                        state.consumer.slot = state.next as u32;
                         if state.next < state.items.len() {
                             (*inner, *inner_context) = checker.array_next(visit, &mut state);
                             frames.push(Frame::Array(Box::new(state)));
@@ -10952,6 +11462,11 @@ impl Checker<'_> {
                             let mut state = ArrayFrameState {
                                 expr: inner,
                                 items,
+                                consumer: ConsumerId::new(
+                                    self.frame_occurrence_id(inner),
+                                    ConsumerClass::ArrayElement,
+                                    0,
+                                ),
                                 span,
                                 item_type: element_expected.clone(),
                                 item_origin: inner_context.expected_span.clone(),
@@ -11314,6 +11829,12 @@ impl Checker<'_> {
                             };
                             frames.push(Frame::If(Box::new(IfProgress {
                                 expr: inner,
+                                consumer: ConsumerId::new(
+                                    self.frame_occurrence_id(inner),
+                                    ConsumerClass::IfContinuation,
+                                    0,
+                                ),
+                                next_child_index: 0,
                                 condition,
                                 then_block,
                                 otherwise: otherwise.as_deref(),
@@ -12385,13 +12906,18 @@ impl Checker<'_> {
                             let selector_variable = self
                                 .binding_variable_at_source(index)
                                 .filter(|id| self.concrete(*id).is_none());
+                            let selector = Arc::new(clone_projection_selector(index));
+                            let selector_occurrence_aliases = self
+                                .occurrences
+                                .map_cloned_expression(index, selector.as_ref());
                             self.graph.register(ObligationKind::Projection(Box::new(
                                 PendingProjection {
                                     base: id,
                                     item: child,
                                     base_span: Self::primary_span(target),
                                     result_span: Self::primary_span(e),
-                                    selector: Arc::new(clone_projection_selector(index)),
+                                    selector,
+                                    selector_occurrence_aliases,
                                     selector_variable,
                                     checked_without_context: false,
                                     selector_invalid: false,
@@ -13863,6 +14389,7 @@ impl Checker<'_> {
     ) -> IfAction<'b> {
         let mut returned = returned;
         loop {
+            progress.consumer.slot = progress.next_child_index;
             match progress.stage {
                 IfStage::Condition => {
                     let condition_result = returned.take().expect("if condition has a result");
@@ -13957,6 +14484,7 @@ impl Checker<'_> {
                                 return IfAction::Done(Err(error));
                             }
                             if let Some(Else::Block(block)) = progress.otherwise {
+                                progress.next_child_index = 1;
                                 progress.branch = Some(BranchProgress {
                                     block,
                                     context: OwnedCheckContext {
@@ -13978,6 +14506,7 @@ impl Checker<'_> {
                                 });
                                 progress.stage = IfStage::SecondBranch;
                             } else if let Some(Else::If(other)) = progress.otherwise {
+                                progress.next_child_index = 1;
                                 let context = self.if_else_context(progress, other);
                                 progress.stage = IfStage::ElseIf;
                                 return IfAction::Value(other, context);
@@ -15324,6 +15853,8 @@ pub(crate) fn check_with_partial_limit(
             return TypeCheckReport {
                 inferred: InferredTypes::default(),
                 errors: vec![error],
+                #[cfg(test)]
+                stats: Vec::new(),
             };
         }
     };
@@ -15343,6 +15874,8 @@ pub(crate) fn check_with_partial_limit(
         return TypeCheckReport {
             inferred: InferredTypes::default(),
             errors: vec![error],
+            #[cfg(test)]
+            stats: Vec::new(),
         };
     }
     let mut checker = Checker {
@@ -15361,6 +15894,10 @@ pub(crate) fn check_with_partial_limit(
         solver_steps: 0,
         solver_limit,
         planning: false,
+        occurrences: OccurrenceIndex::default(),
+        function_ordinal: 0,
+        current_passes: 0,
+        current_planning_calls: 0,
         block_depth: 0,
         top_statement_start: 0,
         top_statement_end: 0,
@@ -15405,10 +15942,17 @@ pub(crate) fn check_with_partial_limit(
     };
     let mut inferred = InferredTypes::default();
     let mut late_depth: HashMap<(u64, u64), (Type, Span)> = HashMap::new();
-    for function in &ast.functions {
+    #[cfg(test)]
+    let mut stats = Vec::with_capacity(ast.functions.len());
+    for (function_ordinal, function) in ast.functions.iter().enumerate() {
         if checker.analysis_exhausted {
             break;
         }
+        checker.function_ordinal = u32::try_from(function_ordinal).unwrap_or(u32::MAX);
+        checker.occurrences =
+            OccurrenceIndex::for_function(checker.function_ordinal, &function.body);
+        checker.current_passes = 0;
+        checker.current_planning_calls = 0;
         checker.planning = true;
         for _ in 0..=128 {
             checker.analysis_exhausted = false;
@@ -15424,6 +15968,12 @@ pub(crate) fn check_with_partial_limit(
         if let Err(error) = checker.function(function) {
             checker.record_error(error);
         }
+        #[cfg(test)]
+        stats.push(FunctionCheckStats {
+            function_ordinal: checker.function_ordinal,
+            passes: checker.current_passes,
+            planning_calls: checker.current_planning_calls,
+        });
         for (ty, origin) in checker.pending_depth.take() {
             if let Some(resolved) = checker.resolved_syntax_type(&ty) {
                 let concrete = Type::from(&resolved);
@@ -15651,6 +16201,8 @@ pub(crate) fn check_with_partial_limit(
     TypeCheckReport {
         inferred,
         errors: checker.errors,
+        #[cfg(test)]
+        stats,
     }
 }
 
@@ -16946,6 +17498,10 @@ mod quota_tests {
             solver_steps: 0,
             solver_limit: 1_000_000,
             planning: false,
+            occurrences: OccurrenceIndex::default(),
+            function_ordinal: 0,
+            current_passes: 0,
+            current_planning_calls: 0,
             block_depth: 0,
             top_statement_start: 0,
             top_statement_end: 0,
@@ -19442,6 +19998,7 @@ mod quota_tests {
                 base_span: target.span().clone(),
                 result_span: parse::statement_span(&ast.functions[0].body.statements[2]).clone(),
                 selector: Arc::new(index.as_ref().clone()),
+                selector_occurrence_aliases: Vec::new(),
                 selector_variable: None,
                 checked_without_context: false,
                 selector_invalid: false,

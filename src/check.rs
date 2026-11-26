@@ -221,14 +221,15 @@ fn check_ast_with_worker_failure(
                             };
                         }
                     };
-                    let types::TypeCheckReport { inferred, errors } =
-                        types::check_with_partial_limit(
-                            file,
-                            source,
-                            ast,
-                            &resolved,
-                            type_steps_limit,
-                        );
+                    let types::TypeCheckReport {
+                        inferred, errors, ..
+                    } = types::check_with_partial_limit(
+                        file,
+                        source,
+                        ast,
+                        &resolved,
+                        type_steps_limit,
+                    );
                     CompilationCheck {
                         inferred,
                         resolved: Some(resolved),

@@ -6,6 +6,24 @@ use std::process::Command;
 const PROFILE: &str = "f0-0002-b-v2";
 
 #[test]
+fn c0_span_key_audit_is_line_independent_and_rejects_unreviewed_uses() {
+    let result = Command::new("python")
+        .args(["-B", "scripts/i07c_c0_span_audit.py", "--self-test"])
+        .output()
+        .expect("Python must run the C0 G3 audit");
+    assert!(
+        result.status.success(),
+        "stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&result.stdout)
+            .contains("line shifts accepted; planted span_key rejected")
+    );
+}
+
+#[test]
 fn rd_causals_determine_rejection_with_optional_leaves() {
     // §4.1.2 N(a), §14.10 RD83/RD101: D/V may not replace a C.
     for (body, start, end, code) in [
@@ -136,7 +154,7 @@ fn grouped_operands_keep_one_causal_primary() {
         accepted(&good, PROFILE);
     }
     let status = Command::new("python")
-        .args(["-B", "scripts/i07c_span_audit.py"])
+        .args(["-B", "scripts/i07c_c0_span_audit.py"])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .unwrap();
@@ -146,26 +164,10 @@ fn grouped_operands_keep_one_causal_primary() {
         String::from_utf8_lossy(&status.stderr)
     );
     let text = String::from_utf8_lossy(&status.stdout);
-    // The three grouped primaries (for_iteration, non-callable target, closure
-    // target) now call the single group-removal helper; none is pending.
     assert!(
-        text.contains("expression_primary: 3 lines=8279,12484,14797")
-            && text.contains("delegated_primary: 1 lines=7078")
-            && text.contains("argument_target_primary: 1 lines=14811")
-            && text.contains("types.rs reviewed: 14/14")
-            && text.contains("names.rs reviewed: 5/5")
-            && text.contains("effects.rs reviewed: 1/1")
-            && text.contains("reviewed: 20/20")
-            && text.contains("lowering span baseline: PASS")
-            && !text.contains("pendiente_decision"),
+        text.contains("G3 span_key audit passed: 240 sites"),
         "{text}"
     );
-    let status = Command::new("python")
-        .args(["-B", "scripts/i07c_span_audit.py", "--self-test"])
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
-        .status()
-        .unwrap();
-    assert!(status.success());
 }
 
 #[test]

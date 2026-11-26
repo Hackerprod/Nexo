@@ -1,0 +1,25 @@
+{
+  "schema": "i07c-c0-exact-main-v1",
+  "complete": true,
+  "main_sha256": {
+    "debug": "1d000977ffb809ff6392b1e6e03d8a76c80518f5ef8745c4a9f96ae8943d1ac4",
+    "release": "01ab68a476e930ff778048dca0d0ad3cad7dac19b2db34e611b593c624c5a26d"
+  },
+  "candidate_sha256": {
+    "debug": "290349762f450cbbfc80c5e34d49cc438f5ef52df3ef236e4d5afd6dbc2ad496",
+    "release": "aee8aa7e4830cd442f0eb4a4257a364ada408acdd7ca2579900d8b3b1dbbfc9c"
+  },
+  "corpus": {
+    "rows": 151188,
+    "invocations": 1209504,
+    "mismatches": []
+  },
+  "match103": {
+    "rows": 103,
+    "invocations": 824,
+    "mismatches": []
+  },
+  "script_sha256": "c58ecc40b07d37e34a19498acd9a37e94d4935b4f30ba035d19293310f22c3a9",
+  "corpus_manifest_sha256": "b7ae846d592ef45b3459b99e806cb9f38fee897bcd6358665a304a5daa53dce5",
+  "match_manifest_sha256": "57644f0792a5f01b3a45f9670b2a52bcf7f284f3c56dd1202ac408a402f1f7c5"
+}
