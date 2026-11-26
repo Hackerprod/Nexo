@@ -1,6 +1,6 @@
 # I07c R6 — guía C1 v12, referencia ejecutable
 
-Estado: **en validación por B r18**, sin PASS. Autoridad: R6-final v12 §§3–6 y `r9-commit-gates.json` v8. Esta guía sustituye la hipótesis de `cd10082`: el árbol `fc9600a` mezclaba R1–R5 y su restauración dependía de `union_denounced`, ausente de `main`. La ablación de B r17 y la referencia aislada no demuestran que el journal de nodos baste para W0/`atomic_78`.
+Estado: **v12 falsada por el gate completo; v13 bloqueada**, sin PASS. Autoridad histórica: R6-final v12 §§3–6 y `r9-commit-gates.json` v8. La referencia nueva `i07c-rediseno-c1c2-ref` `5a05dc88ccebd523c804e8695983a516b4edbc73` compila y porta el journal del prototipo, pero falla el programa mínimo de 78 bytes y `dirigido5:2069`; evidencia en `docs/validation/i07c-rediseno/C1C2-reference-blocker-27.md`. **No debe portarse como solución ni usarse para afirmar C1 o v13.** Los cortes posteriores quedan a verificar por Luna con el gate completo.
 
 ## Referencia C1 y resultado reproducible
 

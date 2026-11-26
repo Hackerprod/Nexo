@@ -2,6 +2,8 @@
 
 Estado: **en validación**, sin veredicto de C1. Base `main` `31d91db`; contraejemplo ejecutable en `docs/validation/i07c-rediseno/C1-v12-full-gate-counterexample.md` y reporte íntegro `C:/nexo-work/evidence/luna-c1-corpus.json`.
 
+**Continuación 27:** referencia experimental `i07c-rediseno-c1c2-ref` `5a05dc88ccebd523c804e8695983a516b4edbc73`, con `EqualityId`, `EqualityRecord` mínimo y journal portado de `fc9600a`, **bloqueada** por el repro ASCII de 78 bytes y `dirigido5:2069`. La guía y la evidencia exacta están en `docs/validation/i07c-rediseno/C1C2-reference-blocker-27.md`. No se publica el contrato v13 ni se cambia el manifiesto v12: no existe un commit C1+C2 con puerta cruzada completa verde. En la tabla siguiente, la fila del corte fusionado permanece NO EVALUADO para el gate completo; los cortes posteriores quedan a verificar por Luna con el gate completo.
+
 ## Decisión sobre el límite C1/C2
 
 La frontera v12 «C1 sin `EqualityRecord` ni journal» queda retirada. C1 debe crear un `EqualityId` monotónico al comenzar cada igualdad fuente y conservarlo en toda igualdad estructural hija, en cada `PendingDeferredJoin`, en sus aristas tentativas y en las obligaciones recursivas alcanzadas. El ID identifica el intento causal, no el span, `FactId`, representante de variable ni constructor. Reintentar o completar una obligación conserva ese ID; otra igualdad sobre el mismo componente recibe otro. Un diagnóstico E0103 recursivo se reserva en la igualdad que cierra el ciclo y solo usa el origen de un deber de constructor alcanzado por sus operandos y registrado como dependencia de esa igualdad. La reserva no reescribe la obligación ni el origen de otra igualdad.
