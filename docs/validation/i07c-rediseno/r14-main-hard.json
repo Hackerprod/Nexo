@@ -20,7 +20,7 @@
         "checked",
         []
       ],
-      "authority": "F0-0002-second-slice §4.1.2.1–5: igualdades compatibles entre incógnitas se conservan; una completación posterior compatible fija Array<I64> sin conflicto ni constructor pendiente"
+      "authority": "F0-0003-third-slice §3.3: las continuaciones normales value: de MatchExpr se unifican como A2 §§4.1.1/4.7; F0-0002-second-slice §4.1.2.1–5 conserva igualdades compatibles entre variables pendientes y la asignación posterior ar fija Array<I64>. Sin conflicto ni constructor irresuelto: checked, diagnostics=[]."
     },
     "s9908255:2902": {
       "corpus_sha256": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
@@ -39,7 +39,7 @@
         "checked",
         []
       ],
-      "authority": "F0-0002-second-slice §4.1.2.1–5: igualdades compatibles entre incógnitas se conservan; una completación posterior compatible fija Array<I64> sin conflicto ni constructor pendiente"
+      "authority": "F0-0003-third-slice §3.3: las continuaciones normales value: de MatchExpr se unifican como A2 §§4.1.1/4.7; F0-0002-second-slice §4.1.2.1–5 conserva igualdades compatibles entre variables pendientes y la asignación posterior ar fija Array<I64>. Sin conflicto ni constructor irresuelto: checked, diagnostics=[]."
     }
   }
 }

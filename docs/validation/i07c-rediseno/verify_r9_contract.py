@@ -96,6 +96,18 @@ family = data("r13-family-audit.json")
 assert sum(family["corpora"]["c1"]["counts"].values()) == 24000
 assert family["corpora"]["c1"]["counts"]["provenance_relation"] == 524
 assert family["corpora"]["c1"]["counts"]["equal"] == 20649
+hard = data("r14-main-hard.json")
+assert hard["repair_commit"] == "C6"
+assert set(hard["rows"]) == {"s7021993:2024", "s9908255:2902"}
+for row in hard["rows"].values():
+    assert hashlib.sha256(row["source"].encode("ascii")).hexdigest() == row["source_sha256"]
+    assert row["main_observed"] == {"exit": 2, "outcome": {"kind": "driver_error", "reason": "internal_error"}, "diagnostics": []}
+    assert row["expected_adr_signature"] == ["checked", []]
+baseline = data("r14-main-baseline.json")
+assert baseline["complete"] and not baseline["failures"]
+assert len(baseline["corpora"]) == 20 and len(baseline["class_by_row"]) == 151188
+assert {key for key, label in baseline["class_by_row"].items() if label == "H"} == set(hard["rows"])
+assert baseline["classifier_sha256"] == gates["frozen_v8_sha256"]["docs/validation/i07c-rediseno/candidate_gate.py"]
 for index in (4, 20, 44, 46):
     probe = next(row for row in witnesses if row["id"] == f"match-index-{index}")
     assert probe["expected_main"] == matrix_match[index]["expected_main"]
