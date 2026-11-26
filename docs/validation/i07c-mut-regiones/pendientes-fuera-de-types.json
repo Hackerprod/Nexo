@@ -1,0 +1,718 @@
+{
+ "fecha": "2026-11-25",
+ "criterio": "pendientes de ejecutar (sin fila en results-*.jsonl) cuyo archivo NO es src/check/types.rs, que el rediseno C1-C6 reescribe",
+ "orden": "el orden de ejecucion congelado de run_par.py (barajado con semilla) no se altera; esta lista conserva el orden de la poblacion",
+ "pendientes_fuera_de_types": 100,
+ "por_archivo": {
+  "src/check/names.rs": 3,
+  "src/frontend/parse.rs": 55,
+  "src/ir/effects.rs": 42
+ },
+ "pendientes_en_types": {
+  "s6cor": 21,
+  "s5b1": 127
+ },
+ "mutantes": [
+  {
+   "cut": "s6cor",
+   "id": "M00001",
+   "file": "src/check/names.rs",
+   "line": 1049,
+   "operator": "eq"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00002",
+   "file": "src/check/names.rs",
+   "line": 1061,
+   "operator": "drop_return"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00005",
+   "file": "src/check/names.rs",
+   "line": 1186,
+   "operator": "or"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00089",
+   "file": "src/frontend/parse.rs",
+   "line": 2504,
+   "operator": "end_start"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00093",
+   "file": "src/frontend/parse.rs",
+   "line": 2590,
+   "operator": "int_inc"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00099",
+   "file": "src/frontend/parse.rs",
+   "line": 2611,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00103",
+   "file": "src/frontend/parse.rs",
+   "line": 2631,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00108",
+   "file": "src/frontend/parse.rs",
+   "line": 2693,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00111",
+   "file": "src/frontend/parse.rs",
+   "line": 2730,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00117",
+   "file": "src/frontend/parse.rs",
+   "line": 2759,
+   "operator": "and"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00123",
+   "file": "src/frontend/parse.rs",
+   "line": 2772,
+   "operator": "int_dec"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00127",
+   "file": "src/frontend/parse.rs",
+   "line": 2780,
+   "operator": "int_dec"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00129",
+   "file": "src/frontend/parse.rs",
+   "line": 2797,
+   "operator": "int_dec"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00131",
+   "file": "src/frontend/parse.rs",
+   "line": 2810,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00133",
+   "file": "src/frontend/parse.rs",
+   "line": 2818,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00135",
+   "file": "src/frontend/parse.rs",
+   "line": 2820,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00136",
+   "file": "src/frontend/parse.rs",
+   "line": 2840,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00138",
+   "file": "src/frontend/parse.rs",
+   "line": 2845,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00141",
+   "file": "src/frontend/parse.rs",
+   "line": 2906,
+   "operator": "negate_guard"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00146",
+   "file": "src/frontend/parse.rs",
+   "line": 3016,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00150",
+   "file": "src/frontend/parse.rs",
+   "line": 3046,
+   "operator": "eq"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00155",
+   "file": "src/frontend/parse.rs",
+   "line": 3112,
+   "operator": "or"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00163",
+   "file": "src/frontend/parse.rs",
+   "line": 3199,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00166",
+   "file": "src/frontend/parse.rs",
+   "line": 3224,
+   "operator": "int_dec"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00167",
+   "file": "src/frontend/parse.rs",
+   "line": 3227,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00172",
+   "file": "src/frontend/parse.rs",
+   "line": 3251,
+   "operator": "add"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00173",
+   "file": "src/frontend/parse.rs",
+   "line": 3273,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00181",
+   "file": "src/frontend/parse.rs",
+   "line": 3292,
+   "operator": "drop_return"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00182",
+   "file": "src/frontend/parse.rs",
+   "line": 3292,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00187",
+   "file": "src/frontend/parse.rs",
+   "line": 3348,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00198",
+   "file": "src/frontend/parse.rs",
+   "line": 3388,
+   "operator": "or"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00200",
+   "file": "src/frontend/parse.rs",
+   "line": 3408,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00204",
+   "file": "src/frontend/parse.rs",
+   "line": 3423,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00206",
+   "file": "src/frontend/parse.rs",
+   "line": 3440,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00207",
+   "file": "src/frontend/parse.rs",
+   "line": 3441,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00212",
+   "file": "src/frontend/parse.rs",
+   "line": 3454,
+   "operator": "end_start"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00214",
+   "file": "src/frontend/parse.rs",
+   "line": 3466,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00218",
+   "file": "src/frontend/parse.rs",
+   "line": 3479,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00219",
+   "file": "src/frontend/parse.rs",
+   "line": 3519,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00221",
+   "file": "src/frontend/parse.rs",
+   "line": 3537,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00223",
+   "file": "src/frontend/parse.rs",
+   "line": 3560,
+   "operator": "drop_assignment"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00225",
+   "file": "src/frontend/parse.rs",
+   "line": 3623,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00231",
+   "file": "src/frontend/parse.rs",
+   "line": 3675,
+   "operator": "and"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00232",
+   "file": "src/frontend/parse.rs",
+   "line": 3683,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00237",
+   "file": "src/frontend/parse.rs",
+   "line": 3813,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00239",
+   "file": "src/frontend/parse.rs",
+   "line": 3828,
+   "operator": "drop_assignment"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00240",
+   "file": "src/frontend/parse.rs",
+   "line": 3829,
+   "operator": "true"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00246",
+   "file": "src/frontend/parse.rs",
+   "line": 3857,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00248",
+   "file": "src/frontend/parse.rs",
+   "line": 3861,
+   "operator": "drop_return"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00250",
+   "file": "src/frontend/parse.rs",
+   "line": 3863,
+   "operator": "eq"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00251",
+   "file": "src/frontend/parse.rs",
+   "line": 3875,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00252",
+   "file": "src/frontend/parse.rs",
+   "line": 3875,
+   "operator": "eq"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00254",
+   "file": "src/frontend/parse.rs",
+   "line": 3881,
+   "operator": "and"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00257",
+   "file": "src/frontend/parse.rs",
+   "line": 3907,
+   "operator": "or"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00259",
+   "file": "src/frontend/parse.rs",
+   "line": 3920,
+   "operator": "and"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00263",
+   "file": "src/frontend/parse.rs",
+   "line": 3944,
+   "operator": "eq"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00264",
+   "file": "src/frontend/parse.rs",
+   "line": 3949,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00265",
+   "file": "src/frontend/parse.rs",
+   "line": 3963,
+   "operator": "int_dec"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00271",
+   "file": "src/ir/effects.rs",
+   "line": 153,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00278",
+   "file": "src/ir/effects.rs",
+   "line": 506,
+   "operator": "drop_assignment"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00281",
+   "file": "src/ir/effects.rs",
+   "line": 521,
+   "operator": "int_dec"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00284",
+   "file": "src/ir/effects.rs",
+   "line": 538,
+   "operator": "is_some"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00286",
+   "file": "src/ir/effects.rs",
+   "line": 588,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00288",
+   "file": "src/ir/effects.rs",
+   "line": 594,
+   "operator": "int_inc"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00292",
+   "file": "src/ir/effects.rs",
+   "line": 668,
+   "operator": "int_inc"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00293",
+   "file": "src/ir/effects.rs",
+   "line": 672,
+   "operator": "ne"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00294",
+   "file": "src/ir/effects.rs",
+   "line": 748,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00295",
+   "file": "src/ir/effects.rs",
+   "line": 759,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00299",
+   "file": "src/ir/effects.rs",
+   "line": 873,
+   "operator": "or"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00301",
+   "file": "src/ir/effects.rs",
+   "line": 883,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00302",
+   "file": "src/ir/effects.rs",
+   "line": 899,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00305",
+   "file": "src/ir/effects.rs",
+   "line": 937,
+   "operator": "continue"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00311",
+   "file": "src/ir/effects.rs",
+   "line": 1128,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00312",
+   "file": "src/ir/effects.rs",
+   "line": 1138,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00323",
+   "file": "src/ir/effects.rs",
+   "line": 1508,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00327",
+   "file": "src/ir/effects.rs",
+   "line": 1544,
+   "operator": "drop_assignment"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00328",
+   "file": "src/ir/effects.rs",
+   "line": 1568,
+   "operator": "continue"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00330",
+   "file": "src/ir/effects.rs",
+   "line": 1598,
+   "operator": "swap_args"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00332",
+   "file": "src/ir/effects.rs",
+   "line": 1644,
+   "operator": "eq"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00336",
+   "file": "src/ir/effects.rs",
+   "line": 1679,
+   "operator": "is_none"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00339",
+   "file": "src/ir/effects.rs",
+   "line": 1740,
+   "operator": "eq"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00342",
+   "file": "src/ir/effects.rs",
+   "line": 1805,
+   "operator": "drop_state"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00344",
+   "file": "src/ir/effects.rs",
+   "line": 1814,
+   "operator": "continue"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00345",
+   "file": "src/ir/effects.rs",
+   "line": 1817,
+   "operator": "continue"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00346",
+   "file": "src/ir/effects.rs",
+   "line": 1832,
+   "operator": "drop_assignment"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00352",
+   "file": "src/ir/effects.rs",
+   "line": 1955,
+   "operator": "end_start"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00354",
+   "file": "src/ir/effects.rs",
+   "line": 1987,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00355",
+   "file": "src/ir/effects.rs",
+   "line": 1989,
+   "operator": "start_end"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00361",
+   "file": "src/ir/effects.rs",
+   "line": 2036,
+   "operator": "int_inc"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00362",
+   "file": "src/ir/effects.rs",
+   "line": 2046,
+   "operator": "ne"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00368",
+   "file": "src/ir/effects.rs",
+   "line": 2083,
+   "operator": "sub"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00371",
+   "file": "src/ir/effects.rs",
+   "line": 2108,
+   "operator": "negate_if"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00372",
+   "file": "src/ir/effects.rs",
+   "line": 2108,
+   "operator": "or"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00374",
+   "file": "src/ir/effects.rs",
+   "line": 2126,
+   "operator": "lt"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00375",
+   "file": "src/ir/effects.rs",
+   "line": 2143,
+   "operator": "le"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00385",
+   "file": "src/ir/effects.rs",
+   "line": 4172,
+   "operator": "int_inc"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00390",
+   "file": "src/ir/effects.rs",
+   "line": 4227,
+   "operator": "add"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00393",
+   "file": "src/ir/effects.rs",
+   "line": 4263,
+   "operator": "ne"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00396",
+   "file": "src/ir/effects.rs",
+   "line": 4267,
+   "operator": "continue"
+  },
+  {
+   "cut": "s6cor",
+   "id": "M00397",
+   "file": "src/ir/effects.rs",
+   "line": 4271,
+   "operator": "add"
+  }
+ ],
+ "nota": "La poblacion congelada se calculo sobre 68e0d2b; src/ir/effects.rs cambio despues (S6COR-GUARDA-CLOSURE, 80820d1): para mutarlo sobre main hay que reaplicar cada mutante contra el blob actual (verificar SHA-256 inicial) o aceptar la campana sobre el arbol congelado. parse.rs y names.rs no cambian en main desde esa base (verificar con git diff 68e0d2b origin/main --stat -- src)."
+}
