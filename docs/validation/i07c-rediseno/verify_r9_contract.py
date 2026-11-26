@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Check the structural integrity of the R6 v8 frozen specification."""
+"""Check the structural integrity of the R6 v9 frozen specification."""
 
 import hashlib
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -34,7 +35,11 @@ print("matrix oracle", 45)
 
 gates = data("r9-commit-gates.json")
 for relative, expected_sha in gates["frozen_v8_sha256"].items():
-    actual_sha = hashlib.sha256((HERE.parents[2] / relative).read_bytes()).hexdigest()
+    blob = subprocess.run(
+        ["git", "show", f"HEAD:{relative}"], cwd=HERE.parents[2],
+        check=True, capture_output=True,
+    ).stdout
+    actual_sha = hashlib.sha256(blob).hexdigest()
     assert actual_sha == expected_sha, relative
 for family, size in (
     ("directed74_normative_ids", 74), ("matrix45_normative_ids", 45),

@@ -1,0 +1,45 @@
+{
+  "schema": "i07c-r14-main-hard-v1",
+  "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
+  "repair_commit": "C6",
+  "rows": {
+    "s7021993:2024": {
+      "corpus_sha256": "611f34e21b71c06ba255a308a3e01f97cd0f3f0c9de7563ddb2f0961962c0f10",
+      "source_sha256": "7f4110a4de2bc85c6be771041821496a5ca615e0c0688e9b3314960bdfba9007",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=q;let a0=match move o{Some(n)=>{value: (if p then s else s);},None=>{value: (if p then q else r);}};r=ar;}",
+      "profile": "f0-0003-b-v1",
+      "main_observed": {
+        "exit": 2,
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        },
+        "diagnostics": []
+      },
+      "expected_adr_signature": [
+        "checked",
+        []
+      ],
+      "authority": "F0-0002-second-slice §4.1.2.1–5: igualdades compatibles entre incógnitas se conservan; una completación posterior compatible fija Array<I64> sin conflicto ni constructor pendiente"
+    },
+    "s9908255:2902": {
+      "corpus_sha256": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
+      "source_sha256": "6e53bbe8170d85c12ebbb06ded6c2e4dd865f7fe234b531be5f8a1575b29deea",
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then q else s);},None=>{value: r;}};q=r;q=ar;}",
+      "profile": "f0-0003-b-v1",
+      "main_observed": {
+        "exit": 2,
+        "outcome": {
+          "kind": "driver_error",
+          "reason": "internal_error"
+        },
+        "diagnostics": []
+      },
+      "expected_adr_signature": [
+        "checked",
+        []
+      ],
+      "authority": "F0-0002-second-slice §4.1.2.1–5: igualdades compatibles entre incógnitas se conservan; una completación posterior compatible fija Array<I64> sin conflicto ni constructor pendiente"
+    }
+  }
+}

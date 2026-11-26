@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r13-commit-gates-v4",
+  "schema": "i07c-r14-commit-gates-v5",
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "directed74_unique_sources": 48,
   "directed74_duplicate_rows": 26,
@@ -2746,11 +2746,12 @@
     "Checker::root/concrete/concrete_with_depth -> published type_nodes view"
   ],
   "frozen_v8_sha256": {
-    "docs/validation/i07c-rediseno/candidate_gate.py": "7fea0ce83f6e7b5bec96eed7ab9413904a30f7058f10ed337ecc34a108406bb4",
+    "docs/validation/i07c-rediseno/candidate_gate.py": "48df7fb62c839a165fd99b40af2e626385e70476b2def09d7422cda600f1281c",
     "scripts/i07c_rd_oracle.py": "afc2459da8f539b5958223f6f972e46c4aeef8b6fd266803b7079fbbeb137967",
-    "docs/validation/i07c-rediseno/r13-match-d6.json": "89025850197cadab769f826853960e339dc5ddad967b1a7ba609712b8e27e682",
-    "docs/validation/i07c-rediseno/r13-match-exterior.json": "244d6ba52586226326d38a641a738c60f9bff3cf359f377892bf18c1952857b7",
-    "docs/validation/i07c-rediseno/r13-f2-ne.json": "45b08b1a6ed7f9985689bac531f73b6058877cff320067bfd5f63cfc43376114",
-    "docs/validation/i07c-rediseno/r13-family-audit.json": "93493f1c4a2fc6b5d08671464b9e9cfc3d387ea035c1d61d8089ff7131992a5a"
+    "docs/validation/i07c-rediseno/r13-match-d6.json": "bea8fad7a533d23b74a14ec9424541f6e158a62a75727cf5ade9d830079c455a",
+    "docs/validation/i07c-rediseno/r13-match-exterior.json": "32c1d3cdfc26342ff023e568a9499fae5302490ad0c41d7c92d679f9cc9f4288",
+    "docs/validation/i07c-rediseno/r13-f2-ne.json": "9220f22bcafd73fbf32088dd8f3a9fca3a54abba5d34086c52924e0fa09758e0",
+    "docs/validation/i07c-rediseno/r13-family-audit.json": "098e6787cba7e997a1d384f6668c75fc55dc97ca909b9ed771038a54b4535451",
+    "docs/validation/i07c-rediseno/r14-main-hard.json": "b091fbf23fab6d83e2146d3751d526cbe812f499c55dde028fb27645348afc4a"
   }
 }

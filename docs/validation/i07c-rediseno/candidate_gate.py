@@ -5,6 +5,7 @@ A: main == ADR, candidate != ADR (regression).
 B: main != ADR, candidate == ADR (repair).
 C: main != ADR, candidate == main (still historical).
 D: main != ADR, candidate differs from both (unadjudicated).
+H: historical hard failure in main, conserved through C5 and fixed in C6.
 The full corpus is required for a gate. --limit is a report-only smoke run.
 """
 
@@ -31,9 +32,13 @@ def execute(binary, source_text, profile, case_path):
     case_path.write_bytes(source_text.encode("utf-8"))
     run = subprocess.run([str(binary), "check", str(case_path), "--profile", profile, "--format", "json"],
                          capture_output=True, timeout=20, check=False)
-    if run.returncode not in (0, 1):
+    if run.returncode not in (0, 1, 2):
         raise RuntimeError(f"CLI exit {run.returncode}: {run.stderr[:300]!r}")
     data = json.loads(run.stdout)
+    if run.returncode == 2 and data.get("outcome") == {"kind": "driver_error", "reason": "internal_error"}:
+        return data
+    if run.returncode == 2:
+        raise RuntimeError(f"unexpected CLI exit 2: {data.get('outcome')!r}")
     if data.get("outcome", {}).get("kind") not in ("checked", "rejected"):
         raise RuntimeError(f"non-normative check outcome: {data.get('outcome')!r}")
     return data
@@ -48,6 +53,8 @@ def oracle_signature(derived):
 
 
 def classify(main_output, candidate_output, derived):
+    if main_output["outcome"] == {"kind": "driver_error", "reason": "internal_error"}:
+        return "H" if candidate_output == main_output else "H-divergent"
     if derived.get("error") or derived.get("unmodeled") or derived.get("no_fijado") or derived.get("d_optional"):
         return "U" if candidate_output == main_output else "A-unmodeled"
     m, c, o = signature(main_output), signature(candidate_output), oracle_signature(derived)
@@ -149,6 +156,7 @@ def main():
               "classifier_sha256": sha(Path(__file__)), "corpora": {}, "class_by_row": {},
               "failures": []}
     cache = {}
+    hard_rows = json.loads((HERE / "r14-main-hard.json").read_text(encoding="utf-8"))["rows"]
     for entry in definitions:
         ident = entry["id"]
         corpus = HERE / FILE[ident.split("@")[0]]
@@ -163,13 +171,27 @@ def main():
             key = (entry["profile"], src)
             if key not in cache:
                 m = execute(args.main_exe, src, entry["profile"], args.case)
-                c = execute(args.candidate_exe, src, entry["profile"], args.case)
+                c = m if args.main_exe.resolve() == args.candidate_exe.resolve() else execute(args.candidate_exe, src, entry["profile"], args.case)
                 cache[key] = classify(m, c, oracle.derive(src))
             label = cache[key]
             row_id = f"{ident}:{index}"
+            if row_id in hard_rows:
+                expected = hard_rows[row_id]
+                assert sha(corpus) == expected["corpus_sha256"]
+                assert hashlib.sha256(src.encode("ascii")).hexdigest() == expected["source_sha256"]
+                m = execute(args.main_exe, src, entry["profile"], args.case)
+                c = execute(args.candidate_exe, src, entry["profile"], args.case)
+                if m["outcome"] != {"kind": "driver_error", "reason": "internal_error"}:
+                    report["failures"].append(row_id + "=main-hard-fixture-changed")
+                if args.commit == "C6":
+                    label = "B" if signature(c) == expected["expected_adr_signature"] else "H-divergent"
+                else:
+                    label = "H" if c == m else "H-divergent"
+            elif label.startswith("H"):
+                report["failures"].append(row_id + "=unexpected-main-hard")
             report["class_by_row"][row_id] = label
             counts[label] += 1
-            if label in ("A", "A-unmodeled", "D"):
+            if label in ("A", "A-unmodeled", "D", "H-divergent"):
                 report["failures"].append(row_id + "=" + label)
             if prior is not None and prior["class_by_row"].get(row_id) == "B" and label == "C":
                 report["failures"].append(row_id + "=oracle-to-main")
