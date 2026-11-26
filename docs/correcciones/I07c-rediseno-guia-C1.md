@@ -1,83 +1,37 @@
-# I07c R6 — guía de implementación C1 para el cierre atómico
+# I07c R6 — guía C1 v12, referencia ejecutable
 
-Estado: precisión de implementación de R6-final v11, **en validación**. No modifica el oráculo, los dueños de filas ni las puertas. B r17 revisará esta guía. El árbol de Luna continúa sin commit C1.
+Estado: **en validación por B r18**, sin PASS. Autoridad: R6-final v12 §§3–6 y `r9-commit-gates.json` v8. Esta guía sustituye la hipótesis de `cd10082`: el árbol `fc9600a` mezclaba R1–R5 y su restauración dependía de `union_denounced`, ausente de `main`. La ablación de B r17 y la referencia aislada no demuestran que el journal de nodos baste para W0/`atomic_78`.
 
-## Dictamen reproducible
+## Referencia C1 y resultado reproducible
 
-Sí hay una **ablación funcional del mecanismo C1** en el prototipo: el commit `fc9600ab0cd7d8bbe56bd5eb28f2af907c034833` introdujo `NodeJournal` y su cierre en `anchor_contrast` (`src/check/types.rs`, diff de ese commit). Se compiló ese blob en release, SHA-256 del binario `82984d81d6ba93f3696f9461631002f0284ceac9f31a58195cae841b3077038b`, con rustc 1.99.1, `CARGO_BUILD_JOBS=4` y heavy-lock `i07c-rediseno`. Sobre las fuentes congeladas de `r8-directed74.json` y `r8-matrix45.json`, perfil explícito `f0-0002-b-v2`:
+Rama nueva `i07c-rediseno-c1-ref`, SHA `88205510cdfe8f9df3eef1236a33a0487e9474cf`, padre C0 `96d564496b1072d09a4a169c3be801d69aa3af96`. Diff: solo `src/check/types.rs` (+111/−13) y la aserción E3 previamente aprobada de `src/ir/i07c_tests.rs` (+1/−1). No contiene código R1–R5, `NEXO_XV`, `union_denounced`, `ReadContext`, `ResultStatus`, `ConstructorDuty` nuevo ni el WIP de Luna.
 
-| Configuración del mismo binario | `atomic_78` | `W0` (firma completa) | `W0nounion` |
-|---|---|---|---|
-| `NEXO_XV=` | E0103 `[16,18)` + E1303 `[52,53)` | E0103 `[27,29)` + E1303 `[69,70)` | `checked` |
-| `NEXO_XV=atomic0` | solo E1303 `[52,53)` | solo E1303 `[69,70)`, `Bool`/`Array<Array<Bool>>`, relaciones `[59,63)`/`[69,70)` | `checked` |
+El solver ya detectaba el ciclo, pero `Frame::UnifyAfterUnion` convertía el E0103 en `PendingDeferredJoin` y guardaba `request.found` (asignación posterior) en lugar del origen del constructor causal. `Checker::recursive_path_origin` recorre las aristas reales de nodos desde los operandos, toma el constructor más temprano con testigo de elemento en el camino que cierra el ciclo y, si no hay tal testigo, conserva `request.found`. `recursive_equality_diagnostic` emite E0103 con ese origen; el `PendingDeferredJoin` lo guarda separado de `found` y lo usa en su cierre. Ninguna decisión mira nombre, texto fuente ni una posición fija. La regresión `deferred_join_has_one_diagnostic_per_source_site` conserva un solo E0103 y ahora exige `[104,107)`.
 
-El mismo commit, sin o con `atomic0`, produce F06 **completo** según el oráculo. Su árbol contiene experimentos R1–R5 anteriores, incluso cambios incondicionales; por ello la ablación demuestra el mecanismo local de estos dos E0103, **no** que `fc9600a` sea un C1 íntegro sobre `31d91db`. Los primarios recursivos de ese blob aún difieren de los fijados por G3 en C0; `6e3eb03` porta el primario recursivo del prototipo. No se debe importar el árbol del prototipo ni sus flags.
+Con `main` compilado exactamente de `31d91db` y el ejecutable release de esta rama, `owned_rows_gate.py --commit C1` bajo el manifiesto v12 exige **3/74, 0/45, 0/13** y F06 completa de `main`; su salida debe tener cero fallos. `atomic_78` y W0 siguen con E0103 adicional en el árbol aislado; W0nounion sigue `checked`. En v12 los tres IDs son de C3. El prototipo con `atomic0` no es una referencia C1.
 
-La sonda adicional sobre copia desechable del WIP de Luna `96d5644` + `src/check/types.rs` sin commit cambió únicamente la guarda `preserve_failed_constructor` de E0103 **o** E1303 a solo E0103. Binario release SHA-256 `a1a4949ffc1fa308964542679e3147facb36b9f233bbb881b0d6b975437d25c5`: `atomic_78` y `W0` aún emiten los E0103 sobrantes, y F06 sigue parcial. Esta sonda descarta la mera sustitución de esa guarda. El cierre debe abarcar el **intento de ancla** que devuelve `Ok` con `Join` pendiente, no solo el `EqualityEnd` que recibe `Err` del solver.
+## Decisiones del cierre desplazado a C2/C3
 
-## Operación que falta en C1
+1. **`Err` y `Join` creados.** El `EqualityId` dueño cancela todo `Join` creado por el intento rechazado, incluidos los de hijas fusionadas. No cancela obligaciones independientes publicadas antes del intento. Invariante: ningún `Join` listo apunta a un `EqualityRecord::Rejected`.
+2. **Aristas después de `Waiting`.** La reversión vacía el journal y conserva solo la obligación con operandos, dueños y ordinal. Su activación reejecuta el contraste sobre el grafo publicado en un journal nuevo; solo una igualdad compatible publica aristas, una vez. Nunca se publican escrituras antiguas después de restaurar.
+3. **`dependencies`.** No existe en C1 v12. C2 calcula el conjunto de `EqualityId` publicados que alcanzan los operandos y lo usa para invalidar sufijos provisionales y reactivar `Waiting`; si C2 no lo usa efectivamente, no puede afirmar su cierre. `ConstructorDuty.reaching_equalities` se migra en C4 sin doble autoridad.
+4. **E0103 propio.** Lo origina el ciclo que `solve(EqualityId)` detecta o el deber de constructor registrado con ese mismo ID que llega sin solución. Un deber previo de otro ID no se consume por compartir representante, span ni diagnóstico.
+5. **Journal anidado.** Una hija compatible fusiona sus primeras escrituras y obligaciones creadas con el padre; una hija rechazada restaura solo las propias. El rechazo del padre restaura también las hijas fusionadas; `next_variable`, `FactId`, cuotas y trabajo permanecen monotónicos.
 
-En `src/check/types.rs` de Luna, `InferenceGraph::{begin_equality,type_node_mut,commit_equality,reject_equality}` (aprox. 2879–3040), `Checker::solve`/`Frame::EqualityEnd` (aprox. 6124–7300) y los dos contrastes del ancla de `if` —`Checker::if_after_first` (aprox. 15060–15122) y `IfAction::SecondBranch` en `Checker::if_advance` (aprox. 15008–15052)— deben compartir **un cierre causal por `EqualityId`**. `Checker::if_finish_join` (aprox. 14687) recibe su estado; no decide por `span_key` si un constructor es independiente. En el prototipo, `anchor_contrast` (aprox. 14680 en `fc9600a`) abre el journal antes de `unify`, mide los `pending_joins`, restaura las primeras escrituras de nodos cuando el intento resulta pendiente o rechazado y conserva la obligación que producirá E1303. Ese `finish_node_journal(false)` es la operación que elimina el E0103 de `r`/`q`; no se filtra el diagnóstico al final.
+El `JoinRecord.first_incompatibility` de C3 reemplaza el mapa experimental `union_denounced`; registra el primer contraste incompatible por `ConsumerId` de la `if`. La unión sin segunda continuación no reserva E1303. En W0 la continuación `q` queda ligada a su ancla solo si el contraste publica; el rechazo conserva el E1303 propio y permite que la igualdad independiente `[r,q]` resuelva `r` después. En F06 C1/C2 la puerta exige una salida completa de `main` u oráculo; una salida parcial falla.
 
-El journal de Luna ya guarda primera escritura por `(node,campo)` y asignaciones. El cierre debe clasificar **`Ok` con Join nuevo** como `EqualityState::Waiting`: restaurar las escrituras tentativas (incluido `failed_constructor`, aristas, origen y padre) y conservar `EqualityRecord`, `Join` pendiente, `EqualityId`, ordinal y contadores monotónicos. Un `Ok` sin obligación nueva confirma; un `Err` rechaza y restaura. La reserva E1303 pertenece al `Join`/ancla, no al constructor fuente. Un E0103 independiente de un constructor anterior conserva su causa y su marca **previa**: la primera escritura del journal restaura el valor anterior, no borra todas las marcas del nodo. Si el E0103 nace del intento propio, se reserva por su `EqualityId` después de restaurar, una vez, con el constructor dueño. Nunca conservar ciegamente `FailedConstructor` por un E1303.
-
-`dependencies: Set<EqualityId>` se calcula **al crear** el `EqualityRecord`, desde las igualdades publicadas que alcanzan los representantes/componentes de ambos operandos y desde las obligaciones anteriores que la nueva igualdad consume; se añade el ID a la obligación `Join` creada en ese intento. Se incrementa al crear una arista causal nueva, antes de cerrar el journal; no se reconstruye desde spans ni del tipo final. En C1 el `Join` histórico puede transportar el `EqualityId` como vista de transición; C4 migra esa relación a `ConstructorDuty.reaching_equalities` sin mantener dos autoridades. En `atomic_78`/`W0` basta esta relación directa y la restauración de la igualdad pendiente; `ReadContext`/`Completion` de C2 y el punto fijo de deberes de C4 no se adelantan. Una igualdad rechazada no puede publicar arista, origen ni marca E0103 de su constructor fuente. Una igualdad pendiente conserva su obligación y no publica esos campos. Dos causas independientes nunca se suprimen por compartir raíz, span o texto fuente.
-
-Pseudocódigo operacional (la denominación final de tipos queda en C1):
-
-```text
-begin_anchor_attempt(left, right, owner, ordinal):
-    id = equality_id(owner, ordinal)                 // C0; estable
-    deps = reaching_published_equalities(left, right)
-    record = EqualityRecord(id, left, right, deps, Waiting, journal())
-    graph.begin_equality(record)
-    before = graph.pending_join_count()
-    result = solve_equality(id, left, right)          // journal primera escritura
-    created = graph.pending_joins_since(before)
-    for join in created: join.owner_equality = id     // conserva obligación
-    if result is AnalysisLimit:
-        graph.restore_journal(id)
-        return result                                 // solo cuota real
-    if result is Err:
-        graph.restore_journal(id)
-        graph.reserve_diagnostic(id, result)
-        if result is own E0103: graph.mark_own_constructor(id)
-        return Rejected(result)
-    if created is not empty:
-        graph.restore_journal(id)                     // también FailedConstructor
-        graph.set_state(id, Waiting(created.ids))
-        return Pending(id)
-    graph.publish_journal(id)
-    graph.set_state(id, Committed)
-    return Compatible(id)
-
-on_pending_join_resolution(join, outcome):
-    id = join.owner_equality
-    if outcome is incompatibility:
-        reserve_one_E1303(join.owner, id, outcome)
-        reject_unpublished_equality(id)
-    else: publish_compatible_edges_once(id, outcome)
-```
-
-`graph.pending_joins_since(before)` debe identificar obligaciones por ID/ordinal, no solo por longitud si un cierre intermedio puede reordenarlas. Las escrituras de una igualdad hija confirmada se incorporan al journal padre; las de una hija rechazada se restauran antes de volver. `next_variable`, `FactId`, pasos y cuota nunca retroceden. Para `failed_constructor`, comprobar el valor antes de la primera escritura y la causa reservada después del cierre; no usar un booleano global `preserve_failed_constructor` para E1303.
-
-## Cordura antes de la puerta completa
-
-1. `atomic_78`: un solo E1303 `[52,53)`, sin E0103 `[16,18)`; `W0`: firma normativa completa de E1303 `[69,70)`, sin E0103 `[27,29)`; `W0nounion`: `checked`. Usar ambos perfiles tal como figuran en los JSON, sin normalizar spans.
-2. Los tres recursivos conservan los primarios G3 de C0 (`[60,63)`, `[69,72)`, `[118,121)` según su fila) y los E0103 independientes; `deferred_join_has_one_diagnostic_per_source_site` conserva exactamente un E0103.
-3. Repro pequeño de independencia: `fn Main(){var q=[];let z=true+1;}` mantiene E0103 del constructor `q` y E0102 de `true+1`. Gemelo con unión `if` fallida no puede añadir un E0103 al constructor que solo participó en esa unión. La regresión de cuota conserva `next_variable` monotónico y NX-E0003.
-4. F06 sigue bajo la puerta cruzada v11 en C1/C2: salida **completa** de `main` o del oráculo, nunca la salida parcial comunicada por Luna. La ablación `atomic0` no prueba que el WIP actual cierre F06; si sigue parcial después de la corrección, C1 permanece bloqueado y se vuelve a A/B con el repro, sin excepción nueva.
+Pruebas dirigidas antes de puertas completas: los tres recursivos y `deferred_join_has_one_diagnostic_per_source_site`; `atomic_78`, W0 y W0nounion como controles cruzados de C3; F06 con firma completa; negativo de cuota E0003 y positivo sin unión. Ninguna prueba inventa un esperado desde el código bajo prueba.
 
 ## Inventario completo: fila propia → mecanismo mínimo → commit
 
-Los IDs se transcriben de `r9-commit-gates.json` v11. `frozen13` repite IDs de `directed74`; se indica para que las tres listas queden cubiertas. Los grupos con intervalo son inclusivos y no omiten IDs.
+Los IDs se transcriben de `r9-commit-gates.json` v12. `frozen13` repite IDs de `directed74`; se indica para que las tres listas queden cubiertas. Los grupos con intervalo son inclusivos y no omiten IDs.
 
 | Familia y filas propias | Mecanismo mínimo exigido | Primer commit |
 |---|---|---|
-| dirigidas `recursive_69`, `recursive_78_equivalent`, `recursive_127_equivalent` | igualdad recursiva, journal, primario G3 ya portado en C0 | C1 |
-| dirigida `atomic_78`; matriz `W0` | igualdad de ancla pendiente, rollback de primera escritura y reserva E1303 del intento | C1 |
-| matriz `W0nounion` | unión ausente, no reservar conflicto ni contaminar constructor | C1 |
-| dirigidas `B_M1`, `B_M2`, `planned`, `ST1_equivalent` | contexto de entrada, origen por componente y completación | C2 |
+| dirigidas `recursive_69`, `recursive_78_equivalent`, `recursive_127_equivalent` | origen del constructor en el `Join` recursivo pendiente; sin journal nuevo | C1 |
+| dirigida `atomic_78`; matriz `W0` | `JoinRecord` de la `if` y dependencias causales de su ancla; cierre del constructor consecuente | C3 |
+| matriz `W0nounion` | control positivo gemelo de W0; conservar `checked` | C3 |
+| dirigidas `B_M1`, `B_M2`, `planned`, `ST1_equivalent` | `EqualityRecord`, journal, contexto de entrada, origen por componente y completación | C2 |
 | dirigidas y `frozen13` `RC1_read_context_variable`, `RC2_read_context_committed`, `RC3_read_context_no_retroactive` | `ReadContext` por entrada/epoch y ausencia de retroactividad | C2 |
 | dirigidas `X_02`, `X_03_array_annotation_equiv`, `X_04_argument_equiv`, `X_05_return_equiv`, `X_06_operand_equiv`, `X_07_three_levels_equiv`, `X_08_outer_condition_equiv`, `SB_equivalent` | `ResultStatus` de `if`, distribución de esperado y préstamo dirigido | C3 |
 | dirigidas `join_record`, `W2_no_retroactive_context` | `JoinRecord`, testigo parcial y contexto exterior estable | C3 |
@@ -94,4 +48,4 @@ Los IDs se transcriben de `r9-commit-gates.json` v11. `frozen13` repite IDs de `
 | matriz `A`, `A_reord`, `A_ctrl`, `A_noasg`, `B_qr`, `B_rq`, `M2_noasg`, `M2_ctrl`, `DREF_valid`, `P1`, `c3`, `P2`, `P3`, `w3` | cierre de representantes, proyección y cuota tras replay | C5 |
 | ninguna fila nueva de 74/45/13; todas las anteriores acumuladas | retirar rutas viejas, cierre final, A núcleo/completo=0 | C6 |
 
-Esta tabla es de **propiedad contractual**, no un PASS de ninguna fila del implementador. La prueba comparativa de dos configuraciones se limita a `atomic_78`/`W0`/`W0nounion` y F06 del prototipo; las demás conservan las puertas v11 y las probará C con el código nuevo, D y D'.
+Esta tabla es de **propiedad contractual**, no un PASS de ninguna fila del implementador. La referencia C1 ejecuta los tres recursivos y el cruce F06 sobre código sin R1–R5; el prototipo no fundamenta C1. La prueba comparativa de dos configuraciones se limita a `atomic_78`/`W0`/`W0nounion` y F06 del prototipo; las demás conservan las puertas v12 y las probará C con el código nuevo, D y D'.

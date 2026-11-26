@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the structural integrity of the R6 v11 frozen specification."""
+"""Check R6 v12 ownership and the immutable v11 evidence blobs."""
 
 import hashlib
 import importlib.util
@@ -34,10 +34,11 @@ for row in data("r8-matrix45.json")["rows"]:
 print("matrix oracle", 45)
 
 gates = data("r9-commit-gates.json")
-assert gates["schema"] == "i07c-r16-commit-gates-v7"
+assert gates["schema"] == "i07c-r18-commit-gates-v8"
+assert gates["frozen_v11_commit"] == "fcf62d5e43c6a29981abe478dd039db51b3cb524"
 for relative, expected_sha in gates["frozen_v11_sha256"].items():
     blob = subprocess.run(
-        ["git", "show", f"HEAD:{relative}"], cwd=HERE.parents[2],
+        ["git", "show", f"{gates['frozen_v11_commit']}:{relative}"], cwd=HERE.parents[2],
         check=True, capture_output=True,
     ).stdout
     actual_sha = hashlib.sha256(blob).hexdigest()
@@ -63,15 +64,20 @@ for family, owner_key in (
         assert set(gates["commits"][f"C{number}"][family]) == expected, (family, number)
 assert gates["directed74_unique_sources"] == 48
 assert gates["commits"]["C1"]["c1_independent_probes"] == [
-    "atomic_78", "recursive_69", "recursive_78_equivalent",
-    "recursive_127_equivalent", "W0", "W0nounion",
+    "recursive_69", "recursive_78_equivalent", "recursive_127_equivalent",
 ]
+assert gates["c1_reference_commit"] == "88205510cdfe8f9df3eef1236a33a0487e9474cf"
+assert gates["owner_directed"]["atomic_78"] == "C3"
+assert gates["owner_matrix"]["W0"] == gates["owner_matrix"]["W0nounion"] == "C3"
 assert gates["owner_matrix"]["F06"] == "C3"
 assert gates["commits"]["C1"]["f06_cross_gate"] == {
     "expected": "main_or_full_adr_oracle", "no_oracle_to_main": True,
 }
 assert [len(gates["commits"][f"C{i}"]["matrix45_normative_ids"]) for i in range(7)] == [
-    0, 2, 2, 9, 13, 45, 45,
+    0, 0, 0, 9, 13, 45, 45,
+]
+assert [len(gates["commits"][f"C{i}"]["directed74_normative_ids"]) for i in range(7)] == [
+    0, 3, 10, 27, 32, 74, 74,
 ]
 assert all("F06" not in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(3))
 assert all("F06" in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(3, 7))
@@ -185,4 +191,4 @@ assert all(next(x for x in migration if x["source_test"] == name)["private_check
 assert len(manifest["explicit_approval_31"]["existing_quota_and_precedence"]) == 17
 assert len(manifest["explicit_approval_31"]["new_fixed_cost_quota"]) == 10
 assert len(manifest["explicit_approval_31"]["formerly_preserved_fixed_cost_quota"]) == 4
-print("R6 v11 contract structure OK")
+print("R6 v12 contract structure OK")

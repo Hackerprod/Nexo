@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r16-commit-gates-v7",
+  "schema": "i07c-r18-commit-gates-v8",
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "directed74_unique_sources": 48,
   "directed74_duplicate_rows": 26,
@@ -20,7 +20,7 @@
     "recursive_69": "C1",
     "recursive_78_equivalent": "C1",
     "recursive_127_equivalent": "C1",
-    "atomic_78": "C1",
+    "atomic_78": "C3",
     "completion_conflict": "C5",
     "completion_unresolved": "C4",
     "suspended_68": "C5",
@@ -102,8 +102,8 @@
     "X_nest_first": "C5",
     "Y_conc_if": "C5",
     "Y_pend_if_asg": "C5",
-    "W0nounion": "C1",
-    "W0": "C1",
+    "W0nounion": "C3",
+    "W0": "C3",
     "A": "C5",
     "A_reord": "C5",
     "A_ctrl": "C5",
@@ -160,15 +160,11 @@
     },
     "C1": {
       "directed74_normative_ids": [
-        "atomic_78",
         "recursive_127_equivalent",
         "recursive_69",
         "recursive_78_equivalent"
       ],
-      "matrix45_normative_ids": [
-        "W0",
-        "W0nounion"
-      ],
+      "matrix45_normative_ids": [],
       "frozen13_normative_ids": [],
       "f2_22_normative": false,
       "f2_variant5_normative": false,
@@ -180,12 +176,9 @@
       "c0_main_exact_all_20_corpus_profiles": false,
       "w1_w1a_full_normative": false,
       "c1_independent_probes": [
-        "atomic_78",
         "recursive_69",
         "recursive_78_equivalent",
-        "recursive_127_equivalent",
-        "W0",
-        "W0nounion"
+        "recursive_127_equivalent"
       ],
       "f06_cross_gate": {
         "expected": "main_or_full_adr_oracle",
@@ -198,7 +191,10 @@
         "M1-simple",
         "M1-nested",
         "match_88_byte_checked",
-        "match_observations_29"
+        "match_observations_29",
+        "atomic_78",
+        "W0",
+        "W0nounion"
       ],
       "match103_full_main": false,
       "match_observations_29_expected_by_authority": false
@@ -211,16 +207,12 @@
         "RC2_read_context_committed",
         "RC3_read_context_no_retroactive",
         "ST1_equivalent",
-        "atomic_78",
         "planned",
         "recursive_127_equivalent",
         "recursive_69",
         "recursive_78_equivalent"
       ],
-      "matrix45_normative_ids": [
-        "W0",
-        "W0nounion"
-      ],
+      "matrix45_normative_ids": [],
       "frozen13_normative_ids": [
         "RC1_read_context_variable",
         "RC2_read_context_committed",
@@ -2759,5 +2751,7 @@
     "docs/validation/i07c-rediseno/r13-family-audit.json": "098e6787cba7e997a1d384f6668c75fc55dc97ca909b9ed771038a54b4535451",
     "docs/validation/i07c-rediseno/r14-main-hard.json": "5a6bb4beb84f597445960d837b28419b9aa0024d96bf378e53b3fceacf200074",
     "docs/validation/i07c-rediseno/r14-main-baseline.json": "bc641bcd991844dddc9368e9a2f8230cc13259a8b8a4d815a7183ed9090f6f05"
-  }
+  },
+  "frozen_v11_commit": "fcf62d5e43c6a29981abe478dd039db51b3cb524",
+  "c1_reference_commit": "88205510cdfe8f9df3eef1236a33a0487e9474cf"
 }
