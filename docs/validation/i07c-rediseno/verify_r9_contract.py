@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check R6 v13 ownership, D7 declaration and immutable v11 evidence blobs."""
+"""Check R6 v14 ownership, D7 causal checker and immutable v11 blobs."""
 
 import hashlib
 import importlib.util
@@ -72,14 +72,25 @@ assert subprocess.run(["git", "rev-parse", f"{gates['c1_reference_commit']}:src/
 assert gates["c1_reference_evidence"]["A_D_A_unmodeled_H_new"] == [0, 0, 0, 0]
 assert gates["c1_reference_evidence"]["owned_C1_directed_matrix_frozen"] == [3, 0, 0]
 assert gates["c1_reference_evidence"]["validate_sh"].startswith("FAIL:")
+assert gates["c1_reference_evidence"]["parent_commit"] == subprocess.run(
+    ["git", "rev-parse", gates["c1_reference_commit"] + "^"], cwd=HERE.parents[2],
+    check=True, capture_output=True, text=True).stdout.strip()
+import d7_family_check as d7_check  # noqa: E402
+assert hashlib.sha256((HERE / "d7_family_check.py").read_bytes()).hexdigest() == gates["d7_classifier_sha256"]
+assert hashlib.sha256((HERE / "d7_cross_gate.py").read_bytes()).hexdigest() == gates["d7_cross_gate_sha256"]
+assert d7_check.FROZEN == gates["frozen_v11_sha256"]["docs/validation/i07c-rediseno/candidate_gate.py"]
 d7 = gates["d7_declared_main_differences"]
 assert d7["owner"] == "C4" and len(d7["observed_unmodeled_residuals"]) == 3
 witness = d7["manual_witness"]
 assert len(witness["source"].encode("ascii")) == witness["bytes"] == 78
 assert hashlib.sha256(witness["source"].encode("ascii")).hexdigest() == witness["source_sha256"]
 assert witness["adr_code_primary"] == [["NX-E0103", [62, 64]], ["NX-E0103", [67, 70]]]
+sites = list(d7_check.recursive_sites(witness["source"]))
+assert len(sites) == 1 and d7_check.counterfactual(witness["source"], sites[0])[sites[0].start():sites[0].end()].isspace()
 from audit_families import source  # noqa: E402
 directed5 = data("dirigido5.json")
+for index in (6, 214, 261, 335, 377, 543, 2069, 4425):
+    assert list(d7_check.recursive_sites(source(directed5[index]))), index
 for row_id, row in d7["observed_unmodeled_residuals"].items():
     corpus_id, index = row_id.split(":")
     assert corpus_id == "dirigido5" and row["profile"] == "f0-0002-b-v2"
@@ -210,4 +221,4 @@ assert all(next(x for x in migration if x["source_test"] == name)["private_check
 assert len(manifest["explicit_approval_31"]["existing_quota_and_precedence"]) == 17
 assert len(manifest["explicit_approval_31"]["new_fixed_cost_quota"]) == 10
 assert len(manifest["explicit_approval_31"]["formerly_preserved_fixed_cost_quota"]) == 4
-print("R6 v13 contract structure OK")
+print("R6 v14 contract structure OK")
