@@ -552,6 +552,17 @@ fn rejected(source: &str) -> Vec<crate::diagnostic::Diagnostic> {
     }
 }
 
+#[test]
+fn inferred_depth_check_skips_rolled_back_type_node_ids() {
+    let source =
+        "fn Main(){var q1=(if true then {return;} else {return;});q1[0]=MockOpen(1);q1=[];}";
+    let result = check_scalar("fixture.n", source);
+    assert!(
+        result.is_err(),
+        "the source is rejected after rollback: {result:?}"
+    );
+}
+
 fn exact_type_site(
     d: &crate::diagnostic::Diagnostic,
     source: &str,
@@ -3858,7 +3869,7 @@ fn deferred_join_has_one_diagnostic_per_source_site() {
         (
             "fn Main(){var a=(if true then {return;} else {return;});var b=(if true then {return;} else {return;});a=[b];b=[a];}",
             "NX-E0103",
-            (110, 113),
+            (104, 107),
         ),
     ] {
         let diagnostics = rejected(source);
