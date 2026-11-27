@@ -2905,6 +2905,13 @@ impl InferenceGraph {
             })
     }
 
+    fn has_operand_origin(&self, component: u64) -> bool {
+        self.origin_facts
+            .borrow()
+            .get(&component)
+            .is_some_and(|facts| facts.iter().any(|fact| fact.operand.is_some()))
+    }
+
     fn concrete_from_failed_if(&self, component: u64, origin: &Span) -> bool {
         self.origin_facts
             .borrow()
@@ -14301,7 +14308,16 @@ impl Checker<'_> {
                     if pending.is_empty() {
                         *item_origin = Some(Self::primary_span(item));
                     }
-                    if !self.planning {
+                    let mut operand = item;
+                    while let Expr::Group(inner, _) = operand {
+                        operand = inner;
+                    }
+                    // The source Index remains a projection read even when a
+                    // later pass has rebuilt expr_vars without projection_items.
+                    if !self.planning
+                        && (self.graph.projection_items.contains(&id)
+                            || matches!(operand, Expr::Index { .. }))
+                    {
                         self.graph
                             .record_operand_origin(id, Self::primary_span(item));
                     }
@@ -14315,7 +14331,8 @@ impl Checker<'_> {
             let mut first_conflict = false;
             for (id, source_origin) in pending.iter() {
                 let before_conflict = self.pending_join_count();
-                let projected_reference = self.graph.projection_items.contains(id);
+                let projected_reference =
+                    self.graph.projection_items.contains(id) || self.graph.has_operand_origin(*id);
                 let source_type = projected_reference
                     .then(|| self.concrete(*id).map(|(ty, _)| ty))
                     .flatten();
@@ -14337,10 +14354,13 @@ impl Checker<'_> {
                         // A rejected element does not replace the
                         // first witness. Later elements retain
                         // independent equality sites (§4.1.2.4).
-                        let operand_origin = self
-                            .graph
-                            .first_component_origin(*id, source_origin)
-                            .unwrap_or_else(|| source_origin.clone());
+                        let operand_origin = if projected_reference {
+                            self.graph
+                                .first_component_origin(*id, source_origin)
+                                .unwrap_or_else(|| source_origin.clone())
+                        } else {
+                            source_origin.clone()
+                        };
                         let mut error = source_type
                             .as_ref()
                             .and_then(|source_type| {
@@ -14356,9 +14376,11 @@ impl Checker<'_> {
                                 )
                             })
                             .unwrap_or(error);
-                        for related in &mut error.related_spans {
-                            if related.role == RelatedRole::ExpectedType {
-                                related.span = operand_origin.clone();
+                        if projected_reference {
+                            for related in &mut error.related_spans {
+                                if related.role == RelatedRole::ExpectedType {
+                                    related.span = operand_origin.clone();
+                                }
                             }
                         }
                         self.record_error(error);
