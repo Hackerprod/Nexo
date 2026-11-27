@@ -60,11 +60,10 @@ fn deferred_projection_and_constructor_programs_finish_with_causal_results() {
         ),
         (
             "resource_array_write",
+            // The later [] equality is rejected atomically. It cannot
+            // establish an Array base for the earlier conditional write.
             include_str!("fixtures/i07c/deferred_resource_array_write.n"),
-            &[
-                ("NX-E0102", Some("type_mismatch"), 57, 59),
-                ("NX-E0102", Some("type_mismatch"), 78, 80),
-            ],
+            &[("NX-E0102", Some("type_mismatch"), 78, 80)],
         ),
         (
             "aliased_projection",
@@ -112,11 +111,12 @@ fn deferred_projection_and_constructor_programs_finish_with_causal_results() {
         ),
         (
             "resource_projection",
+            // The rejected [] cannot fix q1 as Array. The later [0,q1]
+            // instead fixes the base as I64 and refutes the earlier read.
             include_str!("fixtures/i07c/resource_projection_and_scalar_base.n"),
             &[
-                ("NX-E0102", Some("type_mismatch"), 57, 62),
+                ("NX-E0102", Some("not_indexable"), 57, 59),
                 ("NX-E0102", Some("type_mismatch"), 81, 83),
-                ("NX-E0102", Some("not_indexable"), 94, 96),
             ],
         ),
         (
@@ -272,6 +272,35 @@ fn deferred_projection_and_constructor_programs_finish_with_causal_results() {
             matches!(check_scalar(&file, source), Err(CompileError::Rejected(_))),
             "{name}"
         );
+    }
+}
+
+#[test]
+fn rejected_array_shape_does_not_activate_earlier_resource_projection() {
+    // F0-0002 §§4.1.2.2–3: the write is conditional on an Array base.
+    // A rejected later equality cannot provide that base's constructor.
+    let prefix = "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);";
+    let without_shape = format!("{prefix}}}");
+    assert!(check_proposed("resource_without_shape.n", &without_shape, false).is_ok());
+    assert!(check_scalar("resource_without_shape.n", &without_shape).is_ok());
+
+    for (suffix, subcause, start, end) in [
+        ("q=[];}", "type_mismatch", 72, 74),
+        ("q=1;}", "not_indexable", 53, 54),
+    ] {
+        let source = format!("{prefix}{suffix}");
+        let errors = check_proposed("resource_shape.n", &source, false).unwrap_err();
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+        let error = &errors[0];
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(error.subcause.as_deref(), Some(subcause));
+        let span = error.primary_span.as_ref().unwrap();
+        assert_eq!((span.start, span.end), (start, end));
+        error.validate("resource_shape.n", &source).unwrap();
+        assert!(matches!(
+            check_scalar("resource_shape.n", &source),
+            Err(CompileError::Rejected(_))
+        ));
     }
 }
 
