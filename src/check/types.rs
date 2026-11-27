@@ -2712,6 +2712,11 @@ struct InferenceGraph {
     equality_clock: std::rc::Rc<std::cell::Cell<u64>>,
     equality_records: Vec<EqualityRecord>,
     origin_facts: HashMap<u64, Vec<OriginFact>>,
+    // Published equalities connect the components they read and wrote. Keep
+    // both directions: a later write must find watchers through an old alias.
+    published_dependencies: HashMap<EqualityId, HashSet<u64>>,
+    dependency_watchers: HashMap<u64, HashSet<EqualityId>>,
+    invalidated_read_contexts: HashSet<OccurrenceId>,
     // First planning visit owns the immutable prefix read by this occurrence.
     read_contexts: HashMap<OccurrenceId, std::sync::Arc<ReadContext>>,
     read_views: HashMap<OccurrenceId, u64>,
@@ -3001,7 +3006,31 @@ impl InferenceGraph {
         };
         let keep_record = matches!(record.state, EqualityState::Waiting);
         let changed = self.finish_node_journal(publish);
+        if publish {
+            // The outer journal alone publishes edges. Rejected/nested writes
+            // must never become a dependency or wake an earlier reader.
+            let mut components: HashSet<u64> = self
+                .equality_records
+                .last()
+                .unwrap()
+                .read_context
+                .components
+                .keys()
+                .copied()
+                .collect();
+            components.extend(changed.iter().copied());
+            if !components.is_empty() {
+                for component in &components {
+                    self.dependency_watchers
+                        .entry(*component)
+                        .or_default()
+                        .insert(id);
+                }
+                self.published_dependencies.insert(id, components);
+            }
+        }
         if publish && !changed.is_empty() {
+            let connected = self.published_component_closure(&changed);
             // A commit can wake each earlier Waiting equality at most once.
             // A rejected or nested write has no published changed components.
             for earlier in &mut self.equality_records {
@@ -3009,10 +3038,10 @@ impl InferenceGraph {
                     continue;
                 }
                 let mut filled = false;
-                for component in &changed {
-                    let Some(entry) = earlier.read_context.components.get(component) else {
+                for (component, entry) in &earlier.read_context.components {
+                    if !connected.contains(component) {
                         continue;
-                    };
+                    }
                     if entry.concrete.is_some()
                         || earlier.completion.solutions.contains_key(component)
                     {
@@ -3038,6 +3067,18 @@ impl InferenceGraph {
                     earlier.completion.compatible_later_edges.insert(id);
                 }
             }
+            // A future replay may replace only provisional suffix decisions;
+            // retain the published graph and the immutable entry snapshots.
+            for (occurrence, context) in &self.read_contexts {
+                if context.epoch.0 < id.0
+                    && context
+                        .components
+                        .keys()
+                        .any(|component| connected.contains(component))
+                {
+                    self.invalidated_read_contexts.insert(*occurrence);
+                }
+            }
         }
         // Only suspended equalities need a durable record. Rejected joins
         // were truncated above; committed equalities have no queued join.
@@ -3045,6 +3086,27 @@ impl InferenceGraph {
             self.equality_records.pop();
         }
         self.active_equality = None;
+    }
+
+    fn published_component_closure(&self, changed: &[u64]) -> HashSet<u64> {
+        let mut components = HashSet::new();
+        let mut equalities = HashSet::new();
+        let mut pending = changed.to_vec();
+        while let Some(component) = pending.pop() {
+            if !components.insert(component) {
+                continue;
+            }
+            if let Some(watchers) = self.dependency_watchers.get(&component) {
+                for equality in watchers {
+                    if equalities.insert(*equality) {
+                        if let Some(dependencies) = self.published_dependencies.get(equality) {
+                            pending.extend(dependencies.iter().copied());
+                        }
+                    }
+                }
+            }
+        }
+        components
     }
     fn next(clock: &std::cell::Cell<u64>) -> u64 {
         let id = clock.get().checked_add(1).expect("fact clock exhausted");
@@ -16529,6 +16591,9 @@ pub(crate) fn check_with_partial_limit(
             equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
             equality_records: Vec::new(),
             origin_facts: HashMap::new(),
+            published_dependencies: HashMap::new(),
+            dependency_watchers: HashMap::new(),
+            invalidated_read_contexts: HashSet::new(),
             read_contexts: HashMap::new(),
             read_views: HashMap::new(),
             active_equality: None,
@@ -18139,6 +18204,9 @@ mod quota_tests {
                 equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
                 equality_records: Vec::new(),
                 origin_facts: HashMap::new(),
+                published_dependencies: HashMap::new(),
+                dependency_watchers: HashMap::new(),
+                invalidated_read_contexts: HashSet::new(),
                 read_contexts: HashMap::new(),
                 read_views: HashMap::new(),
                 active_equality: None,
@@ -21947,6 +22015,62 @@ mod quota_tests {
         assert_eq!(completion.solutions.get(&root), Some(&Type::I64));
         assert!(!completion.compatible_later_edges.contains(&rejected));
         assert_eq!(entry.components[&root].concrete, None);
+    }
+
+    #[test]
+    fn c2_published_alias_wakes_waiting_reader_without_detaching_nodes() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = checker.new_variable(&site(1)).unwrap();
+        let right = checker.new_variable(&site(2)).unwrap();
+        let waiting =
+            checker
+                .graph
+                .begin_equality(Type::Deferred(left), Type::Deferred(left), site(3));
+        let entry = checker.graph.equality_records[0].read_context.clone();
+        checker.graph.equality_records[0].state = EqualityState::Waiting;
+        checker.graph.finish_node_journal(true);
+        checker.graph.active_equality = None;
+
+        let alias =
+            checker
+                .graph
+                .begin_equality(Type::Deferred(left), Type::Deferred(right), site(4));
+        checker.graph.type_node_mut(&left).unwrap().parent = right;
+        checker.graph.finish_equality(alias, true);
+        assert!(checker.graph.published_dependencies[&alias].contains(&left));
+        assert!(checker.graph.published_dependencies[&alias].contains(&right));
+
+        let rejected = checker
+            .graph
+            .begin_equality(Type::Deferred(right), Type::Bool, site(5));
+        checker.graph.type_node_mut(&right).unwrap().concrete = Some((Type::Bool, site(5)));
+        checker.graph.finish_equality(rejected, false);
+        assert!(!checker.graph.published_dependencies.contains_key(&rejected));
+        assert!(
+            checker.graph.equality_records[0]
+                .completion
+                .solutions
+                .is_empty()
+        );
+
+        let accepted = checker
+            .graph
+            .begin_equality(Type::Deferred(right), Type::I64, site(6));
+        checker.graph.type_node_mut(&right).unwrap().concrete = Some((Type::I64, site(6)));
+        checker.graph.finish_equality(accepted, true);
+        assert_eq!(checker.graph.type_nodes[&left].parent, right);
+        assert_eq!(checker.graph.equality_records[0].id, waiting);
+        assert_eq!(
+            checker.graph.equality_records[0].completion.solutions[&left],
+            Type::I64
+        );
+        assert_eq!(entry.components[&left].concrete, None);
     }
 
     #[test]
