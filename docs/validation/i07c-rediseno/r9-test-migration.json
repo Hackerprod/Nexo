@@ -3221,7 +3221,7 @@
       "current_output": "E0003, quota_error y next_variable/variant_children sin cambio",
       "target_output": "coste medido en la misma ejecuci\u00f3n; cada l\u00edmite inferior produce solo E0003, observed=limit+1, y C no cuota es subconjunto del resultado sin l\u00edmite; sin cifra fija",
       "target_reason_adr": "F0-0002 \u00a711.1 cobra trabajo real y observed=limit+1; el ADR no fija la cifra antigua ni estructura privada.",
-      "approval": "aprobaci\u00f3n expresa del coordinador para cambio de coste; diff concreto fila a fila en commit due\u00f1o",
+      "approval": "APROBADO por el coordinador el 2026-11-26 06:37 PT; next_variable > before_nodes, sin reutilizacion de IDs, AnalysisLimit, variant_children ausente y marca de cuota conservados; la edicion esta en C2 4e63e33 y no en C1 af19a34",
       "approval_required": true,
       "approval_reason": "Cuota sin coste fijo"
     },
@@ -3496,6 +3496,20 @@
       "private_test_kind": "mixed",
       "private_invariant_new_model": "CLI conserva codigo/subcausa/primario; Contaminated no publica tipo.",
       "prior_action": "conservar_sin_cambio"
+    },
+    {
+      "source_test": "grouped_operands_keep_one_causal_primary",
+      "file": "tests/i07c_structural_invariants.rs",
+      "line": 168,
+      "class": "c2_new_test_change",
+      "private_checker_api": false,
+      "action": "endurecer_cuenta_g3",
+      "assertion_before": "G3 span_key audit passed: 240 sites",
+      "assertion_after": "G3 span_key audit passed: 246 sites",
+      "justification": "Los seis usos nuevos est\u00c3\u00a1n clasificados en c2-span-key-usos.json; el auditor comprueba total 240+6 y dominios OccurrenceId=5, ResultStatus=1 sin rebajar la aserci\u00c3\u00b3n",
+      "approval_required": true,
+      "approval_status": "aprobada por el coordinador el 2026-11-27: auditor G3 completo y self-test verdes, 246 sitios (240+6), sin rebajar aserciones",
+      "owner_commit": "C2"
     }
   ],
   "private_23": [
@@ -3574,7 +3588,16 @@
         "case": "resource_array_write",
         "class": "I",
         "fixture": "tests/fixtures/i07c/deferred_resource_array_write.n",
-        "expected_migrated_code_subcause_primary": [["NX-E0102", "type_mismatch", [78, 80]]]
+        "expected_migrated_code_subcause_primary": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              78,
+              80
+            ]
+          ]
+        ]
       },
       {
         "case": "resource_projection",
@@ -3582,9 +3605,51 @@
         "fixture": "tests/fixtures/i07c/resource_projection_and_scalar_base.n",
         "fixture_bytes": 100,
         "fixture_sha256": "67d240cf909fedce48c1a5396209ffccca3b7770fa78fc6988074cd4fd91da2a",
-        "adr": "F0-0002 §4.1.2 b2d/Par (1), RD113",
-        "expected_adr_code_subcause_primary": [["NX-E0102", "not_indexable", [57, 59]], ["NX-E0102", "type_mismatch", [81, 83]]],
-        "main_code_subcause_primary": [["NX-E0102", "type_mismatch", [57, 62]], ["NX-E0102", "type_mismatch", [81, 83]], ["NX-E0102", "not_indexable", [94, 96]]]
+        "adr": "F0-0002 \u00c2\u00a74.1.2 b2d/Par (1), RD113",
+        "expected_adr_code_subcause_primary": [
+          [
+            "NX-E0102",
+            "not_indexable",
+            [
+              57,
+              59
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              81,
+              83
+            ]
+          ]
+        ],
+        "main_code_subcause_primary": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              57,
+              62
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              81,
+              83
+            ]
+          ],
+          [
+            "NX-E0102",
+            "not_indexable",
+            [
+              94,
+              96
+            ]
+          ]
+        ]
       }
     ]
   }

@@ -15,7 +15,7 @@ SOURCE = ROOT / "src/check/types.rs"
 INVENTORY = ROOT / "docs/validation/i07c-rediseno/c0-span-key-usos.json"
 INVENTORY_SHA256 = "01929eeaec2d9d25278b6d408f52dda72dc4f51559ee5faa9186935e17f4c32d"
 C2_INVENTORY = ROOT / "docs/validation/i07c-rediseno/c2-span-key-usos.json"
-C2_INVENTORY_SHA256 = "f9b9ed1c750cc7029319c3f0b3519baa9fa5e0a8764821ac0dd08320830596d3"
+C2_INVENTORY_SHA256 = "7c2081374adf2e1a318bb9694dbb70f2a09f2a2499007e354c6b83277ef140c4"
 FUNCTION = re.compile(r"^\s*(?:(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?)?fn\s+([A-Za-z_][A-Za-z_0-9]*)")
 DOMAINS = {
     "Completion",
@@ -93,6 +93,14 @@ def audit(root=ROOT):
     c2 = json.loads(c2_canonical)
     if c2["base"] != "e2d638fed141282b99e09a8e35596b360ababa9f" or c2["archivo"] != inventory["archivo"]:
         raise SystemExit("unexpected C2 span_key inventory provenance")
+    c2_counts = {}
+    for row in c2["usos"]:
+        domain = row["dominio_destino"]
+        c2_counts[domain] = c2_counts.get(domain, 0) + 1
+        if not row.get("uso") or not row.get("regla_decision"):
+            raise SystemExit("C2 span_key site lacks usage or decision rule")
+    if c2["total"] != len(c2["usos"]) or c2["por_dominio"] != c2_counts:
+        raise SystemExit(f"C2 span_key domain totals mismatch: {c2_counts}")
     additions = {}
     for row in c2["usos"]:
         index = row["after_base_index"]

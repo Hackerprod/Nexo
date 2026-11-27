@@ -1,12 +1,14 @@
 {
   "base": "e2d638fed141282b99e09a8e35596b360ababa9f",
   "archivo": "src/check/types.rs",
+  "total": 6,
+  "por_dominio": {"OccurrenceId": 5, "ResultStatus": 1},
   "usos": [
-    {"after_base_index": 27, "funcion": "read_context_at_site", "expresion": ".get(&span_key(span))", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "motivo": "consultar el contexto capturado en la entrada de la lectura"},
-    {"after_base_index": 145, "funcion": "expr_inner", "expresion": ".insert(span_key(span), context);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "motivo": "asociar el contexto de entrada con la ocurrencia Name"},
-    {"after_base_index": 156, "funcion": "expr_inner", "expresion": ".get(&span_key(target.span()))", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "motivo": "propagar el contexto del operando de Index"},
-    {"after_base_index": 156, "funcion": "expr_inner", "expresion": ".insert(span_key(e.span()), context);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "motivo": "asociar el contexto con la ocurrencia Index"},
-    {"after_base_index": 178, "funcion": "array_accept", "expresion": "self.graph.expr_vars.insert(span_key(item.span()), id);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "FactId", "motivo": "retener la identidad de la hoja provisional del operando"},
-    {"after_base_index": 178, "funcion": "array_accept", "expresion": ".mark(span_key(item.span()), OccurrenceFlag::Deferred);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "Pending", "motivo": "marcar la ocurrencia como lectura diferida"}
+    {"after_base_index": 27, "funcion": "read_context_at_site", "expresion": ".get(&span_key(span))", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "uso": "consulta del contexto de lectura de la ocurrencia", "regla_decision": "read_context_sites está indexado por el span de la ocurrencia AST", "motivo": "consultar el contexto capturado en la entrada de la lectura"},
+    {"after_base_index": 145, "funcion": "expr_inner", "expresion": ".insert(span_key(span), context);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "uso": "contexto de Name", "regla_decision": "la clave identifica la ocurrencia Name, no una igualdad ni un hecho", "motivo": "asociar el contexto de entrada con la ocurrencia Name"},
+    {"after_base_index": 156, "funcion": "expr_inner", "expresion": ".get(&span_key(target.span()))", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "uso": "lectura del contexto del operando Index", "regla_decision": "la clave identifica la ocurrencia AST del operando", "motivo": "propagar el contexto del operando de Index"},
+    {"after_base_index": 156, "funcion": "expr_inner", "expresion": ".insert(span_key(e.span()), context);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "uso": "contexto de Index", "regla_decision": "la clave identifica la ocurrencia AST de Index", "motivo": "asociar el contexto con la ocurrencia Index"},
+    {"after_base_index": 178, "funcion": "array_accept", "expresion": "self.graph.expr_vars.insert(span_key(item.span()), id);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "OccurrenceId", "uso": "variable inferida de la expresión", "regla_decision": "expr_vars usa la ocurrencia AST como clave, igual que los insert/get congelados de C0", "motivo": "retener la identidad de la hoja provisional del operando"},
+    {"after_base_index": 178, "funcion": "array_accept", "expresion": ".mark(span_key(item.span()), OccurrenceFlag::Deferred);", "ordinal_misma_expresion_en_funcion": 1, "dominio_destino": "ResultStatus", "uso": "estado diferido del resultado de la ocurrencia", "regla_decision": "OccurrenceFlag::Deferred es estado del resultado, igual que las marcas congeladas de C0", "motivo": "marcar la ocurrencia como lectura diferida"}
   ]
 }

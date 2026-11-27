@@ -43,6 +43,14 @@ CASES = {
         RESOURCE + "q=Some(q);q=[];}",
         [("NX-E0103", None, 72, 79), ("NX-E0102", "type_mismatch", 82, 84)],
     ),
+    "deferred_operand_origin_before_assignment": (
+        "fn Main(){var s=[];let a=[s[0],(if true then s else s)];s=[1];}",
+        [("NX-E0102", "type_mismatch", 32, 53)],
+    ),
+    "failed_nested_if_no_retroactive_index": (
+        "fn Main(){let x=1;var q=[];var r=[];let a0=[r[0],(if true then q[x][0] else (if r then [1] else q))];r=[1];}",
+        [("NX-E0102", "type_mismatch", 80, 81)],
+    ),
 }
 
 

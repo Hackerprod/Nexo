@@ -1067,6 +1067,8 @@ struct OriginFact {
     component: u64,
     equality: EqualityId,
     ordinal: u64,
+    operand: Option<Span>,
+    owner_if: Option<OccurrenceId>,
     concrete: Option<Span>,
     array: Option<Span>,
     variant: Option<Span>,
@@ -1085,6 +1087,7 @@ struct EqualityRecord {
     join_start: usize,
     state: EqualityState,
     completion: Completion,
+    owner_if: Option<OccurrenceId>,
 }
 
 // Later compatible equalities may fill an unknown entry component. Published
@@ -2495,9 +2498,11 @@ struct IfProgress<'a> {
     context: OwnedCheckContext,
     branch_context: OwnedCheckContext,
     previous_if: Option<Span>,
+    previous_if_owner: Option<OccurrenceId>,
     pending_before_if: usize,
     parent_fact: FactId,
     pending_before_condition: usize,
+    condition_failed: bool,
     stage: IfStage,
     branch: Option<BranchProgress<'a>>,
     first: Option<Type>,
@@ -2715,6 +2720,7 @@ struct InferenceGraph {
     equality_clock: std::rc::Rc<std::cell::Cell<u64>>,
     equality_records: std::rc::Rc<std::cell::RefCell<Vec<EqualityRecord>>>,
     origin_facts: std::rc::Rc<std::cell::RefCell<HashMap<u64, Vec<OriginFact>>>>,
+    failed_if_results: HashSet<OccurrenceId>,
     // Published equalities connect the components they read and wrote.
     // Union by size answers later dependency queries without replaying every
     // historical equality through a shared alias.
@@ -2853,10 +2859,64 @@ impl InferenceGraph {
             join_start: self.obligations.len(),
             state: EqualityState::Attempting,
             completion: Completion::default(),
+            owner_if: None,
         });
         self.active_equality = Some(id);
         self.begin_node_journal();
         id
+    }
+
+    fn record_operand_origin(&mut self, component: u64, operand: Span) {
+        let equality = EqualityId(Self::next(&self.equality_clock));
+        self.origin_facts
+            .borrow_mut()
+            .entry(component)
+            .or_default()
+            .push(OriginFact {
+                component,
+                equality,
+                ordinal: equality.0,
+                operand: Some(operand),
+                owner_if: None,
+                concrete: None,
+                array: None,
+                variant: None,
+            });
+    }
+
+    fn first_component_origin(&self, component: u64, before: &Span) -> Option<Span> {
+        self.origin_facts
+            .borrow()
+            .get(&component)
+            .and_then(|facts| {
+                facts
+                    .iter()
+                    .filter_map(|fact| {
+                        fact.operand
+                            .as_ref()
+                            .or(fact.concrete.as_ref())
+                            .or(fact.array.as_ref())
+                            .or(fact.variant.as_ref())
+                            .filter(|span| span.start <= before.start)
+                            .map(|span| (fact.ordinal, span.clone()))
+                    })
+                    .min_by_key(|(ordinal, _)| *ordinal)
+                    .map(|(_, span)| span)
+            })
+    }
+
+    fn concrete_from_failed_if(&self, component: u64, origin: &Span) -> bool {
+        self.origin_facts
+            .borrow()
+            .get(&component)
+            .is_some_and(|facts| {
+                facts.iter().any(|fact| {
+                    fact.concrete.as_ref() == Some(origin)
+                        && fact
+                            .owner_if
+                            .is_some_and(|owner| self.failed_if_results.contains(&owner))
+                })
+            })
     }
 
     fn begin_node_journal(&mut self) {
@@ -2923,6 +2983,11 @@ impl InferenceGraph {
             if self.node_journals.is_empty()
                 && let Some(equality) = self.active_equality
             {
+                let owner_if = self
+                    .equality_records
+                    .borrow()
+                    .last()
+                    .and_then(|record| record.owner_if);
                 for key in &journal.order {
                     let before = journal.before[key].as_ref();
                     let Some(after) = self.type_nodes.get(key) else {
@@ -2949,6 +3014,8 @@ impl InferenceGraph {
                                 component: *key,
                                 equality,
                                 ordinal: equality.0,
+                                operand: None,
+                                owner_if,
                                 concrete,
                                 array,
                                 variant,
@@ -3537,6 +3604,7 @@ struct Checker<'a> {
     top_statement_start: u64,
     top_statement_end: u64,
     active_if_span: Option<Span>,
+    active_if_owner: Option<OccurrenceId>,
     analysis_exhausted: bool,
     quota_error: Option<Box<Diagnostic>>,
     generator_item: Option<Type>,
@@ -4761,7 +4829,9 @@ impl Checker<'_> {
                 };
                 let root = self.root(projection.base);
                 let element = self.graph.type_nodes[&root].array_child;
-                let base = self.concrete(projection.base);
+                let base = self.concrete(projection.base).filter(|(_, origin)| {
+                    !self.graph.concrete_from_failed_if(projection.base, origin)
+                });
                 let indexable = element.is_some();
                 if !finalize && !indexable && base.is_none() {
                     if !projection.checked_without_context
@@ -5367,13 +5437,13 @@ impl Checker<'_> {
         let contexts = self.graph.read_contexts.borrow();
         let context = contexts.get(&occurrence)?;
         let component = context.components.get(&source)?;
-        let captured = component.concrete.as_ref()?;
         let current = self
             .graph
             .type_nodes
             .get(&component.root)?
             .concrete
             .as_ref()?;
+        let captured = component.concrete.as_ref()?;
         (current.0 != *captured).then(|| captured.clone())
     }
 
@@ -5424,7 +5494,7 @@ impl Checker<'_> {
         for _ in 0..depth {
             id = context.components.get(&id)?.array_element?;
         }
-        self.resolved_join_side_in_context(Type::Deferred(id), Some(&context))
+        self.resolved_join_side_in_context(Type::Deferred(id), Some(&context), None)
             .is_none()
             .then_some(id)
     }
@@ -6302,13 +6372,14 @@ impl Checker<'_> {
     }
 
     fn resolved_join_side(&mut self, ty: Type) -> Option<Type> {
-        self.resolved_join_side_in_context(ty, None)
+        self.resolved_join_side_in_context(ty, None, None)
     }
 
     fn resolved_join_side_in_context(
         &mut self,
         ty: Type,
         context: Option<&ReadContext>,
+        completion: Option<&Completion>,
     ) -> Option<Type> {
         enum Frame {
             Enter(Type),
@@ -6325,10 +6396,16 @@ impl Checker<'_> {
                         if let Some(component) = context.and_then(|view| view.components.get(&id)) {
                             if let Some(concrete) = &component.concrete {
                                 values.push(concrete.clone());
-                            } else {
-                                let child = component.array_element?;
+                            } else if let Some(child) = component.array_element {
                                 frames.push(Frame::Array);
                                 frames.push(Frame::Enter(Type::Deferred(child)));
+                            } else if let Some(ty) = completion
+                                .filter(|completion| !completion.compatible_later_edges.is_empty())
+                                .and_then(|completion| completion.solutions.get(&id))
+                            {
+                                values.push(ty.clone());
+                            } else {
+                                return None;
                             }
                         } else {
                             values.push(self.concrete(id)?.0);
@@ -6447,6 +6524,12 @@ impl Checker<'_> {
         let equality = self
             .graph
             .begin_equality(left.clone(), right.clone(), found.clone());
+        self.graph
+            .equality_records
+            .borrow_mut()
+            .last_mut()
+            .unwrap()
+            .owner_if = self.active_if_owner;
         let request = SolverUnify {
             fact,
             left,
@@ -8768,10 +8851,18 @@ impl Checker<'_> {
         self.top_statement_start = 0;
         self.top_statement_end = 0;
         self.active_if_span = None;
+        self.active_if_owner = None;
         // Node IDs restart at zero below. If this map were retained, newly
         // allocated IDs would overwrite the reachable prefix; stale higher
         // IDs are unreachable. Clearing avoids retaining that stale suffix.
         self.graph.type_nodes.clear();
+        self.graph.equality_records.borrow_mut().clear();
+        self.graph.origin_facts.borrow_mut().clear();
+        self.graph.failed_if_results.clear();
+        self.graph.published_dependencies.borrow_mut().clear();
+        self.graph.dependency_parent.borrow_mut().clear();
+        self.graph.dependency_size.borrow_mut().clear();
+        self.graph.invalidated_components.borrow_mut().clear();
         // Retaining entries across functions would be semantically equivalent:
         // each entry owns both Arc operands, so no pointer key can be reused.
         // Clear here to release each function's cached trees promptly instead
@@ -8969,11 +9060,30 @@ impl Checker<'_> {
                 continue;
             }
             let constructor = self.root(join.constructor);
+            let entry_record = join.equality.and_then(|id| {
+                self.graph
+                    .equality_records
+                    .borrow()
+                    .iter()
+                    .find(|record| record.id == id)
+                    .cloned()
+            });
             // A constructor with no determined element has one causal
             // NX-E0103. Once its element is concrete, independent source
             // operands keep their own NX-E0102/NX-E1303 (§13.9).
-            let left = self.resolved_join_side(join.left);
-            let right = self.resolved_join_side(join.right);
+            let completed_side = |checker: &mut Checker<'_>, ty: Type| {
+                checker.resolved_join_side(ty.clone()).or_else(|| {
+                    checker.resolved_join_side_in_context(
+                        ty,
+                        entry_record
+                            .as_ref()
+                            .map(|record| record.read_context.as_ref()),
+                        entry_record.as_ref().map(|record| &record.completion),
+                    )
+                })
+            };
+            let left = completed_side(self, join.left.clone());
+            let right = completed_side(self, join.right.clone());
             // A queued conflict belongs to the source operand whether or
             // not both types resolve. Different constructor roots can reach
             // the same operand; another operand keeps its distinct span.
@@ -8981,7 +9091,27 @@ impl Checker<'_> {
                 // ADR §4.1.2.1,6: resolving a component later completes the
                 // type at this source occurrence; it never relocates the
                 // expected witness to the later assignment or initializer.
-                let origin = join.left_origin;
+                let origin = if join.left_origin.start > join.found.start
+                    && let Type::Deferred(id) = join.left
+                {
+                    entry_record
+                        .as_ref()
+                        .and_then(|record| record.read_context.components.get(&id))
+                        .and_then(|component| component.origin_fact.as_ref())
+                        .and_then(|fact| {
+                            fact.operand
+                                .as_ref()
+                                .or(fact.concrete.as_ref())
+                                .or(fact.array.as_ref())
+                                .or(fact.variant.as_ref())
+                        })
+                        .filter(|span| span.start <= join.left_origin.start)
+                        .cloned()
+                        .or_else(|| self.graph.first_component_origin(id, &join.left_origin))
+                        .unwrap_or(join.left_origin)
+                } else {
+                    join.left_origin
+                };
                 let policy = UnifyPolicy {
                     branch: join.branch,
                     related_expected: join.related_expected,
@@ -11828,6 +11958,7 @@ impl Checker<'_> {
                         }
                         IfAction::Done(outcome) => {
                             checker.active_if_span = progress.previous_if;
+                            checker.active_if_owner = progress.previous_if_owner;
                             result = checker.check_against_context_one(
                                 visit,
                                 progress.expr,
@@ -12593,6 +12724,8 @@ impl Checker<'_> {
                         } => {
                             let pending_before_if = self.pending_join_count();
                             let previous_if = self.active_if_span.replace(inner.span().clone());
+                            let previous_if_owner =
+                                self.active_if_owner.replace(self.frame_occurrence_id(inner));
                             let pending_before_condition = self.graph.obligations.len();
                             let branch_context = OwnedCheckContext {
                                 expected: inner_context
@@ -12621,9 +12754,11 @@ impl Checker<'_> {
                                 context: inner_context,
                                 branch_context,
                                 previous_if,
+                                previous_if_owner,
                                 pending_before_if,
                                 parent_fact: visit,
                                 pending_before_condition,
+                                condition_failed: false,
                                 stage: IfStage::Condition,
                                 branch: None,
                                 first: None,
@@ -14166,6 +14301,10 @@ impl Checker<'_> {
                     if pending.is_empty() {
                         *item_origin = Some(Self::primary_span(item));
                     }
+                    if !self.planning {
+                        self.graph
+                            .record_operand_origin(id, Self::primary_span(item));
+                    }
                     pending.push((id, Self::primary_span(item)));
                 }
             }
@@ -14198,13 +14337,17 @@ impl Checker<'_> {
                         // A rejected element does not replace the
                         // first witness. Later elements retain
                         // independent equality sites (§4.1.2.4).
-                        let error = source_type
+                        let operand_origin = self
+                            .graph
+                            .first_component_origin(*id, source_origin)
+                            .unwrap_or_else(|| source_origin.clone());
+                        let mut error = source_type
                             .as_ref()
                             .and_then(|source_type| {
                                 compare_source_site(
                                     source_type,
                                     &got,
-                                    source_origin.clone(),
+                                    operand_origin.clone(),
                                     Self::primary_span(item),
                                     UnifyPolicy {
                                         branch: false,
@@ -14213,6 +14356,11 @@ impl Checker<'_> {
                                 )
                             })
                             .unwrap_or(error);
+                        for related in &mut error.related_spans {
+                            if related.role == RelatedRole::ExpectedType {
+                                related.span = operand_origin.clone();
+                            }
+                        }
                         self.record_error(error);
                         first_conflict = true;
                     }
@@ -15245,6 +15393,12 @@ impl Checker<'_> {
                         });
                     let condition_tainted =
                         self.graph.fact(*visit).tainted || pending_shape_failure;
+                    progress.condition_failed = condition_tainted || condition_result.is_err();
+                    if progress.condition_failed {
+                        self.graph
+                            .failed_if_results
+                            .insert(self.frame_occurrence_id(progress.expr));
+                    }
                     self.graph.merge_child(progress.parent_fact, *visit, false);
                     *visit = progress.parent_fact;
                     self.graph.fact_mut(*visit).tainted |=
@@ -16741,6 +16895,7 @@ pub(crate) fn check_with_partial_limit(
         top_statement_start: 0,
         top_statement_end: 0,
         active_if_span: None,
+        active_if_owner: None,
         analysis_exhausted: false,
         quota_error: None,
         generator_item: None,
@@ -16750,6 +16905,7 @@ pub(crate) fn check_with_partial_limit(
             equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
             equality_records: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             origin_facts: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
+            failed_if_results: HashSet::new(),
             published_dependencies: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
             dependency_parent: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
             dependency_size: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
@@ -18348,6 +18504,7 @@ mod quota_tests {
             top_statement_start: 0,
             top_statement_end: 0,
             active_if_span: None,
+            active_if_owner: None,
             analysis_exhausted: false,
             quota_error: None,
             generator_item: None,
@@ -18365,6 +18522,7 @@ mod quota_tests {
                 equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
                 equality_records: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
                 origin_facts: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
+                failed_if_results: HashSet::new(),
                 published_dependencies: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
                 dependency_parent: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
                 dependency_size: std::rc::Rc::new(std::cell::RefCell::new(HashMap::new())),
@@ -22172,6 +22330,18 @@ mod quota_tests {
         assert_eq!(completion.compatible_later_edges.len(), 1);
         assert!(completion.compatible_later_edges.contains(&first));
         assert_eq!(entry.components[&root].concrete, None);
+        assert_eq!(
+            checker.resolved_join_side_in_context(Type::Deferred(root), Some(&entry), None),
+            None
+        );
+        assert_eq!(
+            checker.resolved_join_side_in_context(
+                Type::Deferred(root),
+                Some(&entry),
+                Some(&completion)
+            ),
+            Some(Type::I64)
+        );
 
         let rejected = checker
             .graph
@@ -22366,7 +22536,11 @@ mod quota_tests {
                 .capture_read_context(EqualityId(1), &Type::Deferred(early), &Type::Unit);
         checker.graph.type_node_mut(&early_child).unwrap().concrete = Some((Type::I64, site(3)));
         assert_eq!(
-            checker.resolved_join_side_in_context(Type::Deferred(early_child), Some(&early_view)),
+            checker.resolved_join_side_in_context(
+                Type::Deferred(early_child),
+                Some(&early_view),
+                None
+            ),
             None
         );
         assert_eq!(
@@ -22379,8 +22553,11 @@ mod quota_tests {
                 .graph
                 .capture_read_context(EqualityId(2), &Type::Deferred(early), &Type::Unit);
         assert_eq!(
-            checker
-                .resolved_join_side_in_context(Type::Deferred(early_child), Some(&committed_view)),
+            checker.resolved_join_side_in_context(
+                Type::Deferred(early_child),
+                Some(&committed_view),
+                None
+            ),
             Some(Type::I64)
         );
     }

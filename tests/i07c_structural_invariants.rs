@@ -186,6 +186,41 @@ fn grouped_operands_keep_one_causal_primary() {
 }
 
 #[test]
+fn deferred_operand_keeps_its_source_origin_after_later_assignment() {
+    // ADR §4.1.2.1,6: completion supplies a type, not a new source origin.
+    let bad = "fn Main(){var s=[];let a=[s[0],(if true then s else s)];s=[1];}";
+    rejected(
+        bad,
+        PROFILE,
+        "NX-E0102",
+        Some("type_mismatch"),
+        (32, 53),
+        &[("expected_type", "I64"), ("found_type", "Array<I64>")],
+        &[("expected_type", 26, 30), ("found_type", 32, 53)],
+    );
+    accepted(
+        "fn Main(){var s=[1];let a=[s[0],(if true then s[0] else s[0])];s=[1];}",
+        PROFILE,
+    );
+}
+
+#[test]
+fn failed_nested_if_cannot_retype_an_earlier_projection() {
+    // ADR §4.1.2.1,6: a failed result cannot lend a later fact to q[x][0].
+    let bad = "fn Main(){let x=1;var q=[];var r=[];let a0=[r[0],(if true then q[x][0] else (if r then [1] else q))];r=[1];}";
+    for verb in ["check", "run"] {
+        let (exit, json, _) = invoke(verb, bad, PROFILE);
+        assert_eq!(exit, 1, "{json}");
+        assert!(
+            json.contains("\"code\":\"NX-E0102\",\"subcause\":\"type_mismatch\""),
+            "{json}"
+        );
+        assert!(json.contains("\"start\":80,\"end\":81"), "{json}");
+        assert!(!json.contains("\"subcause\":\"not_indexable\""), "{json}");
+    }
+}
+
+#[test]
 fn repeated_check_and_run_keep_diagnostics_deterministic() {
     // §4.1.2 N(e), §13.9: the same file and bytes for both runs per verb.
     let path = std::env::temp_dir()
