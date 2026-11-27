@@ -2707,6 +2707,9 @@ thread_local! {
     static BOUNDARY_FORCE_TAINT_EDGE: std::cell::Cell<Option<((u64, u64), FactRole)>> = const { std::cell::Cell::new(None) };
 }
 
+type ReadContextSites =
+    std::rc::Rc<std::cell::RefCell<HashMap<(u64, u64), std::sync::Arc<ReadContext>>>>;
+
 #[derive(Clone)]
 struct InferenceGraph {
     equality_clock: std::rc::Rc<std::cell::Cell<u64>>,
@@ -2728,8 +2731,7 @@ struct InferenceGraph {
         std::rc::Rc<std::cell::RefCell<HashMap<OccurrenceId, std::sync::Arc<ReadContext>>>>,
     // Expression sites carry the entry view into deferred joins. A projected
     // leaf must not acquire a fact published after its operand was read.
-    read_context_sites:
-        std::rc::Rc<std::cell::RefCell<HashMap<(u64, u64), std::sync::Arc<ReadContext>>>>,
+    read_context_sites: ReadContextSites,
     active_equality: Option<EqualityId>,
     node_journals: Vec<NodeJournal>,
     active_facts: HashMap<FactId, VisitFact>,
@@ -2918,40 +2920,39 @@ impl InferenceGraph {
             Vec::new()
         };
         if publish {
-            if self.node_journals.is_empty() {
-                if let Some(equality) = self.active_equality {
-                    for key in &journal.order {
-                        let before = journal.before[key].as_ref();
-                        let Some(after) = self.type_nodes.get(key) else {
-                            continue;
-                        };
-                        let concrete = (after.concrete.as_ref().map(|(_, span)| span)
-                            != before
-                                .and_then(|node| node.concrete.as_ref().map(|(_, span)| span)))
-                        .then(|| after.concrete.as_ref().map(|(_, span)| span.clone()))
-                        .flatten();
-                        let array = (after.array_origin
-                            != before.and_then(|node| node.array_origin.clone()))
-                        .then(|| after.array_origin.clone())
-                        .flatten();
-                        let variant = (after.variant_origin
-                            != before.and_then(|node| node.variant_origin.clone()))
-                        .then(|| after.variant_origin.clone())
-                        .flatten();
-                        if concrete.is_some() || array.is_some() || variant.is_some() {
-                            self.origin_facts
-                                .borrow_mut()
-                                .entry(*key)
-                                .or_default()
-                                .push(OriginFact {
-                                    component: *key,
-                                    equality,
-                                    ordinal: equality.0,
-                                    concrete,
-                                    array,
-                                    variant,
-                                });
-                        }
+            if self.node_journals.is_empty()
+                && let Some(equality) = self.active_equality
+            {
+                for key in &journal.order {
+                    let before = journal.before[key].as_ref();
+                    let Some(after) = self.type_nodes.get(key) else {
+                        continue;
+                    };
+                    let concrete = (after.concrete.as_ref().map(|(_, span)| span)
+                        != before.and_then(|node| node.concrete.as_ref().map(|(_, span)| span)))
+                    .then(|| after.concrete.as_ref().map(|(_, span)| span.clone()))
+                    .flatten();
+                    let array = (after.array_origin
+                        != before.and_then(|node| node.array_origin.clone()))
+                    .then(|| after.array_origin.clone())
+                    .flatten();
+                    let variant = (after.variant_origin
+                        != before.and_then(|node| node.variant_origin.clone()))
+                    .then(|| after.variant_origin.clone())
+                    .flatten();
+                    if concrete.is_some() || array.is_some() || variant.is_some() {
+                        self.origin_facts
+                            .borrow_mut()
+                            .entry(*key)
+                            .or_default()
+                            .push(OriginFact {
+                                component: *key,
+                                equality,
+                                ordinal: equality.0,
+                                concrete,
+                                array,
+                                variant,
+                            });
                     }
                 }
             }
@@ -6261,11 +6262,10 @@ impl Checker<'_> {
                         if let Some(component) = context.and_then(|view| view.components.get(&id)) {
                             if let Some(concrete) = &component.concrete {
                                 values.push(concrete.clone());
-                            } else if let Some(child) = component.array_element {
+                            } else {
+                                let child = component.array_element?;
                                 frames.push(Frame::Array);
                                 frames.push(Frame::Enter(Type::Deferred(child)));
-                            } else {
-                                return None;
                             }
                         } else {
                             values.push(self.concrete(id)?.0);
