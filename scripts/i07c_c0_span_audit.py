@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/check/types.rs"
 INVENTORY = ROOT / "docs/validation/i07c-rediseno/c0-span-key-usos.json"
 INVENTORY_SHA256 = "01929eeaec2d9d25278b6d408f52dda72dc4f51559ee5faa9186935e17f4c32d"
+C2_INVENTORY = ROOT / "docs/validation/i07c-rediseno/c2-span-key-usos.json"
+C2_INVENTORY_SHA256 = "f9b9ed1c750cc7029319c3f0b3519baa9fa5e0a8764821ac0dd08320830596d3"
 FUNCTION = re.compile(r"^\s*(?:(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?)?fn\s+([A-Za-z_][A-Za-z_0-9]*)")
 DOMAINS = {
     "Completion",
@@ -80,10 +82,30 @@ def audit(root=ROOT):
         counts[domain] = counts.get(domain, 0) + 1
     if counts != DOMAIN_COUNTS or set(counts) != DOMAINS:
         raise SystemExit(f"G3 classification domain counts differ from the frozen C0 table: {counts}")
-    expected = [
+    frozen = [
         (row["archivo"], row["funcion"], normalized(row["expresion"]), row["ordinal_misma_expresion_en_funcion"])
         for row in inventory["usos"]
     ]
+    c2_bytes = (root / "docs/validation/i07c-rediseno/c2-span-key-usos.json").read_bytes()
+    c2_canonical = c2_bytes.replace(b"\r\n", b"\n")
+    if hashlib.sha256(c2_canonical).hexdigest() != C2_INVENTORY_SHA256:
+        raise SystemExit("C2 span_key classification SHA-256 mismatch")
+    c2 = json.loads(c2_canonical)
+    if c2["base"] != "e2d638fed141282b99e09a8e35596b360ababa9f" or c2["archivo"] != inventory["archivo"]:
+        raise SystemExit("unexpected C2 span_key inventory provenance")
+    additions = {}
+    for row in c2["usos"]:
+        index = row["after_base_index"]
+        if not 0 <= index <= len(frozen) or row["dominio_destino"] not in DOMAINS or not row["motivo"]:
+            raise SystemExit("invalid C2 span_key classification")
+        additions.setdefault(index, []).append((
+            c2["archivo"], row["funcion"], normalized(row["expresion"]), row["ordinal_misma_expresion_en_funcion"]
+        ))
+    expected = []
+    for index in range(len(frozen) + 1):
+        expected.extend(additions.get(index, []))
+        if index < len(frozen):
+            expected.append(frozen[index])
     actual = [("src/check/types.rs", function, expression, ordinal) for function, expression, ordinal, _ in sites(root / "src/check/types.rs")]
     if actual != expected:
         for index, pair in enumerate(zip(expected, actual)):
@@ -92,8 +114,8 @@ def audit(root=ROOT):
         if len(actual) > len(expected):
             raise SystemExit(f"unreviewed or changed span_key at site {len(expected) + 1}: got {actual[len(expected)]!r}")
         raise SystemExit(f"span_key site count changed: expected {len(expected)}, got {len(actual)}")
-    if len(actual) != inventory["total"]:
-        raise SystemExit(f"inventory total mismatch: expected {inventory['total']}, got {len(actual)}")
+    if len(actual) != inventory["total"] + len(c2["usos"]):
+        raise SystemExit("C0+C2 span_key inventory total mismatch")
     return len(actual)
 
 
@@ -105,12 +127,13 @@ def self_test():
         (root / "src/check").mkdir(parents=True)
         shutil.copy2(Path(__file__), root / "scripts/i07c_c0_span_audit.py")
         shutil.copy2(INVENTORY, root / "docs/validation/i07c-rediseno/c0-span-key-usos.json")
+        shutil.copy2(C2_INVENTORY, root / "docs/validation/i07c-rediseno/c2-span-key-usos.json")
         inventory_path = root / "docs/validation/i07c-rediseno/c0-span-key-usos.json"
         frozen_inventory = inventory_path.read_bytes()
         source = SOURCE.read_text(encoding="utf-8")
         target = root / "src/check/types.rs"
         target.write_text("\n\n" + source, encoding="utf-8")
-        assert audit(root) == 240, "moving all source lines must preserve the audit"
+        assert audit(root) == 246, "moving all source lines must preserve the audit"
         target.write_text(source + "\nfn planted_unreviewed_span() { let _ = span_key(&Span::default()); }\n", encoding="utf-8")
         try:
             audit(root)
