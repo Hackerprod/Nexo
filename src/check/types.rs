@@ -1063,12 +1063,33 @@ struct NodeJournal {
 struct EqualityId(u64);
 
 #[derive(Clone)]
+#[allow(dead_code)] // P1: the deferred consumer will read this entry context next.
 struct EqualityRecord {
     id: EqualityId,
     operands: (Type, Type),
+    read_context: std::sync::Arc<ReadContext>,
     found: Span,
     join_start: usize,
     state: EqualityState,
+}
+
+// The entry view records facts for the components named by an equality, not
+// copies of TypeNodes. A later completion may fill an unknown component, but
+// cannot change what this equality could read at its source ordinal.
+#[derive(Clone, Debug)]
+#[allow(dead_code)] // P1: entry facts are captured before deferred replay is wired.
+struct ReadComponent {
+    root: u64,
+    concrete: Option<Type>,
+    array_child: bool,
+    variant_children: bool,
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)] // P1: retained by the equality until its consumer can replay.
+struct ReadContext {
+    epoch: EqualityId,
+    components: HashMap<u64, ReadComponent>,
 }
 
 #[derive(Clone, Copy)]
@@ -2704,11 +2725,68 @@ struct InferenceGraph {
 }
 
 impl InferenceGraph {
+    fn capture_read_context(&self, epoch: EqualityId, left: &Type, right: &Type) -> ReadContext {
+        let mut pending_types = vec![left, right];
+        let mut pending_nodes = Vec::new();
+        while let Some(ty) = pending_types.pop() {
+            match ty {
+                Type::Deferred(id) => pending_nodes.push(*id),
+                Type::Array(item) | Type::Generator { item, .. } => pending_types.push(item),
+                Type::Union(_, first, second) => {
+                    pending_types.push(first);
+                    if let Some(second) = second {
+                        pending_types.push(second);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut components = HashMap::new();
+        while let Some(id) = pending_nodes.pop() {
+            if components.contains_key(&id) {
+                continue;
+            }
+            let mut root = id;
+            while let Some(node) = self.type_nodes.get(&root) {
+                if node.parent == root {
+                    break;
+                }
+                root = node.parent;
+            }
+            let Some(node) = self.type_nodes.get(&root) else {
+                continue;
+            };
+            components.insert(
+                id,
+                ReadComponent {
+                    root,
+                    concrete: node.concrete.as_ref().map(|(ty, _)| ty.clone()),
+                    array_child: node.array_child.is_some(),
+                    variant_children: node.variant_children.is_some(),
+                },
+            );
+            if let Some(child) = node.array_child {
+                pending_nodes.push(child);
+            }
+            if let Some(children) = node.variant_children {
+                pending_nodes.extend(
+                    children
+                        .variants
+                        .iter()
+                        .filter_map(|variant| variant.payload),
+                );
+            }
+        }
+        ReadContext { epoch, components }
+    }
+
     fn begin_equality(&mut self, left: Type, right: Type, found: Span) -> EqualityId {
         let id = EqualityId(Self::next(&self.equality_clock));
+        let read_context = std::sync::Arc::new(self.capture_read_context(id, &left, &right));
         self.equality_records.push(EqualityRecord {
             id,
             operands: (left, right),
+            read_context,
             found,
             join_start: self.obligations.len(),
             state: EqualityState::Attempting,
@@ -21507,6 +21585,47 @@ mod quota_tests {
             Some((concrete, site(3)))
         );
         assert!(checker.graph.type_nodes[&root].variant_children.is_none());
+    }
+
+    #[test]
+    fn c2_read_context_preserves_entry_components_across_later_writes() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        let first = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::I64, site(3));
+        let entry = checker
+            .graph
+            .equality_records
+            .last()
+            .unwrap()
+            .read_context
+            .clone();
+        assert_eq!(entry.epoch, first);
+        assert_eq!(entry.components[&root].root, root);
+        assert!(entry.components[&root].array_child);
+        assert!(!entry.components[&root].variant_children);
+        assert_eq!(entry.components[&child].concrete, None);
+        checker.graph.type_node_mut(&child).unwrap().concrete = Some((Type::I64, site(4)));
+        assert_eq!(entry.components[&child].concrete, None);
+        assert_eq!(
+            checker.graph.type_nodes[&child].concrete,
+            Some((Type::I64, site(4)))
+        );
+        checker.graph.finish_equality(first, false);
+        assert_eq!(checker.graph.type_nodes[&child].concrete, None);
+        let second = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::I64, site(5));
+        assert!(second.0 > first.0);
+        checker.graph.finish_equality(second, false);
     }
 
     #[test]
