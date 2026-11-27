@@ -9118,8 +9118,7 @@ impl Checker<'_> {
                                 .or(fact.variant.as_ref())
                         })
                         .filter(|span| {
-                            join.left_origin.start <= span.start
-                                && span.end <= join.left_origin.end
+                            join.left_origin.start <= span.start && span.end <= join.left_origin.end
                         })
                         .cloned()
                         .unwrap_or_else(|| self.graph.first_component_origin(id, &join.left_origin))
