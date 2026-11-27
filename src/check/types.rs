@@ -1048,43 +1048,13 @@ struct TypeNode {
     copyable_origin: Option<Span>,
 }
 
-// Ported from the R6 prototype: capture each node on its first write in an
-// equality. Node IDs and the solver budget remain monotonic on rollback.
-#[derive(Clone, Default)]
-struct NodeJournal {
-    before: HashMap<u64, Option<TypeNode>>,
-    order: Vec<u64>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-struct EqualityId(u64);
-
-#[derive(Clone)]
-struct EqualityRecord {
-    id: EqualityId,
-    operands: (Type, Type),
-    found: Span,
-    join_start: usize,
-    state: EqualityState,
-}
-
-#[derive(Clone, Copy)]
-enum EqualityState {
-    Attempting,
-    Rejected,
-    Waiting,
-    Committed,
-}
-
 #[derive(Clone)]
 struct PendingDeferredJoin {
-    equality: Option<EqualityId>,
     left: Type,
     right: Type,
     constructor: u64,
     left_origin: Span,
     found: Span,
-    recursive_origin: Option<Span>,
     branch: bool,
     related_expected: bool,
     numeric_domain_owner: Option<(u64, u64)>,
@@ -1186,20 +1156,9 @@ enum ShapeHint {
 
 #[derive(Clone)]
 enum ObligationKind {
-    Constructor {
-        child: u64,
-        array: u64,
-        span: Span,
-        has_element_witness: bool,
-    },
-    VariantConstructor {
-        union: u64,
-        span: Span,
-    },
-    PatternConstructor {
-        union: u64,
-        span: Span,
-    },
+    Constructor { child: u64, array: u64, span: Span },
+    VariantConstructor { union: u64, span: Span },
+    PatternConstructor { union: u64, span: Span },
     Join(Box<PendingDeferredJoin>),
     Domain(PendingDomain),
     DomainNominal(Box<PendingNominalDomain>),
@@ -2656,10 +2615,6 @@ thread_local! {
 
 #[derive(Clone)]
 struct InferenceGraph {
-    equality_clock: u64,
-    equality_records: Vec<EqualityRecord>,
-    active_equality: Option<EqualityId>,
-    node_journal: Option<NodeJournal>,
     active_facts: HashMap<FactId, VisitFact>,
     visit_generations: Vec<u64>,
     // Clones used by AtomicEnd share the clocks: rollback must not reuse an
@@ -2701,74 +2656,6 @@ struct InferenceGraph {
 }
 
 impl InferenceGraph {
-    fn begin_equality(&mut self, left: Type, right: Type, found: Span) -> EqualityId {
-        self.equality_clock += 1;
-        let id = EqualityId(self.equality_clock);
-        self.equality_records.push(EqualityRecord {
-            id,
-            operands: (left, right),
-            found,
-            join_start: self.obligations.len(),
-            state: EqualityState::Attempting,
-        });
-        self.active_equality = Some(id);
-        self.node_journal = Some(NodeJournal::default());
-        id
-    }
-
-    fn touch_type_node(&mut self, id: u64) {
-        if let Some(journal) = &mut self.node_journal
-            && !journal.before.contains_key(&id)
-        {
-            journal.before.insert(id, self.type_nodes.get(&id).cloned());
-            journal.order.push(id);
-        }
-    }
-
-    fn type_node_mut(&mut self, id: &u64) -> Option<&mut TypeNode> {
-        self.touch_type_node(*id);
-        self.type_nodes.get_mut(id)
-    }
-
-    fn insert_type_node(&mut self, id: u64, node: TypeNode) -> Option<TypeNode> {
-        self.touch_type_node(id);
-        self.type_nodes.insert(id, node)
-    }
-
-    fn finish_equality(&mut self, id: EqualityId, publish: bool) {
-        debug_assert_eq!(self.active_equality, Some(id));
-        let record = self.equality_records.last_mut().expect("equality record");
-        debug_assert_eq!(record.id, id);
-        let _ = (&record.operands, &record.found);
-        let waiting = publish
-            && self.obligations[record.join_start..]
-                .iter()
-                .any(|obligation| matches!(obligation, ObligationKind::Join(_)));
-        record.state = if publish {
-            if waiting {
-                EqualityState::Waiting
-            } else {
-                EqualityState::Committed
-            }
-        } else {
-            EqualityState::Rejected
-        };
-        let journal = self.node_journal.take().expect("equality journal");
-        if !publish {
-            for key in journal.order.into_iter().rev() {
-                match journal.before[&key].clone() {
-                    Some(node) => {
-                        self.type_nodes.insert(key, node);
-                    }
-                    None => {
-                        self.type_nodes.remove(&key);
-                    }
-                }
-            }
-            self.obligations.truncate(record.join_start);
-        }
-        self.active_equality = None;
-    }
     fn next(clock: &std::cell::Cell<u64>) -> u64 {
         let id = clock.get().checked_add(1).expect("fact clock exhausted");
         clock.set(id);
@@ -3955,7 +3842,7 @@ impl Checker<'_> {
             }
             let child = self.graph.next_variable;
             self.graph.next_variable += 1;
-            self.graph.insert_type_node(
+            self.graph.type_nodes.insert(
                 child,
                 TypeNode {
                     parent: child,
@@ -3976,8 +3863,12 @@ impl Checker<'_> {
                     copyable_origin: Some(origin.clone()),
                 },
             );
-            self.graph.type_node_mut(&current).unwrap().array_child = Some(child);
-            self.graph.type_node_mut(&current).unwrap().array_origin = Some(origin);
+            self.graph.type_nodes.get_mut(&current).unwrap().array_child = Some(child);
+            self.graph
+                .type_nodes
+                .get_mut(&current)
+                .unwrap()
+                .array_origin = Some(origin);
             self.graph.preseeded_children.insert(child);
             current = child;
         }
@@ -3993,7 +3884,7 @@ impl Checker<'_> {
             }
             current = self.root(current);
             if self.graph.type_nodes[&current].concrete.is_none() && internal_state(&ty).is_none() {
-                let node = self.graph.type_node_mut(&current).unwrap();
+                let node = self.graph.type_nodes.get_mut(&current).unwrap();
                 node.concrete = Some((ty, evidence.origin));
                 node.concrete_intrinsic = evidence.intrinsic;
             }
@@ -4005,9 +3896,9 @@ impl Checker<'_> {
             .obligations
             .iter()
             .filter_map(|entry| match entry {
-                ObligationKind::Constructor {
-                    child, array, span, ..
-                } => Some((*child, *array, span.clone())),
+                ObligationKind::Constructor { child, array, span } => {
+                    Some((*child, *array, span.clone()))
+                }
                 _ => None,
             })
             .collect()
@@ -4929,7 +4820,7 @@ impl Checker<'_> {
         self.charge_solver(span)?;
         let id = self.graph.next_variable;
         self.graph.next_variable += 1;
-        self.graph.insert_type_node(
+        self.graph.type_nodes.insert(
             id,
             TypeNode {
                 parent: id,
@@ -4971,8 +4862,8 @@ impl Checker<'_> {
             return Err(unresolved_type(origin.clone()));
         }
         let child = self.new_variable(origin)?;
-        self.graph.type_node_mut(&root).unwrap().array_child = Some(child);
-        self.graph.type_node_mut(&root).unwrap().array_origin = Some(origin.clone());
+        self.graph.type_nodes.get_mut(&root).unwrap().array_child = Some(child);
+        self.graph.type_nodes.get_mut(&root).unwrap().array_origin = Some(origin.clone());
         // Every newly required element inherits the array's copyable-data
         // domain. Explicit array constructors call require_copyable on their
         // element instead (§4.1.1); removing only the stored origin cannot
@@ -5072,7 +4963,7 @@ impl Checker<'_> {
         let mut current = id;
         while current != root {
             let next = self.graph.type_nodes[&current].parent;
-            self.graph.type_node_mut(&current).unwrap().parent = root;
+            self.graph.type_nodes.get_mut(&current).unwrap().parent = root;
             current = next;
         }
         root
@@ -5208,7 +5099,8 @@ impl Checker<'_> {
         let mut current = self.root(id);
         for _ in 0..=128 {
             if let Some((ty, _)) = self.graph.type_nodes[&current].concrete.clone() {
-                self.graph.type_node_mut(&current).unwrap().concrete = Some((ty, origin.clone()));
+                self.graph.type_nodes.get_mut(&current).unwrap().concrete =
+                    Some((ty, origin.clone()));
                 self.graph
                     .type_nodes
                     .get_mut(&current)
@@ -5475,94 +5367,6 @@ impl Checker<'_> {
         )
     }
 
-    fn recursive_path_origin(
-        &self,
-        start: u64,
-        target: u64,
-        before_statement: u64,
-    ) -> Option<(Span, usize)> {
-        let root = |mut id| {
-            while self.graph.type_nodes[&id].parent != id {
-                id = self.graph.type_nodes[&id].parent;
-            }
-            id
-        };
-        let constructors: Vec<_> = self
-            .graph
-            .obligations
-            .iter()
-            .filter_map(|entry| match entry {
-                ObligationKind::Constructor {
-                    child,
-                    array,
-                    span,
-                    has_element_witness,
-                } if span.end <= before_statement => {
-                    Some((*child, *array, span, *has_element_witness))
-                }
-                _ => None,
-            })
-            .collect();
-        let mut work = vec![(start, None::<Span>, 0_usize)];
-        let mut seen = HashSet::new();
-        while let Some((id, origin, constructor_count)) = work.pop() {
-            let id = root(id);
-            if !seen.insert(id) {
-                continue;
-            }
-            if id == target {
-                return origin.map(|span| (span, constructor_count));
-            }
-            let node = &self.graph.type_nodes[&id];
-            if let Some(child) = node.array_child {
-                let child = root(child);
-                let edges: Vec<_> = constructors
-                    .iter()
-                    .filter(|(element, array, _, _)| root(*array) == id && root(*element) == child)
-                    .collect();
-                let edge = edges
-                    .iter()
-                    .filter(|(_, _, _, witnessed)| *witnessed)
-                    .max_by_key(|(_, _, span, _)| (span.start, span.end))
-                    .map(|(_, _, span, _)| (*span).clone());
-                let latest = match (origin.clone(), edge) {
-                    (Some(a), Some(b)) if b.start > a.start => Some(b),
-                    (a @ Some(_), _) => a,
-                    (None, b) => b,
-                };
-                work.push((child, latest, constructor_count + edges.len()));
-            }
-            if let Some(union) = node.variant_children {
-                for variant in union.variants {
-                    if let Some(child) = variant.payload {
-                        work.push((child, origin.clone(), constructor_count));
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn recursive_equality_diagnostic(&self, left: u64, right: u64, found: Span) -> Box<Diagnostic> {
-        // Only constructor duties published before this statement can own
-        // an earlier E0103. The current RHS may itself contain a constructor;
-        // it belongs to this equality and cannot disqualify an independent
-        // prior duty. With several prior duties on the path, the equality
-        // that discovers the cycle owns its own conflict.
-        let origin = self
-            .recursive_path_origin(left, right, self.top_statement_start)
-            .or_else(|| self.recursive_path_origin(right, left, self.top_statement_start))
-            .filter(|(_, count)| *count == 1 && self.active_if_span.is_none())
-            .map_or(found, |(span, _)| span);
-        names::diagnostic(
-            "NX-E0103",
-            None,
-            Stage::Types,
-            Operation::TypesInfer,
-            origin,
-        )
-    }
-
     fn unresolved_constructor_shape_conflict(
         &mut self,
         id: u64,
@@ -5740,7 +5544,8 @@ impl Checker<'_> {
         }
         if policy.branch {
             self.graph
-                .type_node_mut(&constructor)
+                .type_nodes
+                .get_mut(&constructor)
                 .unwrap()
                 .deferred_join = true;
             let scope = self
@@ -5750,20 +5555,19 @@ impl Checker<'_> {
                     (span.start, span.end)
                 });
             self.graph
-                .type_node_mut(&constructor)
+                .type_nodes
+                .get_mut(&constructor)
                 .unwrap()
                 .branch_join_scopes
                 .push(scope);
         }
         self.graph
             .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
-                equality: self.graph.active_equality,
                 left,
                 right,
                 constructor,
                 left_origin,
                 found,
-                recursive_origin: None,
                 branch: policy.branch,
                 related_expected: policy.related_expected,
                 numeric_domain_owner: self.graph.fact(fact).numeric_domain_owner,
@@ -5894,9 +5698,6 @@ impl Checker<'_> {
         found: Span,
         policy: UnifyPolicy,
     ) -> Result<Type, Box<Diagnostic>> {
-        let equality = self
-            .graph
-            .begin_equality(left.clone(), right.clone(), found.clone());
         let request = SolverUnify {
             fact,
             left,
@@ -5906,9 +5707,7 @@ impl Checker<'_> {
             found,
             policy,
         };
-        let result = self.solve(SolverRequest::Unify(request));
-        self.graph.finish_equality(equality, result.is_ok());
-        match result? {
+        match self.solve(SolverRequest::Unify(request))? {
             SolverValue::Type(ty) => Ok(ty),
             _ => unreachable!("unify result"),
         }
@@ -6225,7 +6024,7 @@ impl Checker<'_> {
                                     outcome = Ok(SolverValue::Unit);
                                 }
                             } else {
-                                self.graph.type_node_mut(&root).unwrap().concrete =
+                                self.graph.type_nodes.get_mut(&root).unwrap().concrete =
                                     Some((ty, origin));
                                 self.graph
                                     .type_nodes
@@ -6299,7 +6098,7 @@ impl Checker<'_> {
                                 self.graph.type_nodes[&root].concrete.clone()
                                 && let Some(wanted) = concrete_union(&concrete)
                             {
-                                self.graph.type_node_mut(&root).unwrap().concrete = None;
+                                self.graph.type_nodes.get_mut(&root).unwrap().concrete = None;
                                 let intrinsic = self.graph.type_nodes[&root].concrete_intrinsic;
                                 let binds: Vec<_> = children
                                     .variants
@@ -6333,7 +6132,7 @@ impl Checker<'_> {
                                     .get_mut(&root)
                                     .unwrap()
                                     .variant_children = Some(children);
-                                self.graph.type_node_mut(&root).unwrap().variant_origin =
+                                self.graph.type_nodes.get_mut(&root).unwrap().variant_origin =
                                     Some(origin);
                                 outcome = Ok(SolverValue::Union(children));
                             }
@@ -6773,8 +6572,12 @@ impl Checker<'_> {
                                 self.fail_constructed_dependents(l);
                                 self.fail_constructed_dependents(r);
                             }
-                            return Err(self.recursive_equality_diagnostic(
-                                l, r, request.found.clone(),
+                            return Err(names::diagnostic(
+                                "NX-E0103",
+                                None,
+                                Stage::Types,
+                                Operation::TypesInfer,
+                                request.found.clone(),
                             ));
                         }
                         let (a, b) = if self.graph.type_nodes[&l].size
@@ -7004,7 +6807,7 @@ impl Checker<'_> {
                         continue;
                     }
                     if !was_concrete && self.concrete(root).is_some() {
-                        self.graph.type_node_mut(&root).unwrap().variant_origin = Some(origin);
+                        self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);
                     }
                     outcome = Ok(SolverValue::Unit);
                 }
@@ -7025,8 +6828,12 @@ impl Checker<'_> {
                     if outcome.is_err() {
                         continue;
                     }
-                    self.graph.type_node_mut(&root).unwrap().variant_children = Some(children);
-                    self.graph.type_node_mut(&root).unwrap().variant_origin = Some(origin);
+                    self.graph
+                        .type_nodes
+                        .get_mut(&root)
+                        .unwrap()
+                        .variant_children = Some(children);
+                    self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);
                     outcome = Ok(SolverValue::Union(children));
                 }
                 Frame::UnionAfterBinds(state) => {
@@ -7132,32 +6939,40 @@ impl Checker<'_> {
                         b_copyable,
                         ..
                     } = state;
-                    self.graph.type_node_mut(&b).unwrap().parent = a;
+                    self.graph.type_nodes.get_mut(&b).unwrap().parent = a;
                     let b_join = self.graph.type_nodes[&b].clone();
-                    let a_join = self.graph.type_node_mut(&a).unwrap();
+                    let a_join = self.graph.type_nodes.get_mut(&a).unwrap();
                     a_join.deferred_join |= b_join.deferred_join;
                     a_join.recursive_join |= b_join.recursive_join;
                     a_join.branch_join_scopes.extend(b_join.branch_join_scopes);
-                    self.graph.type_node_mut(&a).unwrap().size += self.graph.type_nodes[&b].size;
-                    self.graph.type_node_mut(&a).unwrap().array_child = a_child.or(b_child);
-                    self.graph.type_node_mut(&a).unwrap().variant_children = a_result.or(b_result);
-                    self.graph.type_node_mut(&a).unwrap().variant_constructed = variant_constructed;
-                    self.graph.type_node_mut(&a).unwrap().variant_origin = self.graph.type_nodes
-                        [&a]
-                        .variant_origin
-                        .clone()
-                        .or_else(|| self.graph.type_nodes[&b].variant_origin.clone());
+                    self.graph.type_nodes.get_mut(&a).unwrap().size +=
+                        self.graph.type_nodes[&b].size;
+                    self.graph.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);
+                    self.graph.type_nodes.get_mut(&a).unwrap().variant_children =
+                        a_result.or(b_result);
+                    self.graph
+                        .type_nodes
+                        .get_mut(&a)
+                        .unwrap()
+                        .variant_constructed = variant_constructed;
+                    self.graph.type_nodes.get_mut(&a).unwrap().variant_origin =
+                        self.graph.type_nodes[&a]
+                            .variant_origin
+                            .clone()
+                            .or_else(|| self.graph.type_nodes[&b].variant_origin.clone());
                     if self.graph.type_nodes[&a].variant_children.is_some() {
                         if let Some(origin) = a_full.or(b_full).map(|(_, origin)| origin) {
-                            self.graph.type_node_mut(&a).unwrap().variant_origin = Some(origin);
+                            self.graph.type_nodes.get_mut(&a).unwrap().variant_origin =
+                                Some(origin);
                         } else if self.concrete(a).is_some() {
-                            self.graph.type_node_mut(&a).unwrap().variant_origin =
+                            self.graph.type_nodes.get_mut(&a).unwrap().variant_origin =
                                 Some(found.clone());
                         }
                     }
-                    self.graph.type_node_mut(&a).unwrap().array_constructed = array_constructed;
-                    self.graph.type_node_mut(&a).unwrap().bottom_only = bottom_only;
-                    self.graph.type_node_mut(&a).unwrap().copyable_origin =
+                    self.graph.type_nodes.get_mut(&a).unwrap().array_constructed =
+                        array_constructed;
+                    self.graph.type_nodes.get_mut(&a).unwrap().bottom_only = bottom_only;
+                    self.graph.type_nodes.get_mut(&a).unwrap().copyable_origin =
                         match (a_copyable, b_copyable) {
                             (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
                             (Some(a), None) | (None, Some(a)) => Some(a),
@@ -7165,7 +6980,7 @@ impl Checker<'_> {
                         };
                     let a_array_origin = self.graph.type_nodes[&a].array_origin.clone();
                     let b_array_origin = self.graph.type_nodes[&b].array_origin.clone();
-                    self.graph.type_node_mut(&a).unwrap().array_origin =
+                    self.graph.type_nodes.get_mut(&a).unwrap().array_origin =
                         match (a_array_origin, b_array_origin) {
                             (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
                             (Some(a), None) | (None, Some(a)) => Some(a),
@@ -7178,8 +6993,12 @@ impl Checker<'_> {
                         (None, Some(b)) => (Some(b), b_intrinsic),
                         (None, None) => (None, false),
                     };
-                    self.graph.type_node_mut(&a).unwrap().concrete = chosen;
-                    self.graph.type_node_mut(&a).unwrap().concrete_intrinsic = intrinsic;
+                    self.graph.type_nodes.get_mut(&a).unwrap().concrete = chosen;
+                    self.graph
+                        .type_nodes
+                        .get_mut(&a)
+                        .unwrap()
+                        .concrete_intrinsic = intrinsic;
                     let failed = self.graph.take_failed_constructor(a)
                         | self.graph.take_failed_constructor(b);
                     if failed {
@@ -7204,13 +7023,11 @@ impl Checker<'_> {
                             let constructor = self.root(a);
                             self.graph.register(ObligationKind::Join(Box::new(
                                 PendingDeferredJoin {
-                                    equality: self.graph.active_equality,
                                     left: Type::Deferred(a),
                                     right: Type::Deferred(b),
                                     constructor,
                                     left_origin: request.left_origin,
                                     found: request.found,
-                                    recursive_origin: None,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
                                     numeric_domain_owner: self
@@ -7222,23 +7039,17 @@ impl Checker<'_> {
                             )));
                             outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));
                         } else if error.code == "NX-E0103" {
-                            let recursive_origin = error
-                                .primary_span
-                                .clone()
-                                .unwrap_or_else(|| request.found.clone());
                             let constructor = self.root(a);
-                            let node = self.graph.type_node_mut(&constructor).unwrap();
+                            let node = self.graph.type_nodes.get_mut(&constructor).unwrap();
                             node.deferred_join = true;
                             node.recursive_join = true;
                             self.graph.register(ObligationKind::Join(Box::new(
                                 PendingDeferredJoin {
-                                    equality: self.graph.active_equality,
                                     left: Type::Deferred(a),
                                     right: Type::Deferred(b),
                                     constructor,
                                     left_origin: request.left_origin,
                                     found: request.found,
-                                    recursive_origin: Some(recursive_origin),
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
                                     numeric_domain_owner: self
@@ -7279,7 +7090,6 @@ impl Checker<'_> {
                         {
                             self.graph.register(ObligationKind::Join(Box::new(
                                 PendingDeferredJoin {
-                                    equality: self.graph.active_equality,
                                     left: if left_deferred {
                                         Type::Deferred(id)
                                     } else {
@@ -7293,7 +7103,6 @@ impl Checker<'_> {
                                     constructor: root,
                                     left_origin: request.left_origin,
                                     found: request.found,
-                                    recursive_origin: None,
                                     branch: request.policy.branch,
                                     related_expected: request.policy.related_expected,
                                     numeric_domain_owner: self
@@ -8385,13 +8194,6 @@ impl Checker<'_> {
             let comparison_domain_if_unresolved = join.comparison_domain_if_unresolved;
             // IDs are never reused before this drain. Storing the original
             // ID or its current representative is equivalent after root().
-            if join.equality.is_some_and(|id| {
-                self.graph.equality_records.iter().any(|record| {
-                    record.id == id && matches!(record.state, EqualityState::Rejected)
-                })
-            }) {
-                continue;
-            }
             let constructor = self.root(join.constructor);
             // A constructor with no determined element has one causal
             // NX-E0103. Once its element is concrete, independent source
@@ -8457,10 +8259,7 @@ impl Checker<'_> {
                 {
                     continue;
                 }
-                self.unresolved_constructor_diagnostic(
-                    constructor,
-                    join.recursive_origin.unwrap_or(join.found),
-                )
+                self.unresolved_constructor_diagnostic(constructor, join.found)
             };
             if error.code == "NX-E0102"
                 && numeric_owner.is_some_and(|owner| !failed_numeric_operations.insert(owner))
@@ -9292,7 +9091,7 @@ impl Checker<'_> {
             && !self.graph.fact_mut(visit).tainted;
         let variable = if deferred {
             let id = self.new_variable(&Self::primary_span(value))?;
-            self.graph.type_node_mut(&id).unwrap().bottom_only = self
+            self.graph.type_nodes.get_mut(&id).unwrap().bottom_only = self
                 .graph
                 .has(&span_key(value.span()), OccurrenceFlag::Divergent);
             if let Some(from) = self.expression_variable(value) {
@@ -12855,9 +12654,14 @@ impl Checker<'_> {
                     }
                     let child = self.new_variable(span)?;
                     let array = self.new_variable(span)?;
-                    self.graph.type_node_mut(&array).unwrap().array_child = Some(child);
-                    self.graph.type_node_mut(&array).unwrap().array_origin = Some(span.clone());
-                    self.graph.type_node_mut(&array).unwrap().array_constructed = true;
+                    self.graph.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
+                    self.graph.type_nodes.get_mut(&array).unwrap().array_origin =
+                        Some(span.clone());
+                    self.graph
+                        .type_nodes
+                        .get_mut(&array)
+                        .unwrap()
+                        .array_constructed = true;
                     self.require_copyable(child, span, false)?;
                     self.graph.expr_vars.insert(span_key(e.span()), array);
                     self.graph
@@ -12866,7 +12670,6 @@ impl Checker<'_> {
                         child,
                         array,
                         span: span.clone(),
-                        has_element_witness: false,
                     });
                     return Ok(Type::Array(Arc::new(Type::Deferred(child))));
                 };
@@ -13661,8 +13464,8 @@ impl Checker<'_> {
             }
             if let Some((child, _)) = pending.first() {
                 let id = self.new_variable(span)?;
-                self.graph.type_node_mut(&id).unwrap().array_child = Some(*child);
-                self.graph.type_node_mut(&id).unwrap().array_origin = Some(span.clone());
+                self.graph.type_nodes.get_mut(&id).unwrap().array_child = Some(*child);
+                self.graph.type_nodes.get_mut(&id).unwrap().array_origin = Some(span.clone());
                 self.graph
                     .type_nodes
                     .get_mut(&id)
@@ -13678,14 +13481,13 @@ impl Checker<'_> {
                     child: *child,
                     array: id,
                     span: span.clone(),
-                    has_element_witness: true,
                 });
                 Ok(Type::Array(Arc::new(Type::Deferred(*child))))
             } else if diverges {
                 let child = self.new_variable(span)?;
                 let array = self.new_variable(span)?;
-                self.graph.type_node_mut(&array).unwrap().array_child = Some(child);
-                self.graph.type_node_mut(&array).unwrap().array_origin = Some(span.clone());
+                self.graph.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
+                self.graph.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
                 self.graph
                     .type_nodes
                     .get_mut(&array)
@@ -13697,7 +13499,6 @@ impl Checker<'_> {
                     child,
                     array,
                     span: span.clone(),
-                    has_element_witness: false,
                 });
                 Ok(Type::Array(Arc::new(Type::Deferred(child))))
             } else {
@@ -16107,10 +15908,6 @@ pub(crate) fn check_with_partial_limit(
         loop_depth: 0,
         errors: Vec::new(),
         graph: InferenceGraph {
-            equality_clock: 0,
-            equality_records: Vec::new(),
-            active_equality: None,
-            node_journal: None,
             active_facts: HashMap::new(),
             visit_generations: Vec::new(),
             fact_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
@@ -17446,7 +17243,12 @@ mod quota_tests {
         checker.graph.type_nodes.get_mut(&root).unwrap().concrete = None;
         for _ in 0..64 {
             let next = checker.new_variable(&site(1)).unwrap();
-            checker.graph.type_node_mut(&chain).unwrap().array_child = Some(next);
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&chain)
+                .unwrap()
+                .array_child = Some(next);
             chain = next;
         }
         let mut inner = Type::I64;
@@ -17502,7 +17304,12 @@ mod quota_tests {
         let mut current = root;
         for _ in 0..129 {
             let child = checker.new_variable(&site(3)).unwrap();
-            checker.graph.type_node_mut(&current).unwrap().array_child = Some(child);
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&current)
+                .unwrap()
+                .array_child = Some(child);
             current = child;
         }
         checker.graph.type_nodes.get_mut(&current).unwrap().concrete = Some((Type::I64, site(4)));
@@ -17713,10 +17520,6 @@ mod quota_tests {
             defer_depth: false,
             depth_memo_ready: false,
             graph: InferenceGraph {
-                equality_clock: 0,
-                equality_records: Vec::new(),
-                active_equality: None,
-                node_journal: None,
                 active_facts: HashMap::new(),
                 visit_generations: Vec::new(),
                 fact_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
@@ -17815,8 +17618,12 @@ mod quota_tests {
             let structural = if concrete_first { second } else { first };
             let concrete = if concrete_first { first } else { second };
             checker.require_array(structural, &site(12)).unwrap();
-            checker.graph.type_node_mut(&concrete).unwrap().concrete =
-                Some((Type::Array(Arc::new(Type::I64)), site(13)));
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&concrete)
+                .unwrap()
+                .concrete = Some((Type::Array(Arc::new(Type::I64)), site(13)));
             bind_with_parent(
                 &mut checker,
                 first,
@@ -18526,7 +18333,12 @@ mod quota_tests {
             roots.push(checker.new_variable(&site(0)).unwrap());
         }
         for pair in roots.windows(2) {
-            checker.graph.type_node_mut(&pair[0]).unwrap().array_child = Some(pair[1]);
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&pair[0])
+                .unwrap()
+                .array_child = Some(pair[1]);
         }
         let error = checker
             .check_depth(&Type::Deferred(roots[0]), &site(7))
@@ -18668,7 +18480,8 @@ mod quota_tests {
             let child = checker.require_array(array, &site(2)).unwrap();
             checker
                 .graph
-                .type_node_mut(&array)
+                .type_nodes
+                .get_mut(&array)
                 .unwrap()
                 .array_constructed = true;
             checker
@@ -18994,7 +18807,12 @@ mod quota_tests {
             let first = checker.new_variable(&site(0)).unwrap();
             let second = checker.new_variable(&site(1)).unwrap();
             let marked = if marked_first { first } else { second };
-            checker.graph.type_node_mut(&marked).unwrap().bottom_only = true;
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&marked)
+                .unwrap()
+                .bottom_only = true;
             checker.union(first, second, site(2)).unwrap();
             let root = checker.root(first);
             assert!(checker.graph.type_nodes[&root].bottom_only);
