@@ -1084,6 +1084,15 @@ struct EqualityRecord {
     found: Span,
     join_start: usize,
     state: EqualityState,
+    completion: Completion,
+}
+
+// Later compatible equalities may fill an unknown entry component. Published
+// entry facts remain immutable; only previously empty solution slots change.
+#[derive(Clone, Default)]
+struct Completion {
+    compatible_later_edges: HashSet<EqualityId>,
+    solutions: HashMap<u64, Type>,
 }
 
 // The entry view records facts for the components named by an equality, not
@@ -2825,6 +2834,7 @@ impl InferenceGraph {
             found,
             join_start: self.obligations.len(),
             state: EqualityState::Attempting,
+            completion: Completion::default(),
         });
         self.active_equality = Some(id);
         self.begin_node_journal();
@@ -2884,8 +2894,13 @@ impl InferenceGraph {
         self.mark_failed_constructor(id);
     }
 
-    fn finish_node_journal(&mut self, publish: bool) {
+    fn finish_node_journal(&mut self, publish: bool) -> Vec<u64> {
         let journal = self.node_journals.pop().expect("node journal");
+        let changed = if publish && self.node_journals.is_empty() {
+            journal.order.clone()
+        } else {
+            Vec::new()
+        };
         if publish {
             if self.node_journals.is_empty() {
                 if let Some(equality) = self.active_equality {
@@ -2963,6 +2978,7 @@ impl InferenceGraph {
                 }
             }
         }
+        changed
     }
 
     fn finish_equality(&mut self, id: EqualityId, publish: bool) {
@@ -2984,7 +3000,45 @@ impl InferenceGraph {
             EqualityState::Rejected
         };
         let keep_record = matches!(record.state, EqualityState::Waiting);
-        self.finish_node_journal(publish);
+        let changed = self.finish_node_journal(publish);
+        if publish && !changed.is_empty() {
+            // A commit can wake each earlier Waiting equality at most once.
+            // A rejected or nested write has no published changed components.
+            for earlier in &mut self.equality_records {
+                if earlier.id == id || !matches!(earlier.state, EqualityState::Waiting) {
+                    continue;
+                }
+                let mut filled = false;
+                for component in &changed {
+                    let Some(entry) = earlier.read_context.components.get(component) else {
+                        continue;
+                    };
+                    if entry.concrete.is_some()
+                        || earlier.completion.solutions.contains_key(component)
+                    {
+                        continue;
+                    }
+                    let mut root = *component;
+                    while let Some(node) = self.type_nodes.get(&root) {
+                        if node.parent == root {
+                            break;
+                        }
+                        root = node.parent;
+                    }
+                    if let Some((ty, _)) = self
+                        .type_nodes
+                        .get(&root)
+                        .and_then(|node| node.concrete.as_ref())
+                    {
+                        earlier.completion.solutions.insert(*component, ty.clone());
+                        filled = true;
+                    }
+                }
+                if filled {
+                    earlier.completion.compatible_later_edges.insert(id);
+                }
+            }
+        }
         // Only suspended equalities need a durable record. Rejected joins
         // were truncated above; committed equalities have no queued join.
         if !keep_record {
@@ -7266,7 +7320,9 @@ impl Checker<'_> {
                 }
                 Frame::EndFact(id) => self.graph.retire_fact(id),
                 Frame::AtomicEnd(snapshot) => match snapshot {
-                    AtomicSnapshot::Journal => self.graph.finish_node_journal(outcome.is_ok()),
+                    AtomicSnapshot::Journal => {
+                        self.graph.finish_node_journal(outcome.is_ok());
+                    }
                     AtomicSnapshot::Checker(snapshot) => {
                         if outcome.is_err() {
                             let steps = self.solver_steps;
@@ -21849,6 +21905,48 @@ mod quota_tests {
         assert!(accepted.0 > rejected.0);
         assert_eq!(fact.concrete, Some(site(4)));
         assert!(checker.graph.origin_facts.get(&left).is_none());
+    }
+
+    #[test]
+    fn c2_completion_fills_waiting_hole_once_without_rewriting_entry() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let waiting =
+            checker
+                .graph
+                .begin_equality(Type::Deferred(root), Type::Deferred(root), site(2));
+        let entry = checker.graph.equality_records[0].read_context.clone();
+        checker.graph.equality_records[0].state = EqualityState::Waiting;
+        checker.graph.finish_node_journal(true);
+        checker.graph.active_equality = None;
+
+        let first = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::I64, site(3));
+        checker.graph.type_node_mut(&root).unwrap().concrete = Some((Type::I64, site(3)));
+        checker.graph.finish_equality(first, true);
+        let completion = &checker.graph.equality_records[0].completion;
+        assert_eq!(checker.graph.equality_records[0].id, waiting);
+        assert_eq!(completion.solutions.get(&root), Some(&Type::I64));
+        assert_eq!(completion.compatible_later_edges.len(), 1);
+        assert!(completion.compatible_later_edges.contains(&first));
+        assert_eq!(entry.components[&root].concrete, None);
+
+        let rejected = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::Bool, site(4));
+        checker.graph.type_node_mut(&root).unwrap().concrete = Some((Type::Bool, site(4)));
+        checker.graph.finish_equality(rejected, false);
+        let completion = &checker.graph.equality_records[0].completion;
+        assert_eq!(completion.solutions.get(&root), Some(&Type::I64));
+        assert!(!completion.compatible_later_edges.contains(&rejected));
+        assert_eq!(entry.components[&root].concrete, None);
     }
 
     #[test]
