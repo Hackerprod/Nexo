@@ -1078,7 +1078,6 @@ struct OriginFact {
 struct EqualityId(u64);
 
 #[derive(Clone)]
-#[allow(dead_code)] // P1: the deferred consumer will read this entry context next.
 struct EqualityRecord {
     id: EqualityId,
     operands: (Type, Type),
@@ -1102,23 +1101,14 @@ struct Completion {
 // copies of TypeNodes. A later completion may fill an unknown component, but
 // cannot change what this equality could read at its source ordinal.
 #[derive(Clone, Debug)]
-#[allow(dead_code)] // P1: entry facts are captured before deferred replay is wired.
 struct ReadComponent {
     root: u64,
     concrete: Option<Type>,
-    array_child: bool,
-    variant_children: bool,
     array_element: Option<u64>,
-    union: Option<UnionDescriptor<u64>>,
-    array_origin: Option<Span>,
-    variant_origin: Option<Span>,
-    concrete_origin: Option<Span>,
-    copyable_origin: Option<Span>,
     origin_fact: Option<OriginFact>,
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)] // P1: retained by the equality until its consumer can replay.
 struct ReadContext {
     epoch: EqualityId,
     components: HashMap<u64, ReadComponent>,
@@ -2817,14 +2807,7 @@ impl InferenceGraph {
                 ReadComponent {
                     root,
                     concrete: node.concrete.as_ref().map(|(ty, _)| ty.clone()),
-                    array_child: node.array_child.is_some(),
-                    variant_children: node.variant_children.is_some(),
                     array_element: node.array_child,
-                    union: node.variant_children,
-                    array_origin: node.array_origin.clone(),
-                    variant_origin: node.variant_origin.clone(),
-                    concrete_origin: node.concrete.as_ref().map(|(_, span)| span.clone()),
-                    copyable_origin: node.copyable_origin.clone(),
                     origin_fact: self
                         .origin_facts
                         .borrow()
@@ -2884,25 +2867,24 @@ impl InferenceGraph {
             });
     }
 
-    fn first_component_origin(&self, component: u64, before: &Span) -> Option<Span> {
+    fn first_component_origin(&self, component: u64, first_operand: &Span) -> Span {
         self.origin_facts
             .borrow()
             .get(&component)
             .and_then(|facts| {
                 facts
                     .iter()
-                    .filter_map(|fact| {
-                        fact.operand
-                            .as_ref()
-                            .or(fact.concrete.as_ref())
-                            .or(fact.array.as_ref())
-                            .or(fact.variant.as_ref())
-                            .filter(|span| span.start <= before.start)
-                            .map(|span| (fact.ordinal, span.clone()))
+                    .filter_map(|fact| fact.operand.as_ref())
+                    // The AST's first operand of this literal bounds the
+                    // source occurrence. Global equality ordinals can refer
+                    // to earlier statements or later completions.
+                    .filter(|origin| {
+                        first_operand.start <= origin.start && origin.end <= first_operand.end
                     })
-                    .min_by_key(|(ordinal, _)| *ordinal)
-                    .map(|(_, span)| span)
+                    .min_by_key(|origin| (origin.start, origin.end))
+                    .cloned()
             })
+            .unwrap_or_else(|| first_operand.clone())
     }
 
     fn has_operand_origin(&self, component: u64) -> bool {
@@ -9135,10 +9117,12 @@ impl Checker<'_> {
                                 .or(fact.array.as_ref())
                                 .or(fact.variant.as_ref())
                         })
-                        .filter(|span| span.start <= join.left_origin.start)
+                        .filter(|span| {
+                            join.left_origin.start <= span.start
+                                && span.end <= join.left_origin.end
+                        })
                         .cloned()
-                        .or_else(|| self.graph.first_component_origin(id, &join.left_origin))
-                        .unwrap_or(join.left_origin)
+                        .unwrap_or_else(|| self.graph.first_component_origin(id, &join.left_origin))
                 } else {
                     join.left_origin
                 };
@@ -14363,7 +14347,11 @@ impl Checker<'_> {
                     visit,
                     Type::Deferred(*id),
                     got.clone(),
-                    source_origin.clone(),
+                    if projected_reference {
+                        item_origin.as_ref().unwrap_or(source_origin).clone()
+                    } else {
+                        source_origin.clone()
+                    },
                     concrete_origin.clone(),
                     Self::primary_span(item),
                     false,
@@ -14378,9 +14366,10 @@ impl Checker<'_> {
                         // first witness. Later elements retain
                         // independent equality sites (§4.1.2.4).
                         let operand_origin = if projected_reference {
-                            self.graph
-                                .first_component_origin(*id, source_origin)
-                                .unwrap_or_else(|| source_origin.clone())
+                            self.graph.first_component_origin(
+                                *id,
+                                item_origin.as_ref().unwrap_or(source_origin),
+                            )
                         } else {
                             source_origin.clone()
                         };
@@ -14419,11 +14408,12 @@ impl Checker<'_> {
                 *invalid = true;
                 return Ok(());
             }
+            let first_operand_origin = pending.first().map(|(_, origin)| origin.clone());
             pending.clear();
             *item_type = Some(got);
             // ADR §4.1.2.4,6: the first valid array element is
             // the source witness for later element checks.
-            *item_origin = Some(concrete_origin);
+            *item_origin = Some(first_operand_origin.unwrap_or(concrete_origin));
         } else if let Some(prior) = item_type.clone() {
             let prior_origin = origin.cloned().unwrap_or_else(|| span.clone());
             let concrete_origin = Self::primary_span(item);
@@ -22290,8 +22280,7 @@ mod quota_tests {
             .clone();
         assert_eq!(entry.epoch, first);
         assert_eq!(entry.components[&root].root, root);
-        assert!(entry.components[&root].array_child);
-        assert!(!entry.components[&root].variant_children);
+        assert_eq!(entry.components[&root].array_element, Some(child));
         assert_eq!(entry.components[&child].concrete, None);
         checker.graph.type_node_mut(&child).unwrap().concrete = Some((Type::I64, site(4)));
         assert_eq!(entry.components[&child].concrete, None);
@@ -22488,12 +22477,9 @@ mod quota_tests {
         assert!(result.is_ok(), "{result:?}");
         let prefix = checker.graph.read_contexts.borrow()[&occurrence].clone();
         assert!(prefix.epoch.0 < checker.graph.equality_clock.get());
-        assert!(
-            prefix
-                .components
-                .values()
-                .any(|component| { component.array_child && component.concrete.is_none() })
-        );
+        assert!(prefix.components.values().any(|component| {
+            component.array_element.is_some() && component.concrete.is_none()
+        }));
         let first = std::sync::Arc::clone(&prefix);
         assert!(checker.function(&ast.functions[0]).is_ok());
         assert!(std::sync::Arc::ptr_eq(
