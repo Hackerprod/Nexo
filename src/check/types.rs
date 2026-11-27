@@ -2682,6 +2682,8 @@ thread_local! {
 struct InferenceGraph {
     equality_clock: std::rc::Rc<std::cell::Cell<u64>>,
     equality_records: Vec<EqualityRecord>,
+    // First planning visit owns the immutable prefix read by this occurrence.
+    read_contexts: HashMap<OccurrenceId, std::sync::Arc<ReadContext>>,
     active_equality: Option<EqualityId>,
     node_journals: Vec<NodeJournal>,
     active_facts: HashMap<FactId, VisitFact>,
@@ -12868,6 +12870,20 @@ impl Checker<'_> {
                     }
                     if let Some(known) = self.graph.locals.get(&local.name_span.start).cloned() {
                         if let Some(id) = known.variable {
+                            if self.planning {
+                                let occurrence = self.frame_occurrence_id(e);
+                                if !self.graph.read_contexts.contains_key(&occurrence) {
+                                    let epoch = EqualityId(self.graph.equality_clock.get());
+                                    let context = self.graph.capture_read_context(
+                                        epoch,
+                                        &Type::Deferred(id),
+                                        &Type::Unit,
+                                    );
+                                    self.graph
+                                        .read_contexts
+                                        .insert(occurrence, std::sync::Arc::new(context));
+                                }
+                            }
                             if let Some((ty, _)) = self.concrete(id) {
                                 return Ok(ty);
                             }
@@ -16289,6 +16305,7 @@ pub(crate) fn check_with_partial_limit(
         graph: InferenceGraph {
             equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
             equality_records: Vec::new(),
+            read_contexts: HashMap::new(),
             active_equality: None,
             node_journals: Vec::new(),
             active_facts: HashMap::new(),
@@ -16336,6 +16353,7 @@ pub(crate) fn check_with_partial_limit(
             OccurrenceIndex::for_function(checker.function_ordinal, &function.body);
         checker.current_passes = 0;
         checker.current_planning_calls = 0;
+        checker.graph.read_contexts.clear();
         checker.planning = true;
         for _ in 0..=128 {
             checker.analysis_exhausted = false;
@@ -17895,6 +17913,7 @@ mod quota_tests {
             graph: InferenceGraph {
                 equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
                 equality_records: Vec::new(),
+                read_contexts: HashMap::new(),
                 active_equality: None,
                 node_journals: Vec::new(),
                 active_facts: HashMap::new(),
@@ -21626,6 +21645,41 @@ mod quota_tests {
             .begin_equality(Type::Deferred(root), Type::I64, site(5));
         assert!(second.0 > first.0);
         checker.graph.finish_equality(second, false);
+    }
+
+    #[test]
+    fn c2_read_occurrence_keeps_first_planning_prefix() {
+        let source = "fn Main(){var s=[];let a=[s,(if true then 1 else true)];s=[1];}";
+        let ast = parse::parse_new_profile("read_context.n", source).unwrap();
+        let resolved = names::resolve_with_option("read_context.n", source, &ast, true).unwrap();
+        let mut checker = empty_checker(&resolved);
+        checker.tokens = lex::lex("read_context.n", source).unwrap();
+        checker.planning = true;
+        checker.occurrences = OccurrenceIndex::for_function(0, &ast.functions[0].body);
+        let Statement::Let {
+            value: Expr::Array(items, _),
+            ..
+        } = &ast.functions[0].body.statements[1]
+        else {
+            panic!("array binding fixture");
+        };
+        let occurrence = checker.frame_occurrence_id(&items[0]);
+        let result = checker.function(&ast.functions[0]);
+        assert!(result.is_ok(), "{result:?}");
+        let prefix = &checker.graph.read_contexts[&occurrence];
+        assert!(prefix.epoch.0 < checker.graph.equality_clock.get());
+        assert!(
+            prefix
+                .components
+                .values()
+                .any(|component| { component.array_child && component.concrete.is_none() })
+        );
+        let first = std::sync::Arc::clone(prefix);
+        assert!(checker.function(&ast.functions[0]).is_ok());
+        assert!(std::sync::Arc::ptr_eq(
+            &first,
+            &checker.graph.read_contexts[&occurrence]
+        ));
     }
 
     #[test]
