@@ -5475,7 +5475,7 @@ impl Checker<'_> {
         )
     }
 
-    fn recursive_path_origin(&self, start: u64, target: u64) -> Option<Span> {
+    fn recursive_path_origin(&self, start: u64, target: u64) -> Option<(Span, usize)> {
         let root = |mut id| {
             while self.graph.type_nodes[&id].parent != id {
                 id = self.graph.type_nodes[&id].parent;
@@ -5496,15 +5496,15 @@ impl Checker<'_> {
                 _ => None,
             })
             .collect();
-        let mut work = vec![(start, None::<Span>)];
+        let mut work = vec![(start, None::<Span>, 0_usize)];
         let mut seen = HashSet::new();
-        while let Some((id, origin)) = work.pop() {
+        while let Some((id, origin, constructor_count)) = work.pop() {
             let id = root(id);
             if !seen.insert(id) {
                 continue;
             }
             if id == target {
-                return origin;
+                return origin.map(|span| (span, constructor_count));
             }
             let node = &self.graph.type_nodes[&id];
             if let Some(child) = node.array_child {
@@ -5516,19 +5516,19 @@ impl Checker<'_> {
                 let edge = edges
                     .iter()
                     .filter(|(_, _, _, witnessed)| *witnessed)
-                    .min_by_key(|(_, _, span, _)| (span.start, span.end))
+                    .max_by_key(|(_, _, span, _)| (span.start, span.end))
                     .map(|(_, _, span, _)| (*span).clone());
-                let earliest = match (origin.clone(), edge) {
-                    (Some(a), Some(b)) if b.start < a.start => Some(b),
+                let latest = match (origin.clone(), edge) {
+                    (Some(a), Some(b)) if b.start > a.start => Some(b),
                     (a @ Some(_), _) => a,
                     (None, b) => b,
                 };
-                work.push((child, earliest));
+                work.push((child, latest, constructor_count + edges.len()));
             }
             if let Some(union) = node.variant_children {
                 for variant in union.variants {
                     if let Some(child) = variant.payload {
-                        work.push((child, origin.clone()));
+                        work.push((child, origin.clone(), constructor_count));
                     }
                 }
             }
@@ -5537,11 +5537,17 @@ impl Checker<'_> {
     }
 
     fn recursive_equality_diagnostic(&self, left: u64, right: u64, found: Span) -> Box<Diagnostic> {
-        // Only constructors on the path that closes this cycle can own its E3.
+        // A prior constructor owns the diagnostic only when it is the sole
+        // constructor duty on the causal path. With several duties, the
+        // equality that discovers the cycle owns its own conflict; choosing
+        // a global constructor span would consume another duty's evidence.
         let origin = self
             .recursive_path_origin(left, right)
             .or_else(|| self.recursive_path_origin(right, left))
-            .unwrap_or(found);
+            .filter(|(span, count)| {
+                *count == 1 && span.end <= self.top_statement_start && self.active_if_span.is_none()
+            })
+            .map_or(found, |(span, _)| span);
         names::diagnostic(
             "NX-E0103",
             None,
