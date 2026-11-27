@@ -2867,22 +2867,45 @@ impl InferenceGraph {
             });
     }
 
-    fn first_component_origin(&self, component: u64, first_operand: &Span) -> Span {
-        self.origin_facts
-            .borrow()
-            .get(&component)
-            .and_then(|facts| {
-                facts
-                    .iter()
-                    .filter_map(|fact| fact.operand.as_ref())
-                    // The AST's first operand of this literal bounds the
-                    // source occurrence. Global equality ordinals can refer
-                    // to earlier statements or later completions.
-                    .filter(|origin| {
-                        first_operand.start <= origin.start && origin.end <= first_operand.end
+    fn source_component_origin(
+        &self,
+        component: u64,
+        first_operand: &Span,
+        read_context: Option<&ReadContext>,
+    ) -> Span {
+        // The AST-selected operand bounds every source fact, including a
+        // fact captured before a deferred equality. Component IDs and global
+        // equality ordinals alone do not identify a literal occurrence.
+        let within =
+            |origin: &Span| first_operand.start <= origin.start && origin.end <= first_operand.end;
+        let entry = read_context
+            .and_then(|context| context.components.get(&component))
+            .and_then(|component| component.origin_fact.as_ref())
+            .and_then(|fact| {
+                fact.operand
+                    .as_ref()
+                    .or(fact.concrete.as_ref())
+                    .or(fact.array.as_ref())
+                    .or(fact.variant.as_ref())
+            })
+            .filter(|origin| within(origin));
+        entry
+            .cloned()
+            .or_else(|| {
+                self.origin_facts
+                    .borrow()
+                    .get(&component)
+                    .and_then(|facts| {
+                        facts
+                            .iter()
+                            .filter_map(|fact| fact.operand.as_ref())
+                            // The AST's first operand of this literal bounds the
+                            // source occurrence. Global equality ordinals can refer
+                            // to earlier statements or later completions.
+                            .filter(|origin| within(origin))
+                            .min_by_key(|origin| (origin.start, origin.end))
+                            .cloned()
                     })
-                    .min_by_key(|origin| (origin.start, origin.end))
-                    .cloned()
             })
             .unwrap_or_else(|| first_operand.clone())
     }
@@ -7938,7 +7961,7 @@ impl Checker<'_> {
                     left_deferred,
                     pending_before,
                 } => {
-                    if let Err(error) = outcome {
+                    if let Err(mut error) = outcome {
                         let root = self.root(id);
                         if error.code == "NX-E0102"
                             && concrete_union(&other).is_some()
@@ -7973,6 +7996,26 @@ impl Checker<'_> {
                             )));
                             outcome = Ok(SolverValue::Type(Type::Deferred(root)));
                         } else {
+                            // Bind can discover a concrete type fixed by an
+                            // earlier equality. Its stored TypeNode origin is
+                            // provenance of that type, not the left operand
+                            // of this source equality. The source caller
+                            // already selected that operand by its own AST.
+                            if error.code == "NX-E0102"
+                                && error.subcause.as_deref() == Some("type_mismatch")
+                                && request.policy.related_expected
+                            {
+                                let source_origin = self.graph.source_component_origin(
+                                    id,
+                                    &request.left_origin,
+                                    None,
+                                );
+                                for related in &mut error.related_spans {
+                                    if related.role == RelatedRole::ExpectedType {
+                                        related.span = source_origin.clone();
+                                    }
+                                }
+                            }
                             outcome = Err(error);
                         }
                         continue;
@@ -9106,22 +9149,13 @@ impl Checker<'_> {
                 let origin = if join.left_origin.start > join.found.start
                     && let Type::Deferred(id) = join.left
                 {
-                    entry_record
-                        .as_ref()
-                        .and_then(|record| record.read_context.components.get(&id))
-                        .and_then(|component| component.origin_fact.as_ref())
-                        .and_then(|fact| {
-                            fact.operand
-                                .as_ref()
-                                .or(fact.concrete.as_ref())
-                                .or(fact.array.as_ref())
-                                .or(fact.variant.as_ref())
-                        })
-                        .filter(|span| {
-                            join.left_origin.start <= span.start && span.end <= join.left_origin.end
-                        })
-                        .cloned()
-                        .unwrap_or_else(|| self.graph.first_component_origin(id, &join.left_origin))
+                    self.graph.source_component_origin(
+                        id,
+                        &join.left_origin,
+                        entry_record
+                            .as_ref()
+                            .map(|record| record.read_context.as_ref()),
+                    )
                 } else {
                     join.left_origin
                 };
@@ -14365,9 +14399,10 @@ impl Checker<'_> {
                         // first witness. Later elements retain
                         // independent equality sites (§4.1.2.4).
                         let operand_origin = if projected_reference {
-                            self.graph.first_component_origin(
+                            self.graph.source_component_origin(
                                 *id,
                                 item_origin.as_ref().unwrap_or(source_origin),
+                                None,
                             )
                         } else {
                             source_origin.clone()
@@ -22590,6 +22625,51 @@ mod quota_tests {
             ),
             Some(Type::I64)
         );
+    }
+
+    #[test]
+    fn c2_literal_comparison_uses_its_own_first_operand_after_prior_bindings() {
+        let cases = [
+            (
+                "fn Main(){let x=1;var s=[];var u=[];let a1=[(if false then s[0] else u)];let a2=[s[x],(if false then u else u),1];u=[true];}",
+                (111, 112),
+                (81, 85),
+            ),
+            (
+                "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[0],(if false then [s] else t)];u=[true];}",
+                (92, 93),
+                (71, 75),
+            ),
+            (
+                "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u)];let a1=[s[0],(if true then t[x] else u[1])];u=[1];}",
+                (119, 123),
+                (90, 94),
+            ),
+            (
+                "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],s[0]];let a2=[s[0],(if true then s else t[0])];u=[true];}",
+                (109, 110),
+                (90, 94),
+            ),
+        ];
+        for (source, primary, related) in cases {
+            let ast = parse::parse_new_profile("origin.n", source).unwrap();
+            let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+            let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+            assert_eq!(report.errors.len(), 1, "{source}: {:?}", report.errors);
+            let error = &report.errors[0];
+            assert_eq!(error.code, "NX-E0102");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            assert_eq!(error.primary_span.as_ref().map(span_key), Some(primary));
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .find(|span| span.role == RelatedRole::ExpectedType)
+                    .map(|span| span_key(&span.span)),
+                Some(related),
+                "{source}",
+            );
+        }
     }
 
     #[test]

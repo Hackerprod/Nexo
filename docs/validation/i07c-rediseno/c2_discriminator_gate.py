@@ -65,6 +65,22 @@ CASES = {
         "fn Main(){let x=1;var s=[];var t=[];let a0=[t[0],(if true then 1 else s[x]),s];t=[];}",
         [("NX-E0102", "type_mismatch", 76, 77)],
     ),
+    "literal_origin_after_prior_if": (
+        "fn Main(){let x=1;var s=[];var u=[];let a1=[(if false then s[0] else u)];let a2=[s[x],(if false then u else u),1];u=[true];}",
+        [("NX-E0102", "type_mismatch", 111, 112)],
+    ),
+    "literal_origin_after_nested_array": (
+        "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[0],(if false then [s] else t)];u=[true];}",
+        [("NX-E0102", "type_mismatch", 92, 93)],
+    ),
+    "literal_origin_after_if_projection": (
+        "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u)];let a1=[s[0],(if true then t[x] else u[1])];u=[1];}",
+        [("NX-E0102", "type_mismatch", 119, 123)],
+    ),
+    "literal_origin_after_two_literals": (
+        "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],s[0]];let a2=[s[0],(if true then s else t[0])];u=[true];}",
+        [("NX-E0102", "type_mismatch", 109, 110)],
+    ),
 }
 
 # The second literal in the middle case must select its own first operand.
@@ -72,6 +88,10 @@ EXPECTED_REL = {
     "first_literal_operand_after_completion": {0: (36, 40)},
     "first_operand_of_second_literal": {1: (45, 49)},
     "first_literal_operand_with_index_variable": {0: (44, 48)},
+    "literal_origin_after_prior_if": {0: (81, 85)},
+    "literal_origin_after_nested_array": {0: (71, 75)},
+    "literal_origin_after_if_projection": {0: (90, 94)},
+    "literal_origin_after_two_literals": {0: (90, 94)},
 }
 
 
