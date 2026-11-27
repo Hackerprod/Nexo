@@ -2754,6 +2754,16 @@ impl InferenceGraph {
         self.preseeded_children.remove(&id)
     }
 
+    fn insert_preseeded_child(&mut self, id: u64) -> bool {
+        if let Some(journal) = self.node_journals.last_mut() {
+            journal
+                .preseeded_before
+                .entry(id)
+                .or_insert_with(|| self.preseeded_children.contains(&id));
+        }
+        self.preseeded_children.insert(id)
+    }
+
     fn mark_constructor_conflict(&mut self, id: u64) {
         if let Some(journal) = self.node_journals.last_mut() {
             journal.failed_on_rejection.insert(id);
@@ -3133,8 +3143,15 @@ impl InferenceGraph {
     }
 
     fn clear_failed_constructors(&mut self) {
-        for node in self.type_nodes.values_mut() {
-            node.failed_constructor = false;
+        let failed: Vec<_> = self
+            .type_nodes
+            .iter()
+            .filter_map(|(id, node)| node.failed_constructor.then_some(*id))
+            .collect();
+        for id in failed {
+            self.type_node_mut(&id)
+                .expect("known inference node")
+                .failed_constructor = false;
         }
     }
 
@@ -4045,7 +4062,7 @@ impl Checker<'_> {
             );
             self.graph.type_node_mut(&current).unwrap().array_child = Some(child);
             self.graph.type_node_mut(&current).unwrap().array_origin = Some(origin);
-            self.graph.preseeded_children.insert(child);
+            self.graph.insert_preseeded_child(child);
             current = child;
         }
         if !self.planning
@@ -21286,6 +21303,44 @@ mod quota_tests {
                 .iter()
                 .any(|r| r.role == RelatedRole::ExpectedType && r.span == first)
         );
+    }
+
+    #[test]
+    fn nested_node_journal_restores_constructor_metadata_and_preseeded_child() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let parent = checker.new_variable(&site(1)).unwrap();
+        let child = checker.new_variable(&site(2)).unwrap();
+        checker.graph.begin_node_journal();
+        checker
+            .graph
+            .type_node_mut(&parent)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(child));
+        checker.graph.begin_node_journal();
+        checker
+            .graph
+            .type_node_mut(&parent)
+            .unwrap()
+            .copyable_origin = Some(site(3));
+        checker.graph.mark_failed_constructor(parent);
+        checker.graph.insert_preseeded_child(child);
+        checker.graph.finish_node_journal(true);
+        assert!(checker.graph.type_nodes[&parent].variant_children.is_some());
+        assert!(checker.graph.type_nodes[&parent].copyable_origin.is_some());
+        assert!(checker.graph.type_nodes[&parent].failed_constructor);
+        assert!(checker.graph.preseeded_children.contains(&child));
+        checker.graph.finish_node_journal(false);
+        let node = &checker.graph.type_nodes[&parent];
+        assert!(node.variant_children.is_none());
+        assert!(node.copyable_origin.is_none());
+        assert!(!node.failed_constructor);
+        assert!(!checker.graph.preseeded_children.contains(&child));
     }
 
     #[test]
