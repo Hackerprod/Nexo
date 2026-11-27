@@ -2719,6 +2719,9 @@ struct InferenceGraph {
     invalidated_read_contexts: HashSet<OccurrenceId>,
     // First planning visit owns the immutable prefix read by this occurrence.
     read_contexts: HashMap<OccurrenceId, std::sync::Arc<ReadContext>>,
+    // Expression sites carry the entry view into deferred joins. A projected
+    // leaf must not acquire a fact published after its operand was read.
+    read_context_sites: HashMap<(u64, u64), std::sync::Arc<ReadContext>>,
     active_equality: Option<EqualityId>,
     node_journals: Vec<NodeJournal>,
     active_facts: HashMap<FactId, VisitFact>,
@@ -5314,6 +5317,51 @@ impl Checker<'_> {
         (current.0 != *captured).then(|| captured.clone())
     }
 
+    fn read_context_at_site(&self, span: &Span) -> Option<std::sync::Arc<ReadContext>> {
+        self.graph
+            .read_context_sites
+            .get(&span_key(span))
+            .filter(|context| self.read_context_has_later_leaf(context))
+            .cloned()
+    }
+
+    fn read_context_has_later_leaf(&self, context: &ReadContext) -> bool {
+        context.components.iter().any(|(id, entry)| {
+            entry.concrete.is_none()
+                && self
+                    .graph
+                    .type_nodes
+                    .get(id)
+                    .is_some_and(|node| node.concrete.is_some())
+        })
+    }
+
+    fn entry_projection_leaf(&mut self, expression: &Expr) -> Option<u64> {
+        let context = self.read_context_at_site(expression.span())?;
+        let mut depth = 0;
+        let mut source = expression;
+        loop {
+            match source {
+                Expr::Group(inner, _) => source = inner,
+                Expr::Index { target, .. } => {
+                    depth += 1;
+                    source = target;
+                }
+                _ => break,
+            }
+        }
+        if depth == 0 {
+            return None;
+        }
+        let mut id = self.binding_variable_at_source(source)?;
+        for _ in 0..depth {
+            id = context.components.get(&id)?.array_element?;
+        }
+        self.resolved_join_side_in_context(Type::Deferred(id), Some(&context))
+            .is_none()
+            .then_some(id)
+    }
+
     fn require_array(&mut self, id: u64, origin: &Span) -> Result<u64, Box<Diagnostic>> {
         self.charge_solver(origin)?;
         let root = self.root(id);
@@ -6124,6 +6172,14 @@ impl Checker<'_> {
     }
 
     fn resolved_join_side(&mut self, ty: Type) -> Option<Type> {
+        self.resolved_join_side_in_context(ty, None)
+    }
+
+    fn resolved_join_side_in_context(
+        &mut self,
+        ty: Type,
+        context: Option<&ReadContext>,
+    ) -> Option<Type> {
         enum Frame {
             Enter(Type),
             Array,
@@ -6135,7 +6191,20 @@ impl Checker<'_> {
         while let Some(frame) = frames.pop() {
             match frame {
                 Frame::Enter(ty) => match ty {
-                    Type::Deferred(id) => values.push(self.concrete(id)?.0),
+                    Type::Deferred(id) => {
+                        if let Some(component) = context.and_then(|view| view.components.get(&id)) {
+                            if let Some(concrete) = &component.concrete {
+                                values.push(concrete.clone());
+                            } else if let Some(child) = component.array_element {
+                                frames.push(Frame::Array);
+                                frames.push(Frame::Enter(Type::Deferred(child)));
+                            } else {
+                                return None;
+                            }
+                        } else {
+                            values.push(self.concrete(id)?.0);
+                        }
+                    }
                     Type::Array(child) => {
                         frames.push(Frame::Array);
                         frames.push(Frame::Enter(child.as_ref().clone()));
@@ -13082,6 +13151,11 @@ impl Checker<'_> {
                                         .read_contexts
                                         .insert(occurrence, std::sync::Arc::new(context));
                                 }
+                                if let Some(context) = self.graph.read_contexts.get(&occurrence) {
+                                    self.graph
+                                        .read_context_sites
+                                        .insert(span_key(span), std::sync::Arc::clone(context));
+                                }
                             }
                             if !self.planning
                                 && let Some(ty) =
@@ -13439,6 +13513,17 @@ impl Checker<'_> {
                 unreachable!("binary right operand is prepared by driver")
             }
             Expr::Index { target, index, .. } => {
+                if self.planning
+                    && let Some(context) = self
+                        .graph
+                        .read_context_sites
+                        .get(&span_key(target.span()))
+                        .cloned()
+                {
+                    self.graph
+                        .read_context_sites
+                        .insert(span_key(e.span()), context);
+                }
                 let IndexPrepared {
                     target: base,
                     selector: mut precomputed_selector,
@@ -13829,6 +13914,21 @@ impl Checker<'_> {
             *invalid = true;
             return Ok(());
         }
+        // The first array element supplies an expectation for its siblings.
+        // Keep a projected leaf provisional when its concrete fact was
+        // published after that element's entry epoch; final obligations may
+        // still complete it without rewriting the earlier expectation.
+        let got = if !self.planning
+            && items.get(*next + 1).is_some_and(Self::is_value_if)
+            && let Some(id) = self.entry_projection_leaf(item)
+        {
+            self.graph.expr_vars.insert(span_key(item.span()), id);
+            self.graph
+                .mark(span_key(item.span()), OccurrenceFlag::Deferred);
+            Type::Deferred(id)
+        } else {
+            got
+        };
         if self
             .graph
             .has(&span_key(item.span()), OccurrenceFlag::PendingDomain)
@@ -16515,6 +16615,7 @@ pub(crate) fn check_with_partial_limit(
             dependency_watchers: HashMap::new(),
             invalidated_read_contexts: HashSet::new(),
             read_contexts: HashMap::new(),
+            read_context_sites: HashMap::new(),
             active_equality: None,
             node_journals: Vec::new(),
             active_facts: HashMap::new(),
@@ -16563,6 +16664,7 @@ pub(crate) fn check_with_partial_limit(
         checker.current_passes = 0;
         checker.current_planning_calls = 0;
         checker.graph.read_contexts.clear();
+        checker.graph.read_context_sites.clear();
         checker.planning = true;
         for _ in 0..=128 {
             checker.analysis_exhausted = false;
@@ -18127,6 +18229,7 @@ mod quota_tests {
                 dependency_watchers: HashMap::new(),
                 invalidated_read_contexts: HashSet::new(),
                 read_contexts: HashMap::new(),
+                read_context_sites: HashMap::new(),
                 active_equality: None,
                 node_journals: Vec::new(),
                 active_facts: HashMap::new(),
@@ -22084,6 +22187,42 @@ mod quota_tests {
             Some(Type::Bool)
         );
         assert_eq!(checker.graph.type_nodes[&committed].parent, committed);
+    }
+
+    #[test]
+    fn c2_deferred_operand_leaf_uses_its_entry_epoch() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let early = checker.new_variable(&site(1)).unwrap();
+        let early_child = checker.require_array(early, &site(2)).unwrap();
+        let early_view =
+            checker
+                .graph
+                .capture_read_context(EqualityId(1), &Type::Deferred(early), &Type::Unit);
+        checker.graph.type_node_mut(&early_child).unwrap().concrete = Some((Type::I64, site(3)));
+        assert_eq!(
+            checker.resolved_join_side_in_context(Type::Deferred(early_child), Some(&early_view)),
+            None
+        );
+        assert_eq!(
+            checker.resolved_join_side(Type::Deferred(early_child)),
+            Some(Type::I64)
+        );
+
+        let committed_view =
+            checker
+                .graph
+                .capture_read_context(EqualityId(2), &Type::Deferred(early), &Type::Unit);
+        assert_eq!(
+            checker
+                .resolved_join_side_in_context(Type::Deferred(early_child), Some(&committed_view)),
+            Some(Type::I64)
+        );
     }
 
     #[test]
