@@ -5429,6 +5429,69 @@ impl Checker<'_> {
             .then_some(id)
     }
 
+    fn value_if_reuses_leaf(&mut self, expression: &Expr, leaf: u64) -> bool {
+        let mut pending = vec![expression];
+        while let Some(current) = pending.pop() {
+            match current {
+                Expr::Index { target, index, .. } => {
+                    if self.entry_projection_leaf(current) == Some(leaf) {
+                        return true;
+                    }
+                    pending.extend([target.as_ref(), index.as_ref()]);
+                }
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    pending.push(condition);
+                    if let Some(value) = branch_value_expr(then_block) {
+                        pending.push(value);
+                    }
+                    match otherwise.as_deref() {
+                        Some(Else::Block(block)) => {
+                            if let Some(value) = branch_value_expr(block) {
+                                pending.push(value);
+                            }
+                        }
+                        Some(Else::If(value)) => pending.push(value),
+                        None => {}
+                    }
+                }
+                Expr::Array(items, _) => pending.extend(items),
+                Expr::Group(inner, _)
+                | Expr::Unary { value: inner, .. }
+                | Expr::Neg { value: inner, .. }
+                | Expr::Not { value: inner, .. } => pending.push(inner),
+                Expr::Binary { left, right, .. } => {
+                    pending.extend([left.as_ref(), right.as_ref()]);
+                }
+                Expr::Call { target, args, .. } => {
+                    pending.push(target);
+                    pending.extend(args.iter().map(|arg| &arg.value));
+                }
+                Expr::Match(selection) => {
+                    pending.push(&selection.scrutinee);
+                    for arm in &selection.arms {
+                        if let Some(guard) = &arm.guard {
+                            pending.push(guard);
+                        }
+                        if let Some(value) = branch_value_expr(&arm.body) {
+                            pending.push(value);
+                        }
+                    }
+                }
+                Expr::Closure(_)
+                | Expr::Name(..)
+                | Expr::Integer(..)
+                | Expr::Bool(..)
+                | Expr::Unit(..) => {}
+            }
+        }
+        false
+    }
+
     fn require_array(&mut self, id: u64, origin: &Span) -> Result<u64, Box<Diagnostic>> {
         self.charge_solver(origin)?;
         let root = self.root(id);
@@ -13996,6 +14059,7 @@ impl Checker<'_> {
         let got = if !self.planning
             && items.get(*next + 1).is_some_and(Self::is_value_if)
             && let Some(id) = self.entry_projection_leaf(item)
+            && !self.value_if_reuses_leaf(&items[*next + 1], id)
         {
             self.graph.expr_vars.insert(span_key(item.span()), id);
             self.graph
