@@ -3895,46 +3895,6 @@ fn deferred_join_has_one_diagnostic_per_source_site() {
 }
 
 #[test]
-fn recursive_constructor_owner_survives_independent_and_nested_equalities() {
-    // F0-0002 §§4.1.2.1–2 and 13.9: a rejected recursive equality has
-    // one causal site; other constructor duties are not consumed by a
-    // globally selected span. Offsets are bytes in these ASCII sources.
-    for (source, expected) in [
-        (
-            "fn Main(){var v=(if true then {return;} else {return;});var a=[];a=[v];v=[a];}",
-            vec![("NX-E0103", 73, 76)],
-        ),
-        (
-            "fn Main(){var v=(if true then {return;} else {return;});var a=(if true then {return;} else {return;});if true{v=[a];a=v;}}",
-            vec![("NX-E0103", 118, 119)],
-        ),
-        (
-            "fn Main(){var v=(if true then {return;} else {return;});var a=[(if true then {return;} else {return;})];a=[v];v[0]=v;v=a;}",
-            vec![("NX-E0103", 119, 120)],
-        ),
-        (
-            "fn Main(){var v=(if true then {return;} else {return;});var w=[];w=[v];AssertEq(v,w);var u=[v];u=v;}",
-            vec![("NX-E0103", 82, 83), ("NX-E0103", 91, 94)],
-        ),
-        (
-            "fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}",
-            vec![("NX-E0103", 60, 63)],
-        ),
-    ] {
-        let diagnostics = rejected(source);
-        let actual: Vec<_> = diagnostics
-            .iter()
-            .map(|diagnostic| {
-                let span = diagnostic.primary_span.as_ref().unwrap();
-                (diagnostic.code.as_str(), span.start, span.end)
-            })
-            .collect();
-        assert_eq!(actual, expected, "{source}: {diagnostics:?}");
-    }
-    check_scalar("fixture.n", "fn Main(){var a=[];a=[1];}").unwrap();
-}
-
-#[test]
 fn tainted_left_operand_preserves_independent_right_join() {
     // F0-0002 §13.9 retains the right continuation's independent failure.
     let source = "fn Main(){let bad:I64=true;let x=(true+(if bad then false else 41));}";

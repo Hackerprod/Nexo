@@ -5475,7 +5475,12 @@ impl Checker<'_> {
         )
     }
 
-    fn recursive_path_origin(&self, start: u64, target: u64) -> Option<(Span, usize)> {
+    fn recursive_path_origin(
+        &self,
+        start: u64,
+        target: u64,
+        before_statement: u64,
+    ) -> Option<(Span, usize)> {
         let root = |mut id| {
             while self.graph.type_nodes[&id].parent != id {
                 id = self.graph.type_nodes[&id].parent;
@@ -5492,7 +5497,9 @@ impl Checker<'_> {
                     array,
                     span,
                     has_element_witness,
-                } => Some((*child, *array, span, *has_element_witness)),
+                } if span.end <= before_statement => {
+                    Some((*child, *array, span, *has_element_witness))
+                }
                 _ => None,
             })
             .collect();
@@ -5537,16 +5544,15 @@ impl Checker<'_> {
     }
 
     fn recursive_equality_diagnostic(&self, left: u64, right: u64, found: Span) -> Box<Diagnostic> {
-        // A prior constructor owns the diagnostic only when it is the sole
-        // constructor duty on the causal path. With several duties, the
-        // equality that discovers the cycle owns its own conflict; choosing
-        // a global constructor span would consume another duty's evidence.
+        // Only constructor duties published before this statement can own
+        // an earlier E0103. The current RHS may itself contain a constructor;
+        // it belongs to this equality and cannot disqualify an independent
+        // prior duty. With several prior duties on the path, the equality
+        // that discovers the cycle owns its own conflict.
         let origin = self
-            .recursive_path_origin(left, right)
-            .or_else(|| self.recursive_path_origin(right, left))
-            .filter(|(span, count)| {
-                *count == 1 && span.end <= self.top_statement_start && self.active_if_span.is_none()
-            })
+            .recursive_path_origin(left, right, self.top_statement_start)
+            .or_else(|| self.recursive_path_origin(right, left, self.top_statement_start))
+            .filter(|(_, count)| *count == 1 && self.active_if_span.is_none())
             .map_or(found, |(span, _)| span);
         names::diagnostic(
             "NX-E0103",
