@@ -1083,6 +1083,12 @@ struct ReadComponent {
     concrete: Option<Type>,
     array_child: bool,
     variant_children: bool,
+    array_element: Option<u64>,
+    union: Option<UnionDescriptor<u64>>,
+    array_origin: Option<Span>,
+    variant_origin: Option<Span>,
+    concrete_origin: Option<Span>,
+    copyable_origin: Option<Span>,
 }
 
 #[derive(Clone, Debug)]
@@ -2684,6 +2690,7 @@ struct InferenceGraph {
     equality_records: Vec<EqualityRecord>,
     // First planning visit owns the immutable prefix read by this occurrence.
     read_contexts: HashMap<OccurrenceId, std::sync::Arc<ReadContext>>,
+    read_views: HashMap<OccurrenceId, u64>,
     active_equality: Option<EqualityId>,
     node_journals: Vec<NodeJournal>,
     active_facts: HashMap<FactId, VisitFact>,
@@ -2765,6 +2772,12 @@ impl InferenceGraph {
                     concrete: node.concrete.as_ref().map(|(ty, _)| ty.clone()),
                     array_child: node.array_child.is_some(),
                     variant_children: node.variant_children.is_some(),
+                    array_element: node.array_child,
+                    union: node.variant_children,
+                    array_origin: node.array_origin.clone(),
+                    variant_origin: node.variant_origin.clone(),
+                    concrete_origin: node.concrete.as_ref().map(|(_, span)| span.clone()),
+                    copyable_origin: node.copyable_origin.clone(),
                 },
             );
             if let Some(child) = node.array_child {
@@ -5115,6 +5128,76 @@ impl Checker<'_> {
             },
         );
         Ok(id)
+    }
+
+    // Replay a source read from its first planning epoch. The view contains
+    // only facts captured for its components; it never copies a TypeNode or
+    // follows a parent installed by a later equality.
+    fn read_view_for(&mut self, occurrence: OccurrenceId, source: u64) -> Option<u64> {
+        if let Some(view) = self.graph.read_views.get(&occurrence) {
+            return Some(*view);
+        }
+        let context = self.graph.read_contexts.get(&occurrence)?.clone();
+        let source_root = context.components.get(&source)?.root;
+        let mut roots: Vec<u64> = context.components.values().map(|item| item.root).collect();
+        roots.sort_unstable();
+        roots.dedup();
+        let mut translation = HashMap::new();
+        for root in &roots {
+            let new = self.graph.next_variable;
+            self.graph.next_variable = new.checked_add(1).expect("read view id exhausted");
+            translation.insert(*root, new);
+        }
+        for root in roots {
+            let component = context.components.values().find(|item| item.root == root)?;
+            let new = translation[&root];
+            let array_child = component.array_element.and_then(|child| {
+                context
+                    .components
+                    .get(&child)
+                    .and_then(|item| translation.get(&item.root))
+                    .copied()
+            });
+            let mut variant_children = component.union;
+            if let Some(union) = &mut variant_children {
+                for variant in &mut union.variants {
+                    variant.payload = variant.payload.and_then(|child| {
+                        context
+                            .components
+                            .get(&child)
+                            .and_then(|item| translation.get(&item.root))
+                            .copied()
+                    });
+                }
+            }
+            self.graph.insert_type_node(
+                new,
+                TypeNode {
+                    parent: new,
+                    size: 1,
+                    concrete: component
+                        .concrete
+                        .clone()
+                        .zip(component.concrete_origin.clone()),
+                    concrete_intrinsic: false,
+                    array_child,
+                    array_origin: component.array_origin.clone(),
+                    array_constructed: false,
+                    variant_children,
+                    variant_origin: component.variant_origin.clone(),
+                    variant_constructed: false,
+                    bottom_only: false,
+                    failed_constructor: false,
+                    deferred_join: false,
+                    recursive_join: false,
+                    branch_join_scopes: Vec::new(),
+                    copyable_origin: component.copyable_origin.clone(),
+                },
+            );
+        }
+        let view = translation[&source_root];
+        self.graph.read_views.insert(occurrence, view);
+        Some(view)
     }
 
     fn require_array(&mut self, id: u64, origin: &Span) -> Result<u64, Box<Diagnostic>> {
@@ -8375,6 +8458,7 @@ impl Checker<'_> {
         // allocated IDs would overwrite the reachable prefix; stale higher
         // IDs are unreachable. Clearing avoids retaining that stale suffix.
         self.graph.type_nodes.clear();
+        self.graph.read_views.clear();
         // Retaining entries across functions would be semantically equivalent:
         // each entry owns both Arc operands, so no pointer key can be reused.
         // Clear here to release each function's cached trees promptly instead
@@ -12884,6 +12968,25 @@ impl Checker<'_> {
                                         .insert(occurrence, std::sync::Arc::new(context));
                                 }
                             }
+                            if !self.planning
+                                && let Some(context) =
+                                    self.graph.read_contexts.get(&self.frame_occurrence_id(e))
+                                && context.components.get(&id).is_some_and(|entry| {
+                                    entry.concrete.as_ref().is_some_and(|captured| {
+                                        self.graph
+                                            .type_nodes
+                                            .get(&entry.root)
+                                            .and_then(|current| current.concrete.as_ref())
+                                            .is_some_and(|(now, _)| now != captured)
+                                    })
+                                })
+                                && let Some(view) =
+                                    self.read_view_for(self.frame_occurrence_id(e), id)
+                            {
+                                self.graph.mark(span_key(span), OccurrenceFlag::Deferred);
+                                self.graph.expr_vars.insert(span_key(span), view);
+                                return Ok(Type::Deferred(view));
+                            }
                             if let Some((ty, _)) = self.concrete(id) {
                                 return Ok(ty);
                             }
@@ -16306,6 +16409,7 @@ pub(crate) fn check_with_partial_limit(
             equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
             equality_records: Vec::new(),
             read_contexts: HashMap::new(),
+            read_views: HashMap::new(),
             active_equality: None,
             node_journals: Vec::new(),
             active_facts: HashMap::new(),
@@ -17914,6 +18018,7 @@ mod quota_tests {
                 equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
                 equality_records: Vec::new(),
                 read_contexts: HashMap::new(),
+                read_views: HashMap::new(),
                 active_equality: None,
                 node_journals: Vec::new(),
                 active_facts: HashMap::new(),
@@ -21680,6 +21785,67 @@ mod quota_tests {
             &first,
             &checker.graph.read_contexts[&occurrence]
         ));
+    }
+
+    #[test]
+    fn c2_read_replay_uses_entry_component_facts() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        let occurrence = OccurrenceId {
+            function_ordinal: 0,
+            preorder: 1,
+            role: OccurrenceRole::Expression,
+            local_index: 0,
+        };
+        let context =
+            checker
+                .graph
+                .capture_read_context(EqualityId(1), &Type::Deferred(root), &Type::Unit);
+        checker
+            .graph
+            .read_contexts
+            .insert(occurrence, std::sync::Arc::new(context));
+        checker.graph.type_node_mut(&child).unwrap().concrete = Some((Type::I64, site(3)));
+        let view = checker.read_view_for(occurrence, root).unwrap();
+        assert_ne!(view, root);
+        assert_eq!(
+            checker.concrete(root).map(|(ty, _)| ty),
+            Some(Type::Array(Arc::new(Type::I64)))
+        );
+        assert_eq!(checker.concrete(view), None);
+        assert_eq!(checker.read_view_for(occurrence, root), Some(view));
+
+        let committed = checker.new_variable(&site(4)).unwrap();
+        checker.graph.type_node_mut(&committed).unwrap().concrete = Some((Type::I64, site(4)));
+        let committed_occurrence = OccurrenceId {
+            preorder: 2,
+            ..occurrence
+        };
+        let context = checker.graph.capture_read_context(
+            EqualityId(2),
+            &Type::Deferred(committed),
+            &Type::Unit,
+        );
+        checker
+            .graph
+            .read_contexts
+            .insert(committed_occurrence, std::sync::Arc::new(context));
+        checker.graph.type_node_mut(&committed).unwrap().concrete = Some((Type::Bool, site(5)));
+        let view = checker
+            .read_view_for(committed_occurrence, committed)
+            .unwrap();
+        assert_eq!(checker.concrete(view).map(|(ty, _)| ty), Some(Type::I64));
+        assert_eq!(
+            checker.concrete(committed).map(|(ty, _)| ty),
+            Some(Type::Bool)
+        );
     }
 
     #[test]
