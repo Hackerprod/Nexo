@@ -6399,13 +6399,13 @@ impl Checker<'_> {
                             } else if let Some(child) = component.array_element {
                                 frames.push(Frame::Array);
                                 frames.push(Frame::Enter(Type::Deferred(child)));
-                            } else if let Some(ty) = completion
-                                .filter(|completion| !completion.compatible_later_edges.is_empty())
-                                .and_then(|completion| completion.solutions.get(&id))
-                            {
-                                values.push(ty.clone());
                             } else {
-                                return None;
+                                let ty = completion
+                                    .filter(|completion| {
+                                        !completion.compatible_later_edges.is_empty()
+                                    })
+                                    .and_then(|completion| completion.solutions.get(&id))?;
+                                values.push(ty.clone());
                             }
                         } else {
                             values.push(self.concrete(id)?.0);
