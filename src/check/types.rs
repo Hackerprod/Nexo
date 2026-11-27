@@ -15601,18 +15601,21 @@ impl Checker<'_> {
                         BranchAction::Done(second, failed, anchored) => {
                             if let Some(Else::Block(block)) = progress.otherwise
                                 && progress.branch_context.expected.is_none()
-                                && progress.anchor_error.is_none()
                                 && !failed
                                 && !anchored
-                                && let (Some((base, base_span)), Some(found)) =
-                                    (progress.anchor.as_ref(), second.as_ref())
+                                && let Some((base, base_span)) = progress.anchor.as_ref()
+                                && let Some(found) = second.clone().or_else(|| {
+                                    branch_value_expr(block)
+                                        .and_then(|expr| self.expression_variable(expr))
+                                        .map(Type::Deferred)
+                                })
                             {
                                 let found_span =
                                     branch_value_span(block).unwrap_or_else(|| block.span.clone());
                                 match self.unify(
                                     *visit,
                                     base.clone(),
-                                    found.clone(),
+                                    found,
                                     base_span.clone(),
                                     found_span.clone(),
                                     found_span,
@@ -15621,7 +15624,15 @@ impl Checker<'_> {
                                     Err(error) if error.operation == Operation::AnalysisLimit => {
                                         return IfAction::Done(Err(error));
                                     }
-                                    Err(error) => progress.anchor_error = Some(error),
+                                    Err(error) => {
+                                        // A preceding branch already owns this union's
+                                        // one diagnostic. Still test later valid branches:
+                                        // compatible equalities must remain available to
+                                        // subsequent source occurrences (§4.1.2.4).
+                                        if progress.anchor_error.is_none() {
+                                            progress.anchor_error = Some(error);
+                                        }
+                                    }
                                     Ok(_) => {}
                                 }
                             }
@@ -22670,6 +22681,31 @@ mod quota_tests {
                 "{source}",
             );
         }
+    }
+
+    #[test]
+    fn c2_later_union_branch_retains_compatible_deferred_equality() {
+        let source = "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[u[0],t[1]];let a1=[s[0],(if false then t[1] else (if true then u else s[0])),true];let a2=[t[1],(if false then s[0] else u)];u=[true];}";
+        let ast = parse::parse_new_profile("union.n", source).unwrap();
+        let resolved = names::resolve_with_option("union.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("union.n", source, &ast, &resolved, 1_000_000);
+        assert_eq!(report.errors.len(), 2, "{:?}", report.errors);
+        for (error, (code, primary, related)) in report.errors.iter().zip([
+            ("NX-E1303", (116, 117), (92, 96)),
+            ("NX-E0102", (174, 175), (144, 148)),
+        ]) {
+            assert_eq!(error.code, code);
+            assert_eq!(error.primary_span.as_ref().map(span_key), Some(primary));
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .find(|span| span.role == RelatedRole::ExpectedType)
+                    .map(|span| span_key(&span.span)),
+                Some(related),
+            );
+        }
+        assert_eq!(report.errors[1].subcause.as_deref(), Some("type_mismatch"));
     }
 
     #[test]

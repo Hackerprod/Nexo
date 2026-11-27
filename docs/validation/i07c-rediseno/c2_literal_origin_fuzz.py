@@ -122,7 +122,7 @@ def main():
         for reason in flags:
             if label is None:
                 counts["error_or_hang"] += 1
-            else:
+            elif reason != label:
                 counts[reason] += 1
             hard.append({"seed": seed, "source": program, "reason": reason,
                          "main": m, "candidate": c})

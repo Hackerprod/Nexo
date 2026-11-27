@@ -81,6 +81,11 @@ CASES = {
         "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],s[0]];let a2=[s[0],(if true then s else t[0])];u=[true];}",
         [("NX-E0102", "type_mismatch", 109, 110)],
     ),
+    "later_union_branch_preserves_deferred_equality": (
+        "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[u[0],t[1]];let a1=[s[0],(if false then t[1] else (if true then u else s[0])),true];let a2=[t[1],(if false then s[0] else u)];u=[true];}",
+        [("NX-E1303", None, 116, 117),
+         ("NX-E0102", "type_mismatch", 174, 175)],
+    ),
 }
 
 # The second literal in the middle case must select its own first operand.
@@ -92,6 +97,7 @@ EXPECTED_REL = {
     "literal_origin_after_nested_array": {0: (71, 75)},
     "literal_origin_after_if_projection": {0: (90, 94)},
     "literal_origin_after_two_literals": {0: (90, 94)},
+    "later_union_branch_preserves_deferred_equality": {0: (92, 96), 1: (144, 148)},
 }
 
 
