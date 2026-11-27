@@ -288,9 +288,17 @@ for relative, field in (
         check=True, capture_output=True, text=True,
     ).stdout.strip()
     assert blob == c2[field], relative
-assert hashlib.sha256((HERE / "c2-span-key-usos.json").read_bytes()).hexdigest() == c2["span_inventory_sha256"]
+span_inventory = (HERE / "c2-span-key-usos.json").read_bytes().replace(b"\r\n", b"\n")
+assert hashlib.sha256(span_inventory).hexdigest() == c2["span_inventory_sha256"]
 for name, expected_sha in c2["report_sha256"].items():
-    assert hashlib.sha256((HERE / name).read_bytes()).hexdigest() == expected_sha, name
+    relative = f"docs/validation/i07c-rediseno/{name}"
+    blob = subprocess.run(
+        ["git", "show", f"HEAD:{relative}"], cwd=HERE.parents[2],
+        check=True, capture_output=True,
+    ).stdout
+    assert hashlib.sha256(blob).hexdigest() == expected_sha, name
+    worktree = (HERE / name).read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(worktree).hexdigest() == expected_sha, name
 
 c2_corpus = data("c2-ref-corpus-v15c.json")
 assert c2_corpus["complete"] and c2_corpus["commit"] == "C2" and not c2_corpus["failures"]
