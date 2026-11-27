@@ -1,0 +1,705 @@
+{
+  "schema": "i07c-c2-discriminators-v1",
+  "complete": true,
+  "candidate_sha256": "82d178d7816dd808b9985366a73c4f1ed8ca0eeb617d6ca70bc6cad8821c17b7",
+  "script_sha256": "e7f8b850396e578d7652daae0e86b3277772ef4e423f8296a546e914c6396a14",
+  "cases": {
+    "f0-0002-b-v2:resource_without_later_shape": {
+      "source_sha256": "731eaf6dcbe7eeb5a8eaca12298b46bfa2a3b681ce6cef51bf01772d71e7225e",
+      "expected": [],
+      "observed": {
+        "check": {
+          "outcome": "checked",
+          "diagnostics": []
+        },
+        "run": {
+          "outcome": "unit",
+          "diagnostics": []
+        }
+      }
+    },
+    "f0-0002-b-v2:resource_rejected_array": {
+      "source_sha256": "8a8705d11658267ef7e8812e323ddf04ef5e6f3fc5d252916af1a17c04f52cf4",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          72,
+          74
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              72,
+              74
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              72,
+              74
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0002-b-v2:resource_scalar_completion": {
+      "source_sha256": "4086a57bdccd343779fa022c7f72270d2893685bcfb0373a3334b26a92f53820",
+      "expected": [
+        [
+          "NX-E0102",
+          "not_indexable",
+          53,
+          54
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "not_indexable",
+              53,
+              54
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "not_indexable",
+              53,
+              54
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0002-b-v2:repeated_recursive_array": {
+      "source_sha256": "7bc5e207fc79221c1d7e778c9ccab2dc4de6edb2ec451688cb79ed7ebd3e0581",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          16,
+          18
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0002-b-v2:ok_cycle": {
+      "source_sha256": "58383c6dd9bd514685891a93c5ed2596eafa7ce7c0a2f22df2a2189878a8adc6",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          98,
+          101
+        ],
+        [
+          "NX-E0113",
+          null,
+          104,
+          109
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              98,
+              101
+            ],
+            [
+              "NX-E0113",
+              null,
+              104,
+              109
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              98,
+              101
+            ],
+            [
+              "NX-E0113",
+              null,
+              104,
+              109
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0002-b-v2:repeated_rejected_equality": {
+      "source_sha256": "1d2e2460059e2fc7c49c4c8fbbf0991b5c78baf7176fcc197701fb132303f6e2",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          83
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0002-b-v2:deferred_operand_origin_before_assignment": {
+      "source_sha256": "7c521f1e11a534733c0003967d367ac08f11b513b57ac19d9895c92c330db10e",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          53
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              32,
+              53
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              32,
+              53
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0002-b-v2:failed_nested_if_no_retroactive_index": {
+      "source_sha256": "3b8ac71814b39a059b95a25434e0be498e13309b8ce351cb09547155f8c0f236",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          81
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:resource_without_later_shape": {
+      "source_sha256": "731eaf6dcbe7eeb5a8eaca12298b46bfa2a3b681ce6cef51bf01772d71e7225e",
+      "expected": [],
+      "observed": {
+        "check": {
+          "outcome": "checked",
+          "diagnostics": []
+        },
+        "run": {
+          "outcome": "unit",
+          "diagnostics": []
+        }
+      }
+    },
+    "f0-0003-b-v1:resource_rejected_array": {
+      "source_sha256": "8a8705d11658267ef7e8812e323ddf04ef5e6f3fc5d252916af1a17c04f52cf4",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          72,
+          74
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              72,
+              74
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              72,
+              74
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:resource_scalar_completion": {
+      "source_sha256": "4086a57bdccd343779fa022c7f72270d2893685bcfb0373a3334b26a92f53820",
+      "expected": [
+        [
+          "NX-E0102",
+          "not_indexable",
+          53,
+          54
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "not_indexable",
+              53,
+              54
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "not_indexable",
+              53,
+              54
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:repeated_recursive_array": {
+      "source_sha256": "7bc5e207fc79221c1d7e778c9ccab2dc4de6edb2ec451688cb79ed7ebd3e0581",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          16,
+          18
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              16,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:some_cycle": {
+      "source_sha256": "f795baaa5c1d831e6dbc878ea685f078952420be383925b2fa456a2e3a715b0e",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          98,
+          101
+        ],
+        [
+          "NX-E0113",
+          null,
+          104,
+          111
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              98,
+              101
+            ],
+            [
+              "NX-E0113",
+              null,
+              104,
+              111
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              98,
+              101
+            ],
+            [
+              "NX-E0113",
+              null,
+              104,
+              111
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:ok_cycle": {
+      "source_sha256": "58383c6dd9bd514685891a93c5ed2596eafa7ce7c0a2f22df2a2189878a8adc6",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          98,
+          101
+        ],
+        [
+          "NX-E0113",
+          null,
+          104,
+          109
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              98,
+              101
+            ],
+            [
+              "NX-E0113",
+              null,
+              104,
+              109
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              98,
+              101
+            ],
+            [
+              "NX-E0113",
+              null,
+              104,
+              109
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:repeated_rejected_equality": {
+      "source_sha256": "1d2e2460059e2fc7c49c4c8fbbf0991b5c78baf7176fcc197701fb132303f6e2",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          83
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              76,
+              77
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              83
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:rejected_shape_keeps_union_kind": {
+      "source_sha256": "649effdaa148e0a2617a5cac43c878af8b4500b73e62869cde929c95aa58f829",
+      "expected": [
+        [
+          "NX-E0103",
+          null,
+          72,
+          79
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          84
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              72,
+              79
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              84
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              72,
+              79
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              82,
+              84
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:deferred_operand_origin_before_assignment": {
+      "source_sha256": "7c521f1e11a534733c0003967d367ac08f11b513b57ac19d9895c92c330db10e",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          53
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              32,
+              53
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              32,
+              53
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:failed_nested_if_no_retroactive_index": {
+      "source_sha256": "3b8ac71814b39a059b95a25434e0be498e13309b8ce351cb09547155f8c0f236",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          81
+        ]
+      ],
+      "observed": {
+        "check": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ]
+          ]
+        },
+        "run": {
+          "outcome": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "failures": []
+}

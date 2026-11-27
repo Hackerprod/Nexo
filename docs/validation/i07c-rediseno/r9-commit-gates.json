@@ -14,13 +14,13 @@
     "X_06_operand_equiv": "C3",
     "X_07_three_levels_equiv": "C3",
     "X_08_outer_condition_equiv": "C3",
-    "SB_equivalent": "C3",
+    "SB_equivalent": "C4",
     "T5_constructor_equivalent": "C4",
     "S_A_independent_constructor_equiv": "C4",
     "recursive_69": "C1",
     "recursive_78_equivalent": "C1",
     "recursive_127_equivalent": "C1",
-    "atomic_78": "C3",
+    "atomic_78": "C4",
     "completion_conflict": "C5",
     "completion_unresolved": "C4",
     "suspended_68": "C5",
@@ -42,7 +42,7 @@
     "RS3_partial_in_array": "C3",
     "CD1_independent_constructor": "C4",
     "CD2_independent_error_and_duties": "C4",
-    "W2_no_retroactive_context": "C3",
+    "W2_no_retroactive_context": "C4",
     "B3_01": "C5",
     "B3_02": "C5",
     "B3_03": "C5",
@@ -103,15 +103,15 @@
     "Y_conc_if": "C5",
     "Y_pend_if_asg": "C5",
     "W0nounion": "C3",
-    "W0": "C3",
+    "W0": "C4",
     "A": "C5",
     "A_reord": "C5",
     "A_ctrl": "C5",
     "A_noasg": "C5",
     "B_qr": "C5",
     "B_rq": "C5",
-    "F06": "C3",
-    "M2": "C3",
+    "F06": "C4",
+    "M2": "C4",
     "O01": "C4",
     "O03": "C4",
     "O07": "C4",
@@ -121,7 +121,7 @@
     "DREF_valid": "C5",
     "P1": "C5",
     "c3": "C5",
-    "w1": "C3",
+    "w1": "C4",
     "P2": "C5",
     "P3": "C5",
     "w3": "C5"
@@ -242,11 +242,9 @@
         "RS1_condition_contaminated",
         "RS2_independent_child_errors",
         "RS3_partial_in_array",
-        "SB_equivalent",
         "ST1_equivalent",
         "W1_atomic_compound",
         "W1a_without_later_assignment",
-        "W2_no_retroactive_context",
         "X_02",
         "X_03_array_annotation_equiv",
         "X_04_argument_equiv",
@@ -254,7 +252,6 @@
         "X_06_operand_equiv",
         "X_07_three_levels_equiv",
         "X_08_outer_condition_equiv",
-        "atomic_78",
         "join_record",
         "planned",
         "recursive_127_equivalent",
@@ -262,15 +259,11 @@
         "recursive_78_equivalent"
       ],
       "matrix45_normative_ids": [
-        "F06",
-        "M2",
         "R1",
         "R1twin",
         "R2",
         "R3",
-        "W0",
-        "W0nounion",
-        "w1"
+        "W0nounion"
       ],
       "frozen13_normative_ids": [
         "M2_partial_witness_chain",
@@ -1187,11 +1180,9 @@
         "RS1_condition_contaminated",
         "RS2_independent_child_errors",
         "RS3_partial_in_array",
-        "SB_equivalent",
         "ST1_equivalent",
         "W1_atomic_compound",
         "W1a_without_later_assignment",
-        "W2_no_retroactive_context",
         "X_02",
         "X_03_array_annotation_equiv",
         "X_04_argument_equiv",
@@ -1199,7 +1190,6 @@
         "X_06_operand_equiv",
         "X_07_three_levels_equiv",
         "X_08_outer_condition_equiv",
-        "atomic_78",
         "join_record",
         "planned",
         "recursive_127_equivalent",
@@ -1207,15 +1197,11 @@
         "recursive_78_equivalent"
       ],
       "matrix45": [
-        "F06",
-        "M2",
         "R1",
         "R1twin",
         "R2",
         "R3",
-        "W0",
-        "W0nounion",
-        "w1"
+        "W0nounion"
       ],
       "frozen13": [
         "M2_partial_witness_chain",
@@ -2748,52 +2734,89 @@
     "docs/validation/i07c-rediseno/r14-main-baseline.json": "bc641bcd991844dddc9368e9a2f8230cc13259a8b8a4d815a7183ed9090f6f05"
   },
   "frozen_v11_commit": "fcf62d5e43c6a29981abe478dd039db51b3cb524",
-  "c2_reference_commit": "580781f44eafdf6ed2ebb34d372e163ccfa4c474",
+  "c2_reference_commit": "184f2d5568fe52badbec20f8a9a2841566999931",
   "c2_reference_evidence": {
     "base_commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
-    "tree": "dea73289302c43ff7bd9f1f45c2e527c2cae38e1",
-    "types_blob": "5633d899e2c506ce6132e8a856591e6dbeda9fab",
-    "span_audit_blob": "5fa33bb356e27f766551e662fe8e3e0317b2b705",
-    "span_inventory_blob": "7838f85a56315997a1ff25f955f5df00d84b65a6",
-    "span_inventory_sha256": "f9b9ed1c750cc7029319c3f0b3519baa9fa5e0a8764821ac0dd08320830596d3",
-    "structural_test_blob": "889639b66bcfd91173ffeb05adfad4f2ea758be6",
+    "tree": "c843f4022d3cc6f19d5cf9b04f4a62e59f985868",
+    "types_blob": "e4fb9e291645a94c5bc8b832fbbce3b7281a8f1f",
+    "span_audit_blob": "c11e50f7593e8b7ec0a15feba5b12eae294e8b52",
+    "span_inventory_blob": "3b4585f62e857b7090009fc3b5030a40bbc523bf",
+    "span_inventory_sha256": "7c2081374adf2e1a318bb9694dbb70f2a09f2a2499007e354c6b83277ef140c4",
+    "structural_test_blob": "48ec74dd0634ce34a0203e58bf8da94525cec311",
     "main_release_sha256": "422f68f956608cad7d92b13d975e803c7920456408a0a6192d14efedc76543ac",
-    "candidate_release_sha256": "cf5eea602f483df7aeb52a5b5d3d8287f2de316495cbae078338a16909bd0369",
-    "validate_log_sha256": "b2487b2d8a72dbac3f1376120b6ec12e5aacd6545d8382ff88ba08a035ccde00",
+    "candidate_release_sha256": "82d178d7816dd808b9985366a73c4f1ed8ca0eeb617d6ca70bc6cad8821c17b7",
+    "validate_log_sha256": "7daa001bd892592ebc8953608900c3a7b031afceb911058e1bb3f2fbaede5f78",
     "report_sha256": {
-      "c2-ref-corpus-v15c.json": "e73f9e8148635a2066b1c9ad75a53db0fd107ff1379f6269970f8bbe8f2b983b",
-      "c2-ref-owned-v15c.json": "352931cfbc4512a1920de1511b4c337511fe67728b9edf98d32b579f183213ba",
-      "c2-ref-discriminators-v15c.json": "e3fd447763984977dfedf753f2b673bf61595e19ae66a90101bf1604e2893fa6",
-      "c2-ref-frame-v15c.txt": "16f3e3fa438dd81aad2daf6d2b2eea4121ffac404626566c6d93417d8e4eb2f9",
-      "c2-ref-perf-v15c.json": "d24eece20950bf566a98617e8d1f9725ff3217020a6f9bada0e26e3313d80684"
+      "c2-ref-corpus-v15d.json": "2ce4b9aaf58a806cb8b1b305a2bb6e2ff6d16322eeebd18eddbb95afee1bbc46",
+      "c2-ref-owned-v15d.json": "2be04bfff54189c41b22e38e51894a1feb93dbbab996d0696500696e277bd9b0",
+      "c2-ref-discriminators-v15d.json": "b58671325121b9cac79ab6758d309699c492408fe7024df36c55214b0eb26d82",
+      "c2-ref-frame-v15d.txt": "fa0a2d20bf83a9cf47492873e187dd1b9c84011bdc7add24d7e30fcaa2597b15",
+      "c2-ref-perf-v15d.json": "c9bc3381af9869c9ae67d506ce9cd4326540301db4fcaf89ff76eff313a39970",
+      "c2-d-adjudicacion-v15d.json": "d326df34fec0b6cb01985f295ba67357d30521f07802ef2e6b5e029ca440cdf3",
+      "c3-secuencia-v15d-filas.json": "f2eab88c56d01d3880a11525bd28435aebcdf1536cd0ade6bacfb817096d4744",
+      "c3-secuencia-v15d-named.json": "d66a799bce781667dc3f7410304123d79bdd3036e9a8f417e0a2c50e5a258f47",
+      "c3-secuencia-v15d-owned.json": "094c3d1050108c7e97971cdb9e88de1454ace03c1dd514100ed8d657f193801e"
     },
     "corpora_complete": 20,
     "rows_complete": 151188,
-    "classes": {"OK": 62755, "U": 71753, "C": 16678, "H": 2},
-    "A_D_A_unmodeled_H_divergent": [0, 0, 0, 0],
-    "owned_C2_directed_matrix_frozen": [10, 0, 3],
+    "classes": {
+      "OK": 62755,
+      "U": 71753,
+      "C": 16678,
+      "H": 2
+    },
+    "A_D_A_unmodeled_H_divergent": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "owned_C2_directed_matrix_frozen": [
+      10,
+      0,
+      3
+    ],
     "f06_class": "main",
-    "discriminator_profile_cases": 14,
-    "validate_sh": "GREEN: debug 2228/2228, release 2230/2230, stack65 5/5",
-    "frame_pair_bytes": 60520,
-    "frame_margin_bytes": 6040,
-    "perf_median_ratio": 1.666146117204136,
+    "discriminator_profile_cases": 18,
+    "validate_sh": "GREEN: debug 2230/2230, release 2232/2232, stack65 5/5",
+    "frame_pair_bytes": 60616,
+    "frame_margin_bytes": 5944,
+    "perf_median_ratio": 1.8193269069110523,
     "d_prime_extensions": [
       {
         "family": "rejected_resource_projection",
         "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=[];}",
         "bytes": 76,
         "source_sha256": "8a8705d11658267ef7e8812e323ddf04ef5e6f3fc5d252916af1a17c04f52cf4",
-        "expected_code_subcause_primary": [["NX-E0102", "type_mismatch", [72, 74]]]
+        "expected_code_subcause_primary": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              72,
+              74
+            ]
+          ]
+        ]
       },
       {
         "family": "repeated_recursive_equality",
         "source": "fn Main(){var q=[];q=[q];q=[q];}",
         "bytes": 32,
         "source_sha256": "7bc5e207fc79221c1d7e778c9ccab2dc4de6edb2ec451688cb79ed7ebd3e0581",
-        "expected_code_subcause_primary": [["NX-E0103", null, [16, 18]]]
+        "expected_code_subcause_primary": [
+          [
+            "NX-E0103",
+            null,
+            [
+              16,
+              18
+            ]
+          ]
+        ]
       }
-    ]
+    ],
+    "candidate_debug_sha256": "6ddbdea5ebf2124bd55642c6b243d38ee00f9f1a482c483aaf426850e2044ad7"
   },
   "c1_reference_commit": "42cb63fa3c80abe551155f4c9ebd044f3e30914d",
   "c1_reference_evidence": {
@@ -2841,14 +2864,56 @@
     "fixture": "tests/fixtures/i07c/resource_projection_and_scalar_base.n",
     "fixture_bytes": 100,
     "fixture_sha256": "67d240cf909fedce48c1a5396209ffccca3b7770fa78fc6988074cd4fd91da2a",
-    "adr": "F0-0002 §4.1.2 b2d/Par (1), RD113",
-    "expected_adr_code_subcause_primary": [["NX-E0102", "not_indexable", [57, 59]], ["NX-E0102", "type_mismatch", [81, 83]]],
-    "main_code_subcause_primary": [["NX-E0102", "type_mismatch", [57, 62]], ["NX-E0102", "type_mismatch", [81, 83]], ["NX-E0102", "not_indexable", [94, 96]]],
+    "adr": "F0-0002 \u00a74.1.2 b2d/Par (1), RD113",
+    "expected_adr_code_subcause_primary": [
+      [
+        "NX-E0102",
+        "not_indexable",
+        [
+          57,
+          59
+        ]
+      ],
+      [
+        "NX-E0102",
+        "type_mismatch",
+        [
+          81,
+          83
+        ]
+      ]
+    ],
+    "main_code_subcause_primary": [
+      [
+        "NX-E0102",
+        "type_mismatch",
+        [
+          57,
+          62
+        ]
+      ],
+      [
+        "NX-E0102",
+        "type_mismatch",
+        [
+          81,
+          83
+        ]
+      ],
+      [
+        "NX-E0102",
+        "not_indexable",
+        [
+          94,
+          96
+        ]
+      ]
+    ],
     "c2_residual": "C1 obtains this effect through journal rollback; C2 must retain all three discriminators: no later shape, rejected q=[], scalar q=1"
   },
   "d7_declared_main_differences": {
     "owner": "C4",
-    "clause": "F0-0002 §§4.1.2.2, 4.1.2.5, 13.9",
+    "clause": "F0-0002 \u00a7\u00a74.1.2.2, 4.1.2.5, 13.9",
     "family_rule": "Recursive source equality (x[0]=x, x=y on a prior Array dependency path, or x=[y] with y reaching x); blank that equality with equal-length spaces. A prior constructor E0103 must survive, all non-E0103 diagnostics must agree, and main E0103 must differ. ADR expects exactly the surviving constructor diagnostics plus invariant non-E0103 diagnostics, ordered by 13.9.",
     "C1_C3": "Run frozen candidate_gate then SHA-frozen d7_family_check over all 20 corpora and manual 78-byte witness; conserve complete main JSON for every causal member.",
     "C4": "Run both gates without changing candidate_gate or oracle. D7 classifier discharges A-unmodeled only for causal members whose candidate diagnostics equal the complete ADR signature derived by the counterfactual rule. Other A-unmodeled rows remain failures.",

@@ -1,0 +1,24 @@
+{
+  "schema": "i07c-r16-owned-rows-v1",
+  "commit": "C3",
+  "complete": true,
+  "main_sha256": "efc801d2f76b8ae972d1133ab9118b67db5f4bfacaa4d0873fdd4c3dc021e40a",
+  "candidate_sha256": "6ddbdea5ebf2124bd55642c6b243d38ee00f9f1a482c483aaf426850e2044ad7",
+  "runner_sha256": "1820ce8bb26374c9630d309a9abc509cf4e9452d0e9cce25e76df80959fb3e78",
+  "counts": {
+    "directed74_normative_ids": 24,
+    "matrix45_normative_ids": 5,
+    "frozen13_normative_ids": 9
+  },
+  "f06_class": null,
+  "failures": [
+    "directed74_normative_ids:M2_partial_witness_chain: expected=[['NX-E0102', 81, 82], ['NX-E1303', 131, 132], ['NX-E1303', 155, 158]] observed=['rejected', [['NX-E0102', 'type_mismatch', [81, 82], 'Bool', 'I64', None, [81, 82]], ['NX-E1303', None, [131, 132], 'Bool', 'Array<Bool>', [78, 103], [131, 132]], ['NX-E1303', None, [140, 148], 'Bool', 'Array<Array<Bool>>', [67, 133], [140, 148]], ['NX-E1303', None, [155, 158], 'Bool', 'Array<Array<I64>>', [56, 148], [155, 158]]]]",
+    "directed74_normative_ids:RS1_condition_contaminated: expected=[['NX-E0102', 34, 35]] observed=['rejected', [['NX-E0102', 'type_mismatch', [34, 35], 'Bool', 'I64', None, [34, 35]], ['NX-E1303', None, [63, 64], 'Bool', 'I64', [31, 56], [63, 64]]]]",
+    "directed74_normative_ids:W1_atomic_compound: expected=[['NX-E0102', 99, 100], ['NX-E1303', 147, 148], ['NX-E1303', 199, 200], ['NX-E1303', 209, 212], ['NX-E0102', 216, 219]] observed=['rejected', [['NX-E0102', 'type_mismatch', [99, 100], 'Bool', 'I64', None, [99, 100]], ['NX-E1303', None, [147, 148], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [96, 119], [147, 148]], ['NX-E1303', None, [167, 172], 'Array<Array<I64>>', 'Array<Array<Array<Array<I64>>>>', [85, 149], [167, 172]], ['NX-E1303', None, [199, 200], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [85, 149], [199, 200]], ['NX-E0102', 'type_mismatch', [216, 219], 'Array<Array<Array<I64>>>', 'Array<Array<I64>>', [96, 119], [216, 219]]]]",
+    "directed74_normative_ids:W1a_without_later_assignment: expected=[['NX-E0102', 99, 100], ['NX-E1303', 147, 148], ['NX-E1303', 199, 200], ['NX-E1303', 209, 212]] observed=['rejected', [['NX-E0102', 'type_mismatch', [99, 100], 'Bool', 'I64', None, [99, 100]], ['NX-E1303', None, [147, 148], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [96, 119], [147, 148]], ['NX-E1303', None, [167, 172], 'Array<Array<I64>>', 'Array<Array<Array<Array<I64>>>>', [85, 149], [167, 172]], ['NX-E1303', None, [199, 200], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [85, 149], [199, 200]]]]",
+    "frozen13_normative_ids:M2_partial_witness_chain: expected=[['NX-E0102', 81, 82], ['NX-E1303', 131, 132], ['NX-E1303', 155, 158]] observed=['rejected', [['NX-E0102', 'type_mismatch', [81, 82], 'Bool', 'I64', None, [81, 82]], ['NX-E1303', None, [131, 132], 'Bool', 'Array<Bool>', [78, 103], [131, 132]], ['NX-E1303', None, [140, 148], 'Bool', 'Array<Array<Bool>>', [67, 133], [140, 148]], ['NX-E1303', None, [155, 158], 'Bool', 'Array<Array<I64>>', [56, 148], [155, 158]]]]",
+    "frozen13_normative_ids:RS1_condition_contaminated: expected=[['NX-E0102', 34, 35]] observed=['rejected', [['NX-E0102', 'type_mismatch', [34, 35], 'Bool', 'I64', None, [34, 35]], ['NX-E1303', None, [63, 64], 'Bool', 'I64', [31, 56], [63, 64]]]]",
+    "frozen13_normative_ids:W1_atomic_compound: expected=[['NX-E0102', 99, 100], ['NX-E1303', 147, 148], ['NX-E1303', 199, 200], ['NX-E1303', 209, 212], ['NX-E0102', 216, 219]] observed=['rejected', [['NX-E0102', 'type_mismatch', [99, 100], 'Bool', 'I64', None, [99, 100]], ['NX-E1303', None, [147, 148], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [96, 119], [147, 148]], ['NX-E1303', None, [167, 172], 'Array<Array<I64>>', 'Array<Array<Array<Array<I64>>>>', [85, 149], [167, 172]], ['NX-E1303', None, [199, 200], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [85, 149], [199, 200]], ['NX-E0102', 'type_mismatch', [216, 219], 'Array<Array<Array<I64>>>', 'Array<Array<I64>>', [96, 119], [216, 219]]]]",
+    "frozen13_normative_ids:W1a_without_later_assignment: expected=[['NX-E0102', 99, 100], ['NX-E1303', 147, 148], ['NX-E1303', 199, 200], ['NX-E1303', 209, 212]] observed=['rejected', [['NX-E0102', 'type_mismatch', [99, 100], 'Bool', 'I64', None, [99, 100]], ['NX-E1303', None, [147, 148], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [96, 119], [147, 148]], ['NX-E1303', None, [167, 172], 'Array<Array<I64>>', 'Array<Array<Array<Array<I64>>>>', [85, 149], [167, 172]], ['NX-E1303', None, [199, 200], 'Array<Array<I64>>', 'Array<Array<Array<I64>>>', [85, 149], [199, 200]]]]"
+  ]
+}

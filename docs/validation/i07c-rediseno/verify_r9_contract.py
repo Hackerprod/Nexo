@@ -122,8 +122,11 @@ for row_id, row in d7["observed_unmodeled_residuals"].items():
     src = source(directed5[int(index)]).encode("ascii")
     assert len(src) == row["bytes"]
     assert hashlib.sha256(src).hexdigest() == row["source_sha256"]
-assert gates["owner_directed"]["atomic_78"] == "C3"
-assert gates["owner_matrix"]["W0"] == gates["owner_matrix"]["W0nounion"] == "C3"
+assert all(gates["owner_directed"][ident] == "C4" for ident in
+           ("atomic_78", "SB_equivalent", "W2_no_retroactive_context"))
+assert all(gates["owner_matrix"][ident] == "C4" for ident in
+           ("F06", "M2", "W0", "w1"))
+assert gates["owner_matrix"]["W0nounion"] == "C3"
 assert [len(gates["owned_corpus_ids"]["C2"][family]) for family in
         ("directed74", "matrix45", "frozen13")] == [10, 0, 3]
 for owned_family, commit_family in (
@@ -134,18 +137,18 @@ for owned_family, commit_family in (
     assert set(gates["owned_corpus_ids"]["C2"][owned_family]) == set(
         gates["commits"]["C2"][commit_family]
     ), owned_family
-assert gates["owner_matrix"]["F06"] == "C3"
+assert gates["owner_matrix"]["F06"] == "C4"
 assert gates["commits"]["C1"]["f06_cross_gate"] == {
     "expected": "main_or_full_adr_oracle", "no_oracle_to_main": True,
 }
 assert [len(gates["commits"][f"C{i}"]["matrix45_normative_ids"]) for i in range(7)] == [
-    0, 0, 0, 9, 13, 45, 45,
+    0, 0, 0, 5, 13, 45, 45,
 ]
 assert [len(gates["commits"][f"C{i}"]["directed74_normative_ids"]) for i in range(7)] == [
-    0, 3, 10, 27, 32, 74, 74,
+    0, 3, 10, 24, 32, 74, 74,
 ]
 assert all("F06" not in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(3))
-assert all("F06" in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(3, 7))
+assert all("F06" in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(4, 7))
 assert not gates["commits"]["C1"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["w1_w1a_full_normative"]
 assert gates["commits"]["C3"]["match_observations_29_expected_by_authority"]
@@ -238,7 +241,7 @@ assert f2["expected_code_subcause_primary_types_relation"][0][-1] == [90, 93]
 
 manifest = data("r9-test-migration.json")
 migration = manifest["rows"]
-assert len(migration) == len({x["source_test"] for x in migration}) == 124
+assert len(migration) == len({x["source_test"] for x in migration}) == 125
 assert sum(x["class"] == "former_65" for x in migration) == 65
 assert sum(x["class"] == "former_65" and x["private_checker_api"] for x in migration) == 44
 for action, count in (
@@ -249,7 +252,16 @@ for action, count in (
     ("portar_invariante_privada_modelo_nuevo", 15),
 ):
     assert sum(x["action"] == action for x in migration) == count
-assert sum(bool(x.get("approval_required")) for x in migration) == 31
+assert sum(bool(x.get("approval_required")) for x in migration) == 32
+g3_migration = next(x for x in migration if x["source_test"] == "grouped_operands_keep_one_causal_primary")
+assert g3_migration["assertion_before"].endswith("240 sites")
+assert g3_migration["assertion_after"].endswith("246 sites")
+assert g3_migration["approval_required"] and g3_migration["owner_commit"] == "C2"
+assert g3_migration["approval_status"].startswith("aprobada por el coordinador")
+quota_migration = next(x for x in migration if x["source_test"] ==
+                       "i07c_survivor3_partial_union_allocation_rolls_back_on_quota")
+assert "2026-11-26 06:37 PT" in quota_migration["approval"]
+assert "C2 4e63e33" in quota_migration["approval"]
 assert len(manifest["private_23"]) == len(set(manifest["private_23"])) == 23
 assert all(next(x for x in migration if x["source_test"] == name)["private_checker_api"]
            for name in manifest["private_23"])
@@ -271,7 +283,7 @@ assert approval["expectations"][1]["expected_adr_code_subcause_primary"] == c1_n
 
 c2 = gates["c2_reference_evidence"]
 c2_commit = gates["c2_reference_commit"]
-assert c2_commit == "580781f44eafdf6ed2ebb34d372e163ccfa4c474"
+assert c2_commit == "184f2d5568fe52badbec20f8a9a2841566999931"
 assert c2["base_commit"] == "af19a34eb295fdd4834bdbc4594e442fbc2b42ec"
 assert subprocess.run(
     ["git", "rev-parse", c2_commit + "^{tree}"], cwd=HERE.parents[2],
@@ -300,7 +312,7 @@ for name, expected_sha in c2["report_sha256"].items():
     worktree = (HERE / name).read_bytes().replace(b"\r\n", b"\n")
     assert hashlib.sha256(worktree).hexdigest() == expected_sha, name
 
-c2_corpus = data("c2-ref-corpus-v15c.json")
+c2_corpus = data("c2-ref-corpus-v15d.json")
 assert c2_corpus["complete"] and c2_corpus["commit"] == "C2" and not c2_corpus["failures"]
 assert len(c2_corpus["corpora"]) == c2["corpora_complete"] == 20
 assert len(c2_corpus["class_by_row"]) == c2["rows_complete"] == 151188
@@ -311,7 +323,7 @@ assert c2_corpus["class_by_row"] == data("r14-main-baseline.json")["class_by_row
 assert c2_corpus["main_sha256"] == c2["main_release_sha256"]
 assert c2_corpus["candidate_sha256"] == c2["candidate_release_sha256"]
 
-c2_owned = data("c2-ref-owned-v15c.json")
+c2_owned = data("c2-ref-owned-v15d.json")
 assert c2_owned["complete"] and c2_owned["commit"] == "C2" and not c2_owned["failures"]
 assert [c2_owned["counts"][key] for key in (
     "directed74_normative_ids", "matrix45_normative_ids", "frozen13_normative_ids",
@@ -319,9 +331,9 @@ assert [c2_owned["counts"][key] for key in (
 assert c2_owned["f06_class"] == c2["f06_class"] == "main"
 assert c2_owned["candidate_sha256"] == c2["candidate_release_sha256"]
 
-c2_disc = data("c2-ref-discriminators-v15c.json")
+c2_disc = data("c2-ref-discriminators-v15d.json")
 assert c2_disc["complete"] and not c2_disc["failures"]
-assert len(c2_disc["cases"]) == c2["discriminator_profile_cases"] == 14
+assert len(c2_disc["cases"]) == c2["discriminator_profile_cases"] == 18
 assert c2_disc["candidate_sha256"] == c2["candidate_release_sha256"]
 for row in c2_disc["cases"].values():
     assert set(row["observed"]) == {"check", "run"}
@@ -337,14 +349,65 @@ for extension, case in zip(c2["d_prime_extensions"],
         [code, subcause, [start, end]] for code, subcause, start, end in expected
     ]
 
-frame = (HERE / "c2-ref-frame-v15c.txt").read_text(encoding="utf-8")
+frame = (HERE / "c2-ref-frame-v15d.txt").read_text(encoding="utf-8")
 assert f"pair={c2['frame_pair_bytes']} margin={c2['frame_margin_bytes']}" in frame
 assert c2["frame_margin_bytes"] >= 1000
-perf = data("c2-ref-perf-v15c.json")
+perf = data("c2-ref-perf-v15d.json")
 assert perf["pairs"] == 4000 and perf["profile"] == "f0-0003-b-v1"
 assert perf["binary_sha256"] == {"main": c2["main_release_sha256"],
                                  "C2": c2["candidate_release_sha256"]}
 ratio = statistics.median(perf["seconds"]["C2"]) / statistics.median(perf["seconds"]["main"])
 assert ratio == perf["median_ratio"] == c2["perf_median_ratio"] and ratio <= 3
-assert c2["validate_sh"].startswith("GREEN: debug 2228/2228, release 2230/2230")
+assert c2["validate_sh"].startswith("GREEN: debug 2230/2230, release 2232/2232")
+
+import candidate_gate as cross_gate  # noqa: E402
+
+adjudication = data("c2-d-adjudicacion-v15d.json")
+assert len(adjudication["rows"]) == 381
+assert adjudication["candidate_sha256"] == c2["candidate_debug_sha256"]
+assert adjudication["candidate_release_sha256"] == c2["candidate_release_sha256"]
+assert adjudication["debug_release_equal_rows"] == 381
+assert adjudication["main_sha256"] == c2["main_release_sha256"]
+assert adjudication["main_equal_rows"] == 381
+from collections import Counter  # noqa: E402
+assert dict(Counter(row["family"] for row in adjudication["rows"])) == adjudication["counts"]
+for index, row in enumerate(adjudication["rows"]):
+    assert row["probe_index"] == index and row["profile"] == "f0-0003-b-v1"
+    assert hashlib.sha256(row["source"].encode("ascii")).hexdigest() == row["source_sha256"]
+    assert cross_gate.oracle_signature(oracle.derive(row["source"]))[1] == row["oracle"]
+    if row["new_class"] == "D":
+        assert "(if " in row["source"]
+        assert not any(item[5] and item[5][0] > item[2][0] for item in row["candidate"])
+assert [sum(row["new_class"] == cls for row in adjudication["rows"])
+        for cls in ("B", "C", "D")] == [6, 1, 374]
+
+sequence = data("c3-secuencia-v15d-filas.json")
+assert len(sequence["rows"]) == 45
+assert sequence["candidate_sha256"] == c2["candidate_debug_sha256"]
+assert sum(row["c2_exact"] for row in sequence["rows"]) == 30
+assert [sum(row["commit"] == commit for row in sequence["rows"])
+        for commit in ("C3", "C4")] == [38, 7]
+owned_c3 = data("c3-secuencia-v15d-owned.json")
+assert owned_c3["complete"] and owned_c3["commit"] == "C3"
+assert owned_c3["candidate_sha256"] == c2["candidate_debug_sha256"]
+assert owned_c3["main_sha256"] == "efc801d2f76b8ae972d1133ab9118b67db5f4bfacaa4d0873fdd4c3dc021e40a"
+assert [owned_c3["counts"][family] for family, _ in owned.FAMILIES] == [24, 5, 9]
+assert len(owned_c3["failures"]) == 8
+assert {failure.split(":", 2)[1] for failure in owned_c3["failures"]} == {
+    "M2_partial_witness_chain", "RS1_condition_contaminated",
+    "W1_atomic_compound", "W1a_without_later_assignment",
+}
+for row in sequence["rows"]:
+    family = row["family"]
+    assert row["id"] in gates["commits"][row["commit"]][family]
+    owner_map = gates[{"directed74_normative_ids": "owner_directed",
+                       "matrix45_normative_ids": "owner_matrix",
+                       "frozen13_normative_ids": "owner_frozen13"}[family]]
+    assert owner_map[row["id"]] <= row["commit"]
+named = data("c3-secuencia-v15d-named.json")
+assert named["candidate_sha256"] == c2["candidate_debug_sha256"]
+assert [row["id"] for row in named["rows"]] == gates["commits"]["C3"]["additional_named_probes"]
+assert sum(row.get("c2_main_exact", False) for row in named["rows"]) == 7
+assert [sum(row["kind"] == kind for row in named["rows"])
+        for kind in ("duplicate_owned_row", "aggregate", "source")] == [3, 1, 7]
 print("R6 contract structure OK")

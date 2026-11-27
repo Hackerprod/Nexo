@@ -1,0 +1,660 @@
+{
+  "schema": "i07c-c3-named-v15d-v1",
+  "candidate_sha256": "6ddbdea5ebf2124bd55642c6b243d38ee00f9f1a482c483aaf426850e2044ad7",
+  "rows": [
+    {
+      "id": "W1_atomic_compound",
+      "kind": "duplicate_owned_row",
+      "mechanism": "JoinRecord/ResultStatus",
+      "commit": "C3"
+    },
+    {
+      "id": "W1a_without_later_assignment",
+      "kind": "duplicate_owned_row",
+      "mechanism": "JoinRecord/ResultStatus",
+      "commit": "C3"
+    },
+    {
+      "id": "M2_partial_witness_chain",
+      "kind": "duplicate_owned_row",
+      "mechanism": "JoinRecord/ResultStatus",
+      "commit": "C3"
+    },
+    {
+      "id": "M1-simple",
+      "kind": "source",
+      "source_sha256": "489fbd6a397e0b48990d65a38af705fe68270aaa640abc45db6840487741ca17",
+      "profile": "f0-0003-b-v1",
+      "c2_main_exact": true,
+      "observed_c2": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              42,
+              44
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              42,
+              44
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "mechanism": "JoinRecord/ResultStatus y deber E0103 ya existente, sin ConstructorDuty nuevo",
+      "commit": "C3"
+    },
+    {
+      "id": "M1-nested",
+      "kind": "source",
+      "source_sha256": "e4d5eb47fdbb6896a6776c20aaf1a4e561d67464691d2efb81c3ab907bbe2420",
+      "profile": "f0-0003-b-v1",
+      "c2_main_exact": true,
+      "observed_c2": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              42,
+              44
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              141,
+              145
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  81,
+                  124
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  141,
+                  145
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              42,
+              44
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              141,
+              145
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  81,
+                  124
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  141,
+                  145
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "mechanism": "JoinRecord/ResultStatus y deber E0103 ya existente, sin ConstructorDuty nuevo",
+      "commit": "C3"
+    },
+    {
+      "id": "match_88_byte_checked",
+      "kind": "aggregate",
+      "mechanism": "D5 conservacion match; D6 15 filas ADR, sin ConstructorDuty",
+      "commit": "C3",
+      "gate": "candidate_gate 88/15"
+    },
+    {
+      "id": "match-index-20",
+      "kind": "source",
+      "source_sha256": "70ab6beb6b173bd89bb41e54d0632b74cb9abc951615109544ba1daf81445d1c",
+      "profile": "f0-0003-b-v1",
+      "c2_main_exact": true,
+      "observed_c2": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              73,
+              75
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              73,
+              75
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "mechanism": "D5 conservacion match, sin ConstructorDuty",
+      "commit": "C3"
+    },
+    {
+      "id": "match-index-46",
+      "kind": "source",
+      "source_sha256": "43180924815c08dfd05cce2c41d6c6d07d6bbdb3efdde1742b4f25e103968d95",
+      "profile": "f0-0003-b-v1",
+      "c2_main_exact": true,
+      "observed_c2": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          }
+        ]
+      },
+      "mechanism": "D5 conservacion match, sin ConstructorDuty",
+      "commit": "C3"
+    },
+    {
+      "id": "match-circular",
+      "kind": "source",
+      "source_sha256": "234f567097015eef5ea7cfd63dbccd0f4ec372332a75d02ba7d171b7129b28f8",
+      "profile": "f0-0003-b-v1",
+      "c2_main_exact": true,
+      "observed_c2": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              121,
+              122
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  114,
+                  115
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  121,
+                  122
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              129,
+              130
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  104,
+                  122
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  129,
+                  130
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              121,
+              122
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  114,
+                  115
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  121,
+                  122
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              129,
+              130
+            ],
+            "expected_type": "Array<I64>",
+            "found_type": "I64",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  104,
+                  122
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  129,
+                  130
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "mechanism": "D5 conservacion match, sin ConstructorDuty",
+      "commit": "C3"
+    },
+    {
+      "id": "match-later-unassigned",
+      "kind": "source",
+      "source_sha256": "e230dc03f20e06eae7cff6b2359cb64a9d336da421b3dc9fc6ca6a32f3032ad6",
+      "profile": "f0-0003-b-v1",
+      "c2_main_exact": true,
+      "observed_c2": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              134
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  125,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  132,
+                  134
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              159,
+              163
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  104,
+                  142
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  159,
+                  163
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              64,
+              66
+            ],
+            "expected_type": null,
+            "found_type": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              134
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  125,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  132,
+                  134
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              159,
+              163
+            ],
+            "expected_type": "I64",
+            "found_type": "Bool",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  104,
+                  142
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  159,
+                  163
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "mechanism": "D5 conservacion match, sin ConstructorDuty",
+      "commit": "C3"
+    },
+    {
+      "id": "match-later-assigned",
+      "kind": "source",
+      "source_sha256": "d789e53cd3e8a05973d52d93910a15f2f19297bd692c233c5dbba4c5da8941b6",
+      "profile": "f0-0003-b-v1",
+      "c2_main_exact": true,
+      "observed_c2": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              134
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  125,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  132,
+                  134
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              141,
+              142
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  115,
+                  134
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  141,
+                  142
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected_main": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              134
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  125,
+                  126
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  132,
+                  134
+                ]
+              }
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              141,
+              142
+            ],
+            "expected_type": "I64",
+            "found_type": "Array<I64>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  115,
+                  134
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  141,
+                  142
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "mechanism": "D5 conservacion match, sin ConstructorDuty",
+      "commit": "C3"
+    }
+  ]
+}
