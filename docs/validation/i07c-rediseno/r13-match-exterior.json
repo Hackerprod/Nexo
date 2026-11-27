@@ -1,0 +1,938 @@
+{
+  "schema": "i07c-r13-match-exterior-v1",
+  "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
+  "main_binary_sha256": "0ee60ea3e739ce9b09584062ecab3e652cb3daf66e6c05c5489a561346610410",
+  "instrumented_binary_sha256": "ea2a20e11e363bc911240baf8615ce709f4558becc31a9c25818e64c329f071e",
+  "instrumentation": "Only eprintln of five OccurrenceFlag bits, fact.tainted, and expected.is_some() immediately before merge_child in every Checker::branch_accept. JSON equality with unmodified main asserted for each row.",
+  "rows": [
+    {
+      "id": "annotation_no_normal",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let c=true;let x:I64=match c{true=>{value:(if c then {return;} else {return;});},false=>{value:1;}};}",
+      "source_sha256": "badc8ff9536fea81943cca0d7ba9487ec6d3a57a53d8ea56a5aebebd6f2a9158",
+      "source_bytes": 111,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "checked"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": []
+      },
+      "branch_accept_events": [
+        {
+          "start": 52,
+          "end": 88,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 105,
+          "end": 106,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 52,
+          "end": 88,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 105,
+          "end": 106,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ],
+      "if_value_events_with_expected": [
+        {
+          "start": 52,
+          "end": 88,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 52,
+          "end": 88,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ]
+    },
+    {
+      "id": "annotation_one_normal",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let c=true;let x:I64=match c{true=>{value:(if c then 1 else {return;});},false=>{value:2;}};}",
+      "source_sha256": "6526f1aa81662ef5052214936524feb8a5f520f0f445207d6f259c5bc36ffb31",
+      "source_bytes": 103,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "checked"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": []
+      },
+      "branch_accept_events": [
+        {
+          "start": 63,
+          "end": 64,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 52,
+          "end": 80,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 97,
+          "end": 98,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 63,
+          "end": 64,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 52,
+          "end": 80,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 97,
+          "end": 98,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ],
+      "if_value_events_with_expected": [
+        {
+          "start": 52,
+          "end": 80,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 52,
+          "end": 80,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ]
+    },
+    {
+      "id": "annotation_mismatch",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){let c=true;let x:Bool=match c{true=>{value:(if c then 1 else 2);},false=>{value:true;}};}",
+      "source_sha256": "6a7d8ca5dd2c946e3f4f1710462e264d2a01b849e9266fc77b052c3d124b51c2",
+      "source_bytes": 99,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "rejected"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": [
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "rule": "NX-E0102/type_mismatch",
+            "explanation_id": "NX-E0102/type_mismatch",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 64,
+              "end": 65
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 27,
+                  "end": 31
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 64,
+                  "end": 65
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Bool",
+              "found_type": "I64"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "rule": "NX-E0102/type_mismatch",
+            "explanation_id": "NX-E0102/type_mismatch",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 71,
+              "end": 72
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 27,
+                  "end": 31
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 71,
+                  "end": 72
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "Bool",
+              "found_type": "I64"
+            }
+          },
+          {
+            "schema_version": 1,
+            "diagnostic_namespace": "Nexo-proposed-v1",
+            "profile_id": "f0-0003-b-v1",
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "rule": "NX-E0102/type_mismatch",
+            "explanation_id": "NX-E0102/type_mismatch",
+            "severity": "error",
+            "stage": "types",
+            "message": "Invalid name, call or type in the proposed profile.",
+            "operation": "types.check",
+            "primary_span": {
+              "file": "<SOURCE>",
+              "start": 90,
+              "end": 94
+            },
+            "related_spans": [
+              {
+                "role": "expected_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 54,
+                  "end": 72
+                }
+              },
+              {
+                "role": "found_type",
+                "span": {
+                  "file": "<SOURCE>",
+                  "start": 90,
+                  "end": 94
+                }
+              }
+            ],
+            "cause_chain": [],
+            "feature_id": null,
+            "unexpected_token": null,
+            "expected_tokens": [],
+            "expected_tokens_kind": null,
+            "parser_context": null,
+            "recognized_prefix": null,
+            "repair": [],
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Bool"
+            }
+          }
+        ]
+      },
+      "branch_accept_events": [
+        {
+          "start": 64,
+          "end": 65,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 71,
+          "end": 72,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 53,
+          "end": 73,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 1,
+          "FailedJoin": 0,
+          "fact_tainted": 1,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 90,
+          "end": 94,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 64,
+          "end": 65,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 71,
+          "end": 72,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 53,
+          "end": 73,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 1,
+          "FailedJoin": 0,
+          "fact_tainted": 1,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 90,
+          "end": 94,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ],
+      "if_value_events_with_expected": [
+        {
+          "start": 53,
+          "end": 73,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 1,
+          "FailedJoin": 0,
+          "fact_tainted": 1,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 53,
+          "end": 73,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 1,
+          "FailedJoin": 0,
+          "fact_tainted": 1,
+          "expected_in_branch_accept": 1
+        }
+      ]
+    },
+    {
+      "id": "argument_no_normal",
+      "profile": "f0-0003-b-v1",
+      "source": "fn F(x:view I64){}fn Main(){let c=true;F(match c{true=>{value:(if c then {return;} else {return;});},false=>{value:1;}});}",
+      "source_sha256": "0a771a6cc7784f186a9db472b4ea6592697df40e91baec255c65670d192fcf2b",
+      "source_bytes": 122,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "checked"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": []
+      },
+      "branch_accept_events": [
+        {
+          "start": 62,
+          "end": 98,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 115,
+          "end": 116,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 62,
+          "end": 98,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 115,
+          "end": 116,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ],
+      "if_value_events_with_expected": [
+        {
+          "start": 62,
+          "end": 98,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 62,
+          "end": 98,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ]
+    },
+    {
+      "id": "argument_two_normal",
+      "profile": "f0-0003-b-v1",
+      "source": "fn F(x:view I64){}fn Main(){let c=true;F(match c{true=>{value:(if c then 1 else 2);},false=>{value:3;}});}",
+      "source_sha256": "2e065cf5c4989042bb2a5d08e871ba3315d5f6fde850841956ee5f155a8fde5b",
+      "source_bytes": 106,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "checked"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": []
+      },
+      "branch_accept_events": [
+        {
+          "start": 73,
+          "end": 74,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 80,
+          "end": 81,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 62,
+          "end": 82,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 99,
+          "end": 100,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 73,
+          "end": 74,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 80,
+          "end": 81,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 62,
+          "end": 82,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 99,
+          "end": 100,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ],
+      "if_value_events_with_expected": [
+        {
+          "start": 62,
+          "end": 82,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 62,
+          "end": 82,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ]
+    },
+    {
+      "id": "return_no_normal",
+      "profile": "f0-0003-b-v1",
+      "source": "fn F()->I64{let c=true;return match c{true=>{value:(if c then {return 1;} else {return 2;});},false=>{value:3;}};}fn Main(){F();}",
+      "source_sha256": "ce99de0ecc4a7f0780d61c1048f9cf7dc494673d823f6311f2758f5f1824b760",
+      "source_bytes": 129,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "checked"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": []
+      },
+      "branch_accept_events": [
+        {
+          "start": 51,
+          "end": 91,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 108,
+          "end": 109,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 51,
+          "end": 91,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 108,
+          "end": 109,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ],
+      "if_value_events_with_expected": [
+        {
+          "start": 51,
+          "end": 91,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 51,
+          "end": 91,
+          "Deferred": 1,
+          "Divergent": 1,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ]
+    },
+    {
+      "id": "return_two_normal",
+      "profile": "f0-0003-b-v1",
+      "source": "fn F()->I64{let c=true;return match c{true=>{value:(if c then 1 else 2);},false=>{value:3;}};}fn Main(){F();}",
+      "source_sha256": "35c9c6bd45cffbd49bb41bb32fabd0565c57e0a780b3ea8957f92ec72a834fd8",
+      "source_bytes": 109,
+      "expected_main": {
+        "schema_version": 1,
+        "profile_id": "f0-0003-b-v1",
+        "outcome": {
+          "kind": "checked"
+        },
+        "stdout": [],
+        "events": [],
+        "observations": [],
+        "observation_bytes": 0,
+        "reserved_observation_bytes": 0,
+        "diagnostics": []
+      },
+      "branch_accept_events": [
+        {
+          "start": 62,
+          "end": 63,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 69,
+          "end": 70,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 51,
+          "end": 71,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 88,
+          "end": 89,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 62,
+          "end": 63,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 69,
+          "end": 70,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 51,
+          "end": 71,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 88,
+          "end": 89,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ],
+      "if_value_events_with_expected": [
+        {
+          "start": 51,
+          "end": 71,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        },
+        {
+          "start": 51,
+          "end": 71,
+          "Deferred": 0,
+          "Divergent": 0,
+          "PendingDomain": 0,
+          "PartialNormal": 0,
+          "FailedJoin": 0,
+          "fact_tainted": 0,
+          "expected_in_branch_accept": 1
+        }
+      ]
+    }
+  ]
+}

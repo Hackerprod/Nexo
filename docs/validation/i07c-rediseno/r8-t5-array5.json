@@ -1,0 +1,274 @@
+{
+  "schema": "i07c-r8-t5-array5-v1",
+  "source_corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+  "rows": [
+    {
+      "id": 1089,
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let a0=[(if p then (if q then (if p then r[0] else r[0]) else (if p then aar else r[0])) else s),r];}",
+      "source_sha256": "6bd976a47571edd7b7253c806a757a5d3f9b3d98990da6699d2e06873f34f01c",
+      "expected_code_subcause_primary": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54
+        ],
+        [
+          "NX-E0103",
+          null,
+          70,
+          72
+        ]
+      ],
+      "provenance": "B r5 ADR 4.1.2.5, R6-final section 8",
+      "expected_full_compact": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "id": 1217,
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let b1=q[0];let a0=[(if p then (if 1 then aar else aar) else q),r];let a1=r;s=[[true]];s=r;q=ar;}",
+      "source_sha256": "e69a867c65bb07b44acfee8d129c0a2b932c7638d6e31303f5a4f2c0f9604b2e",
+      "expected_code_subcause_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          122,
+          123
+        ]
+      ],
+      "provenance": "B r5 ADR 4.1.2.5, R6-final section 8",
+      "expected_full_compact": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          122,
+          123,
+          "Bool",
+          "I64",
+          null
+        ]
+      ]
+    },
+    {
+      "id": 1373,
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then (if ar then r else ar) else (if p then q[0] else s)),r];let a1=[r];q=ar;}",
+      "source_sha256": "bda0d0d0cec8b14b1189103780477713b2d519e856de714cfd9ab868bb9fb8c7",
+      "expected_code_subcause_primary": [
+        [
+          "NX-E0103",
+          null,
+          70,
+          72
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          96,
+          98
+        ]
+      ],
+      "provenance": "B r5 ADR 4.1.2.5, R6-final section 8",
+      "expected_full_compact": [
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          96,
+          98,
+          "Bool",
+          "Array<I64>",
+          null
+        ]
+      ]
+    },
+    {
+      "id": 1421,
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let b1=(q[0]);let a0=[(if p then (if q then (if ar then q[0] else aar) else [r]) else s),r];r=[3];q=[1];}",
+      "source_sha256": "ea8c6129e2fba8fa4dc739009d9594f6dfd210316fe9b6f8dcd85c7704cf0bf7",
+      "expected_code_subcause_primary": [
+        [
+          "NX-E0103",
+          null,
+          70,
+          72
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          124,
+          125
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          135,
+          137
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          188,
+          189
+        ]
+      ],
+      "provenance": "B r5 ADR 4.1.2.5, R6-final section 8",
+      "expected_full_compact": [
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          124,
+          125,
+          "Bool",
+          "Array<Array<Array<I64>>>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          135,
+          137,
+          "Bool",
+          "Array<I64>",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          188,
+          189,
+          "Array<Array<I64>>",
+          "I64",
+          [
+            153,
+            156
+          ]
+        ]
+      ]
+    },
+    {
+      "id": 1559,
+      "profile": "f0-0002-b-v2",
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=r[0];let a0=[(if p then (if 1 then (if p then r[0] else s[0]) else (if 1 then q else [q])) else ar),r];let a1=q;}",
+      "source_sha256": "f11950ae3bf212d1e083bb662347a31211686379ec332ec11df0abbb9dc30a9b",
+      "expected_code_subcause_primary": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54
+        ],
+        [
+          "NX-E0103",
+          null,
+          61,
+          63
+        ],
+        [
+          "NX-E0103",
+          null,
+          70,
+          72
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          108,
+          109
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          151,
+          152
+        ]
+      ],
+      "provenance": "B r5 ADR 4.1.2.5, R6-final section 8",
+      "expected_full_compact": [
+        [
+          "NX-E0103",
+          null,
+          52,
+          54,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          61,
+          63,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0103",
+          null,
+          70,
+          72,
+          null,
+          null,
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          108,
+          109,
+          "Bool",
+          "I64",
+          null
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          151,
+          152,
+          "Bool",
+          "I64",
+          null
+        ]
+      ]
+    }
+  ]
+}

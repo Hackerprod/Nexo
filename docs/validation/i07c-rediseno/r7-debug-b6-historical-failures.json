@@ -1,0 +1,28 @@
+{
+  "schema": "i07c-r7-b6-historical-v1",
+  "historical_commit": "267e8c2a99fec4600205465dbd2b89711dade965",
+  "command": "cargo nextest run --profile default --no-fail-fast",
+  "nexo_xv": "unset; built-in default",
+  "summary": "Summary [ 207.111s] 2215 tests run: 2197 passed, 18 failed, 72 skipped",
+  "log_sha256": "f23cf089fa4805bd52b1caf4591565931b5329ec20cce7bd3d883723b00e0cf1",
+  "failures": [
+    "check::types::quota_tests::deferred_if_join_charges_the_reduced_boundary",
+    "check::types::quota_tests::failed_branch_join_keeps_reduced_quota_error_prefix",
+    "i07c_causal_obligations::failed_outer_array_keeps_nested_element_cause",
+    "i07c_causal_obligations::failed_outer_condition_keeps_nested_join_constructor",
+    "i07c_causal_obligations::first_indexed_array_assignment_owns_later_element_origin",
+    "i07c_causal_obligations::mixed_nested_join_keeps_constructor_and_shape_sites",
+    "i07c_causal_obligations::pending_inner_constructor_preserves_outer_branch_comparison",
+    "i07c_causal_obligations::unresolved_constructor_survives_failed_nested_union_condition",
+    "i07c_mutation_regressions::anchored_first_branch_keeps_independent_pending_join",
+    "i07c_mutation_regressions::cyclic_constructor_errors_keep_inference_code_at_each_site",
+    "i07c_mutation_regressions::linked_array_constructors_keep_each_causal_inference_site",
+    "i07c_normative_survivors::deferred_projection_and_constructor_programs_finish_with_causal_results",
+    "i07c_normative_survivors::independent_causal_sites_survive_deferred_resolution",
+    "i07c_pending_nominal_domain::failed_nested_union_does_not_anchor_an_outer_pending_array",
+    "i07c_pending_nominal_domain::incompatible_prefix_with_unresolved_arrays_is_not_a_concrete_twin",
+    "i07c_pending_nominal_domain::planned_projection_child_does_not_use_failed_branch_as_witness",
+    "i07c_structural_invariants::grouped_operands_keep_one_causal_primary",
+    "ir::i07c_tests::deferred_join_has_one_diagnostic_per_source_site"
+  ]
+}

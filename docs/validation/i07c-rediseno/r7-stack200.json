@@ -1,0 +1,20 @@
+{
+  "schema": "i07c-r7-stack200-v1",
+  "rustc": "1.99.1 MSVC",
+  "profile": "test debuginfo=2 opt_level=0",
+  "executable_sha256": "e3067892ea9198759a55143256bdbf6f5ea9f83a5ea1f466b0cfd9e58c034101",
+  "exe": "D:\\nexo-r7-target\\debug\\deps\\nexo-ae65c584bd3eb2e6.exe",
+  "rows": [
+    {
+      "case": "option_match126",
+      "attempts": 200,
+      "failed": []
+    },
+    {
+      "case": "result_match126",
+      "attempts": 200,
+      "failed": []
+    }
+  ],
+  "elapsed_seconds": 20.055
+}

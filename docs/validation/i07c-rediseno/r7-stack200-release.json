@@ -1,0 +1,20 @@
+{
+  "schema": "i07c-r7-stack200-v1",
+  "rustc": "1.99.1 MSVC",
+  "profile": "release opt_level=3",
+  "executable_sha256": "dad845455b68067e4f63c08a26e4b8620f804e15683d78f3c039437d7e0b1f1e",
+  "exe": "D:\\nexo-r7-target\\release\\deps\\nexo-26af8b8df84aca8d.exe",
+  "rows": [
+    {
+      "case": "option_match126",
+      "attempts": 200,
+      "failed": []
+    },
+    {
+      "case": "result_match126",
+      "attempts": 200,
+      "failed": []
+    }
+  ],
+  "elapsed_seconds": 18.461
+}

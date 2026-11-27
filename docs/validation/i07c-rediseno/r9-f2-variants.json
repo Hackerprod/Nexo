@@ -1,0 +1,295 @@
+{
+  "schema": "i07c-r9-f2-variants-v1",
+  "rows": [
+    {
+      "id": "result_both_pending_valid",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));q=[1];r=[true];}",
+      "source_sha256": "e316f91100957e9e4b7d9c87acd3ff7544b7546d7cc9be1aa701c08c268c9540",
+      "bytes": 83,
+      "expected_adr": {
+        "outcome": "checked",
+        "diagnosticos": []
+      }
+    },
+    {
+      "id": "result_ok_before_err",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));let y:Result<Array<Bool>,Array<I64>>=x;q=[1];r=[true];}",
+      "source_sha256": "c516e36a26e132044273f0973d3dee574fb5e0452e88bfb29ab18880a07d77c2",
+      "bytes": 122,
+      "authority": "class_I_revertible",
+      "authority_note": "La prioridad Ok antes de Err en la anotación no está en el ADR; se conserva como conducta de main hasta decisión de Flujo A.",
+      "expected_class_I_conservation": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              109,
+              110
+            ],
+            "Bool",
+            "I64",
+            [
+              73,
+              103
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              115,
+              119
+            ],
+            "I64",
+            "Bool",
+            [
+              73,
+              103
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "id": "result_two_mismatches",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Ok(q) else Err(r));q=[1];r=[true];let y:Result<Array<Bool>,Array<I64>>=x;}",
+      "source_sha256": "a212a02f2bcc8e82d766eedc9f0034b0be397722ea80708fa0135f3cffe58fe1",
+      "bytes": 122,
+      "authority": "class_I_revertible",
+      "authority_note": "La prioridad Ok antes de Err en la anotación no está en el ADR; se conserva como conducta de main hasta decisión de Flujo A.",
+      "expected_class_I_conservation": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              119,
+              120
+            ],
+            "Result<Array<Bool>,Array<I64>>",
+            "Result<Array<I64>,Array<Bool>>",
+            [
+              88,
+              118
+            ]
+          ]
+        ],
+        "first_incompatible_component": "Result.Ok",
+        "not_selected": "Result.Err"
+      }
+    },
+    {
+      "id": "option_nested_valid",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Some(Some(q)) else Some(Some(r)));q=[1];r=[1];}",
+      "source_sha256": "b214a4933ccf9b14c38a187d27563f28acad2c6717e2d3d2142db83de8976daf",
+      "bytes": 95,
+      "expected_adr": {
+        "outcome": "checked",
+        "diagnosticos": []
+      }
+    },
+    {
+      "id": "option_nested_conflict",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];let x=(if true then Some(Some(q)) else Some(Some(r)));q=[1];r=[true];}",
+      "source_sha256": "54c2721b65d9a1ccb12f87cdbff0dac8f84fda1781f431573d2c4ff7a77e8056",
+      "bytes": 98,
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              91,
+              95
+            ],
+            "I64",
+            "Bool",
+            [
+              84,
+              87
+            ]
+          ]
+        ],
+        "path": "Option.payload/Option.payload/Array.element"
+      }
+    },
+    {
+      "id": "P3_result_both_payloads_pending",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];var w=[];var z=[];var x=(if true then Ok(q) else Err(r));var y=(if true then Ok(w) else Err(z));w=[1];z=[true];q=[true];r=[1];x=y;}",
+      "source_sha256": "16987eab636422ccf829200f570f8995aa885a6030c6db4761d4cff5ada57b9c",
+      "bytes": 159,
+      "authority": "ADR F0-0002-lagunas Origen expected_type paso 6; B r9 P3/P4",
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              156,
+              157
+            ],
+            "expected_type": "Result<Array<Bool>,Array<I64>>",
+            "found_type": "Result<Array<I64>,Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  77,
+                  83
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  156,
+                  157
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "P3_result_both_payloads_pending_reverse_completion",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];var w=[];var z=[];var x=(if true then Ok(q) else Err(r));var y=(if true then Ok(w) else Err(z));w=[1];z=[true];r=[1];q=[true];x=y;}",
+      "source_sha256": "5706707c97fb3d81ef6b23e52d1e6f286118309131bd363fed4999f2bcd10038",
+      "bytes": 159,
+      "authority": "ADR F0-0002-lagunas Origen expected_type paso 6; la ultima continuacion de Result en orden de comprobacion es Err(r), con independencia del orden de completacion de los payloads",
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              156,
+              157
+            ],
+            "expected_type": "Result<Array<Bool>,Array<I64>>",
+            "found_type": "Result<Array<I64>,Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  77,
+                  83
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  156,
+                  157
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "P4_result_err_only_pending",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];var w=[];var z=[];var x=(if true then Ok(q) else Err(r));var y=(if true then Ok(w) else Err(z));w=[1];z=[true];q=[1];r=[1];x=y;}",
+      "source_sha256": "7e309017cecf621a18c2e3d842a95e4f6228874e64d2fac05d8875908e1ecba9",
+      "bytes": 156,
+      "authority": "ADR F0-0002-lagunas Origen expected_type paso 6; B r9 P3/P4",
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              153,
+              154
+            ],
+            "expected_type": "Result<Array<I64>,Array<I64>>",
+            "found_type": "Result<Array<I64>,Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  77,
+                  83
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  153,
+                  154
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "P5_result_only_ok_mismatch",
+      "profile": "f0-0003-b-v1",
+      "source": "fn Main(){var q=[];var r=[];var w=[];var z=[];var x=(if true then Ok(q) else Err(r));var y=(if true then Ok(w) else Err(z));w=[1];z=[true];q=[true];r=[true];x=y;}",
+      "source_sha256": "2ab882d07691ad499976f3d894a59adf8af40c633c790177eca3561127d48465",
+      "bytes": 162,
+      "authority": "ADR F0-0002-lagunas Origen expected_type paso 6; decision del propietario D5",
+      "expected_adr": {
+        "outcome": "rejected",
+        "diagnosticos": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              159,
+              160
+            ],
+            "expected_type": "Result<Array<Bool>,Array<Bool>>",
+            "found_type": "Result<Array<I64>,Array<Bool>>",
+            "relations": [
+              {
+                "role": "expected_type",
+                "span": [
+                  66,
+                  71
+                ]
+              },
+              {
+                "role": "found_type",
+                "span": [
+                  159,
+                  160
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "difference_main": {
+        "class": "I",
+        "field": "related_spans.expected_type",
+        "main_span": [
+          77,
+          83
+        ],
+        "adr_span": [
+          66,
+          71
+        ],
+        "reason": "Solo falla Result.Ok; el origen es la continuacion entera Ok(q), no Err(r)."
+      }
+    }
+  ]
+}
