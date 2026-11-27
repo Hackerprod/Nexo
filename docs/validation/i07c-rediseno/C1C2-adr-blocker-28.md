@@ -71,7 +71,7 @@ todos; se conservaron dos H históricas.
 
 | Iteración | Cambio de mecanismo probado | A | D | A-unmodeled | SHA-256 del ejecutable release | Resultado |
 |---|---|---:|---:|---:|---|---|
-| 1 | Elegir el último constructor con testigo del camino recursivo | 0 | 8 | 8 | `bdbfb9b12a9a1c8a24f80fdd8c2983721808aa01d33f459b96812174f6a4e0d6` | 78 B coincide con `main`; gate rojo |
+| 1 | Elegir el último constructor con testigo del camino recursivo | no medido→0 | no medido→8 | no medido→8 | `bdbfb9b12a9a1c8a24f80fdd8c2983721808aa01d33f459b96812174f6a4e0d6` | 78 B coincide con `main`; gate rojo |
 | 2 | Conservar `found` en el `Join` activo bajo `if` | 0→0 | 8→0 | 8→3 | `4881db70a5560d5e782027f77b0dfea573f251c0f87c363b56e804ef0734aae6` | `dirigido5:2069,4425,5287` |
 | 3 | Usar origen previo solo con un constructor testigo del camino | 0→0 | 0→0 | 3→0 | `3009e11f92d74811acbba7e49242467b28be87301935ae6d108e38e02535424c` | gate de corpus verde; `validate.sh` rojo |
 | 4 | Excluir del recuento los constructores de la igualdad actual | 0→0 | 0→0 | 0→0 | `2c4612ffaa8daa1f10a365ec1d6ca27ac15bdc5d884aa322730447e6cc1a9831` | gate de corpus verde; `validate.sh` rojo |
@@ -103,3 +103,12 @@ referencia retirada acredita C1. `r9-commit-gates.json`, `owned_rows_gate.py`,
 el contrato v12 y el ADR permanecen sin v13. El verificador v12
 `verify_r9_contract.py` terminó sin errores, lo que comprueba su estructura,
 no resuelve la contradicción.
+
+La retirada `ac96262` se verificó después en clon limpio con
+`sh scripts/validate.sh`, bajo `heavy-lock` `i07c-rediseno`,
+`CARGO_BUILD_JOBS=4` y target aislado en C:. Formato, Clippy con
+`-D warnings`, selección nextest, 2.218/2.218 pruebas debug,
+2.220/2.220 release y las sondas TYPES `option_match126` y
+`result_match126` a 65 KiB (5/5 cada una) terminaron sin error.
+Esto acredita únicamente el regreso al árbol C0; no es una validación de
+C1+C2 ni una puerta de v13.

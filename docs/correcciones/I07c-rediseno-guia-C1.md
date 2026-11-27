@@ -6,6 +6,12 @@ Estado: **v12 falsada; v13 bloqueada por contradicción normativa**, sin PASS. A
 
 Una igualdad recursiva rechazada no publica su propuesta ni cancela deberes de constructor ya publicados por igualdades compatibles anteriores. La cardinalidad no es «un E0103 por ciclo» ni «un E0103 por representante»: cada constructor anterior cuyo elemento sigue irresuelto conserva su propio C (§4.1.2.2), salvo que su obligación dependa realmente de un error causal previo (§§4.1.2.5 y 13.9). En el programa de 78 bytes, `[]` y `[v]` siguen sin elemento resuelto tras rechazar `v=[a]`; por eso el esperado ADR es `[62,64)` y `[67,70)`. El único E0103 `[73,76)` de `main` no puede derivarse de esta regla sin enmendar el ADR. `EqualityId` debe conservar las dos obligaciones previas, nunca absorberlas por compartir componente o ciclo.
 
+El último árbol experimental fue `1e4457fec7c02dc426afa74b25ae4660521c73a8`
+(ejecutable release SHA-256 `2c4612ffaa8daa1f10a365ec1d6ca27ac15bdc5d884aa322730447e6cc1a9831`);
+la referencia publicada actual es `ac962629d6a9b8b21ad8e7c021e61adafc84dc85`,
+idéntica en código a C0. Los cuatro barridos y las dos puertas mecánicas de
+la continuación 28 figuran en `C1C2-adr-blocker-28.md`.
+
 ## Referencia C1 y resultado reproducible
 
 Rama nueva `i07c-rediseno-c1-ref`, SHA `88205510cdfe8f9df3eef1236a33a0487e9474cf`, padre C0 `96d564496b1072d09a4a169c3be801d69aa3af96`. Diff: solo `src/check/types.rs` (+111/−13) y la aserción E3 previamente aprobada de `src/ir/i07c_tests.rs` (+1/−1). No contiene código R1–R5, `NEXO_XV`, `union_denounced`, `ReadContext`, `ResultStatus`, `ConstructorDuty` nuevo ni el WIP de Luna.
