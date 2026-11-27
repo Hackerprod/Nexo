@@ -86,6 +86,11 @@ CASES = {
         [("NX-E1303", None, 116, 117),
          ("NX-E0102", "type_mismatch", 174, 175)],
     ),
+    "later_union_deferred_conflicts_report_first_only": (
+        "fn Main(){let x=1;var v1=[];var v2=[];var v3=[];let a0=[v2,(if false then v2[1] else (if true then v3 else v1[0]))];let a1=[v2[1],v2[x],(if false then v2[1] else (if true then v3 else v1[0]))];v3=[];v2=[true];}",
+        [("NX-E0102", "type_mismatch", 74, 79),
+         ("NX-E1303", None, 176, 178)],
+    ),
 }
 
 # The second literal in the middle case must select its own first operand.
@@ -98,6 +103,7 @@ EXPECTED_REL = {
     "literal_origin_after_if_projection": {0: (90, 94)},
     "literal_origin_after_two_literals": {0: (90, 94)},
     "later_union_branch_preserves_deferred_equality": {0: (92, 96), 1: (144, 148)},
+    "later_union_deferred_conflicts_report_first_only": {0: (56, 58), 1: (151, 156)},
 }
 
 

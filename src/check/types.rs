@@ -9102,6 +9102,7 @@ impl Checker<'_> {
         // same constructor primary (§13.9).
         joins.sort_by_key(|join| join.found.start);
         let mut failed_numeric_operations = HashSet::new();
+        let mut failed_union_owners = HashSet::new();
         for join in joins {
             let numeric_owner = join.numeric_domain_owner;
             let comparison_domain_if_unresolved = join.comparison_domain_if_unresolved;
@@ -9217,6 +9218,18 @@ impl Checker<'_> {
             };
             if error.code == "NX-E0102"
                 && numeric_owner.is_some_and(|owner| !failed_numeric_operations.insert(owner))
+            {
+                continue;
+            }
+            // Every continuation keeps its compatible equality, but an if
+            // without external context reports only its first incompatible
+            // continuation (§4.1.2.4). Deferred joins are drained later;
+            // their source-ordered owner restores that same cardinality.
+            if error.code == "NX-E1303"
+                && entry_record
+                    .as_ref()
+                    .and_then(|record| record.owner_if)
+                    .is_some_and(|owner| !failed_union_owners.insert(owner))
             {
                 continue;
             }
@@ -15606,7 +15619,14 @@ impl Checker<'_> {
                                 && let Some((base, base_span)) = progress.anchor.as_ref()
                                 && let Some(found) = second.clone().or_else(|| {
                                     branch_value_expr(block)
-                                        .and_then(|expr| self.expression_variable(expr))
+                                        .and_then(|mut expr| {
+                                            while let Expr::Group(inner, _) = expr {
+                                                expr = inner;
+                                            }
+                                            matches!(expr, Expr::Index { .. })
+                                                .then(|| self.expression_variable(expr))
+                                                .flatten()
+                                        })
                                         .map(Type::Deferred)
                                 })
                             {
@@ -22706,6 +22726,33 @@ mod quota_tests {
             );
         }
         assert_eq!(report.errors[1].subcause.as_deref(), Some("type_mismatch"));
+    }
+
+    #[test]
+    fn c2_deferred_union_reports_only_first_incompatible_continuation() {
+        let source = "fn Main(){let x=1;var v1=[];var v2=[];var v3=[];let a0=[v2,(if false then v2[1] else (if true then v3 else v1[0]))];let a1=[v2[1],v2[x],(if false then v2[1] else (if true then v3 else v1[0]))];v3=[];v2=[true];}";
+        let ast = parse::parse_new_profile("union.n", source).unwrap();
+        let resolved = names::resolve_with_option("union.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("union.n", source, &ast, &resolved, 1_000_000);
+        assert_eq!(report.errors.len(), 2, "{:?}", report.errors);
+        assert_eq!(report.errors[0].code, "NX-E0102");
+        assert_eq!(
+            report.errors[0].primary_span.as_ref().map(span_key),
+            Some((74, 79))
+        );
+        assert_eq!(report.errors[1].code, "NX-E1303");
+        assert_eq!(
+            report.errors[1].primary_span.as_ref().map(span_key),
+            Some((176, 178))
+        );
+        assert_eq!(
+            report.errors[1]
+                .related_spans
+                .iter()
+                .find(|span| span.role == RelatedRole::ExpectedType)
+                .map(|span| span_key(&span.span)),
+            Some((151, 156)),
+        );
     }
 
     #[test]
