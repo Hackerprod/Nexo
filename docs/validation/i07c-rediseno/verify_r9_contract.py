@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check R6 v15b ownership, C1 reference, D7 checker and immutable v11 blobs."""
+"""Check R6 ownership, C1 reference, D7 checker and immutable v11 blobs."""
 
 import hashlib
 import importlib.util
@@ -123,6 +123,16 @@ for row_id, row in d7["observed_unmodeled_residuals"].items():
     assert hashlib.sha256(src).hexdigest() == row["source_sha256"]
 assert gates["owner_directed"]["atomic_78"] == "C3"
 assert gates["owner_matrix"]["W0"] == gates["owner_matrix"]["W0nounion"] == "C3"
+assert [len(gates["owned_corpus_ids"]["C2"][family]) for family in
+        ("directed74", "matrix45", "frozen13")] == [10, 0, 3]
+for owned_family, commit_family in (
+    ("directed74", "directed74_normative_ids"),
+    ("matrix45", "matrix45_normative_ids"),
+    ("frozen13", "frozen13_normative_ids"),
+):
+    assert set(gates["owned_corpus_ids"]["C2"][owned_family]) == set(
+        gates["commits"]["C2"][commit_family]
+    ), owned_family
 assert gates["owner_matrix"]["F06"] == "C3"
 assert gates["commits"]["C1"]["f06_cross_gate"] == {
     "expected": "main_or_full_adr_oracle", "no_oracle_to_main": True,
@@ -257,4 +267,4 @@ assert approval["expectations"][0]["expected_migrated_code_subcause_primary"] ==
 ]
 assert approval["expectations"][1]["fixture_sha256"] == c1_n["fixture_sha256"]
 assert approval["expectations"][1]["expected_adr_code_subcause_primary"] == c1_n["expected_adr_code_subcause_primary"]
-print("R6 v15b contract structure OK")
+print("R6 contract structure OK")

@@ -1007,17 +1007,12 @@
         "RC2_read_context_committed",
         "RC3_read_context_no_retroactive",
         "ST1_equivalent",
-        "atomic_78",
         "planned",
         "recursive_127_equivalent",
         "recursive_69",
         "recursive_78_equivalent"
       ],
-      "matrix45": [
-        "F06",
-        "W0",
-        "W0nounion"
-      ],
+      "matrix45": [],
       "frozen13": [
         "RC1_read_context_variable",
         "RC2_read_context_committed",
