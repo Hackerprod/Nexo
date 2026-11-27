@@ -2753,13 +2753,16 @@
     "docs/validation/i07c-rediseno/r14-main-baseline.json": "bc641bcd991844dddc9368e9a2f8230cc13259a8b8a4d815a7183ed9090f6f05"
   },
   "frozen_v11_commit": "fcf62d5e43c6a29981abe478dd039db51b3cb524",
-  "c1_reference_commit": "1e4457fec7c02dc426afa74b25ae4660521c73a8",
+  "c1_reference_commit": "42cb63fa3c80abe551155f4c9ebd044f3e30914d",
   "c1_reference_evidence": {
     "base_commit": "96d564496b1072d09a4a169c3be801d69aa3af96",
-    "types_blob": "364585898ab62920e965e5743e40ca4088f9f2c4",
-    "test_blob": "b1b8a5e965b350318923aa00c9b4da29de30e4f5",
-    "release_sha256": "2c4612ffaa8daa1f10a365ec1d6ca27ac15bdc5d884aa322730447e6cc1a9831",
-    "candidate_gate_report_sha256": "c29d9c7a20cd129cf903b63c886fe10297954a0bb4569767d8b1c02fe07bdbe6",
+    "tree": "933e49367c8e7b42625e701fc0908017e2ff1871",
+    "production_commit": "36ddf3fa73515060abb6ca03bf62058f3bbd390f",
+    "test_commit": "42cb63fa3c80abe551155f4c9ebd044f3e30914d",
+    "types_blob": "c8b1499458f6368e798da957424f7485c2712353",
+    "test_blob": "49ee004a241c896f5e5c676e04ea47279c9f529e",
+    "normative_test_blob": "9d5b90a9b914064d996aa9ed827b4efd6ac7d2ea",
+    "release_sha256_prefix": "57c73b7b",
     "corpora_complete": 20,
     "rows_complete": 151188,
     "A_D_A_unmodeled_H_new": [
@@ -2774,8 +2777,32 @@
       0
     ],
     "f06_class": "main",
-    "validate_sh": "FAIL: check_inferred_depth indexes a node removed by equality rollback",
-    "parent_commit": "4688cdbe275a15f1640f714260d434ae85a6956c"
+    "validate_sh": "GREEN: debug 2220/2220, release 2222/2222, stack65 5/5",
+    "parent_commit": "36ddf3fa73515060abb6ca03bf62058f3bbd390f",
+    "b21_independent_subset": "5 corpus, 19500 rows, C 3885, OK 6764, U 8850, H 1 expected, A/B/D 0",
+    "port_instruction": "Luna conserva dos commits separados y repite validate.sh"
+  },
+  "c1_previous_reference": {
+    "commit": "1e4457fec7c02dc426afa74b25ae4660521c73a8",
+    "types_blob": "364585898ab62920e965e5743e40ca4088f9f2c4",
+    "test_blob": "b1b8a5e965b350318923aa00c9b4da29de30e4f5",
+    "release_sha256": "2c4612ffaa8daa1f10a365ec1d6ca27ac15bdc5d884aa322730447e6cc1a9831",
+    "candidate_gate_report_sha256": "c29d9c7a20cd129cf903b63c886fe10297954a0bb4569767d8b1c02fe07bdbe6",
+    "validate_sh": "FAIL: check_inferred_depth indexes a node removed by equality rollback"
+  },
+  "c1_declared_main_difference": {
+    "class": "N(b)(c)",
+    "owner": "C1",
+    "production_commit": "36ddf3fa73515060abb6ca03bf62058f3bbd390f",
+    "test_commit": "42cb63fa3c80abe551155f4c9ebd044f3e30914d",
+    "case": "resource_projection",
+    "fixture": "tests/fixtures/i07c/resource_projection_and_scalar_base.n",
+    "fixture_bytes": 100,
+    "fixture_sha256": "67d240cf909fedce48c1a5396209ffccca3b7770fa78fc6988074cd4fd91da2a",
+    "adr": "F0-0002 §4.1.2 b2d/Par (1), RD113",
+    "expected_adr_code_subcause_primary": [["NX-E0102", "not_indexable", [57, 59]], ["NX-E0102", "type_mismatch", [81, 83]]],
+    "main_code_subcause_primary": [["NX-E0102", "type_mismatch", [57, 62]], ["NX-E0102", "type_mismatch", [81, 83]], ["NX-E0102", "not_indexable", [94, 96]]],
+    "c2_residual": "C1 obtains this effect through journal rollback; C2 must retain all three discriminators: no later shape, rejected q=[], scalar q=1"
   },
   "d7_declared_main_differences": {
     "owner": "C4",

@@ -1,5 +1,7 @@
 # I07c R6 — guía C1 v14, referencia ejecutable
 
+**Actualización v15b.** Esta guía conserva la evidencia histórica v14 de `1e4457f`. La referencia vigente para portar es `42cb63f` (producción `36ddf3f`, prueba `42cb63f`), con `validate.sh` verde 2.220/2.222 y PASS condicionado de B r21. Luna mantiene los dos commits separados y repite `validate.sh`. R6-final v15b §10 y `r9-commit-gates.json` rigen la migración aprobada de solo dos expectativas: `resource_array_write` I y `resource_projection` N(b)(c), dueño C1. C2 conserva los tres discriminadores de la proyección de recurso. El resto de esta guía describe la referencia anterior y su fallo mecánico, no el estado actual.
+
 Estado: **v14 propuesta para B r20, sin PASS**. Por decisión D7 del coordinador, la base de C1 es el árbol `1e4457fec7c02dc426afa74b25ae4660521c73a8` de `i07c-rediseno-c1c2-ref` (base C0 `96d564496b1072d09a4a169c3be801d69aa3af96`; padre directo `4688cdbe275a15f1640f714260d434ae85a6956c`). La rama de referencia se devolvió después a C0 en `ac962629d6a9b8b21ad8e7c021e61adafc84dc85`; se recupera el árbol por el SHA del commit, nunca por la punta de la rama. El árbol dio gate cruzado completo 20/20, 151.188 filas, A/D/A-unmodeled 0/0/0 y owned C1 3/74, 0/45, 0/13, F06=`main`; `validate.sh` **falló** por pánico `type_nodes[&id]` tras rollback. Luna corrige ese pánico y repite ambas puertas antes de entregar C1. C2–C6 quedan a verificar con gate completo por commit, sin cifras de ejecución atribuidas.
 
 ## Diferencia declarada de `main` con dueño C4

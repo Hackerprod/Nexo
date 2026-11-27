@@ -3561,5 +3561,31 @@
       "reduced_quota_withholds_consumer_of_unclosed_binary_domain",
       "tainted_array_stops_after_the_first_denied_charge"
     ]
+  },
+  "additional_approval_v15b": {
+    "authority": "Coordinador, 2026-11-26 20:30 PT",
+    "source_test": "deferred_projection_and_constructor_programs_finish_with_causal_results",
+    "file": "tests/i07c_normative_survivors.rs",
+    "scope": "Solo las dos expectativas migradas; conservar todas las demas aserciones del test",
+    "production_commit": "36ddf3fa73515060abb6ca03bf62058f3bbd390f",
+    "test_commit": "42cb63fa3c80abe551155f4c9ebd044f3e30914d",
+    "expectations": [
+      {
+        "case": "resource_array_write",
+        "class": "I",
+        "fixture": "tests/fixtures/i07c/deferred_resource_array_write.n",
+        "expected_migrated_code_subcause_primary": [["NX-E0102", "type_mismatch", [78, 80]]]
+      },
+      {
+        "case": "resource_projection",
+        "class": "N(b)(c)",
+        "fixture": "tests/fixtures/i07c/resource_projection_and_scalar_base.n",
+        "fixture_bytes": 100,
+        "fixture_sha256": "67d240cf909fedce48c1a5396209ffccca3b7770fa78fc6988074cd4fd91da2a",
+        "adr": "F0-0002 §4.1.2 b2d/Par (1), RD113",
+        "expected_adr_code_subcause_primary": [["NX-E0102", "not_indexable", [57, 59]], ["NX-E0102", "type_mismatch", [81, 83]]],
+        "main_code_subcause_primary": [["NX-E0102", "type_mismatch", [57, 62]], ["NX-E0102", "type_mismatch", [81, 83]], ["NX-E0102", "not_indexable", [94, 96]]]
+      }
+    ]
   }
 }

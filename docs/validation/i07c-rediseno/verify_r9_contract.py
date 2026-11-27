@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check R6 v14 ownership, D7 causal checker and immutable v11 blobs."""
+"""Check R6 v15b ownership, C1 reference, D7 checker and immutable v11 blobs."""
 
 import hashlib
 import importlib.util
@@ -66,15 +66,39 @@ assert gates["directed74_unique_sources"] == 48
 assert gates["commits"]["C1"]["c1_independent_probes"] == [
     "recursive_69", "recursive_78_equivalent", "recursive_127_equivalent",
 ]
-assert gates["c1_reference_commit"] == "1e4457fec7c02dc426afa74b25ae4660521c73a8"
-assert subprocess.run(["git", "rev-parse", f"{gates['c1_reference_commit']}:src/check/types.rs"],
-                      cwd=HERE.parents[2], check=True, capture_output=True, text=True).stdout.strip() == gates["c1_reference_evidence"]["types_blob"]
+assert gates["c1_reference_commit"] == "42cb63fa3c80abe551155f4c9ebd044f3e30914d"
+reference = gates["c1_reference_evidence"]
+assert subprocess.run(
+    ["git", "rev-parse", gates["c1_reference_commit"] + "^{tree}"],
+    cwd=HERE.parents[2], check=True, capture_output=True, text=True,
+).stdout.strip() == reference["tree"]
+for relative, field in (
+    ("src/check/types.rs", "types_blob"),
+    ("src/ir/i07c_tests.rs", "test_blob"),
+    ("tests/i07c_normative_survivors.rs", "normative_test_blob"),
+):
+    assert subprocess.run(
+        ["git", "rev-parse", f"{gates['c1_reference_commit']}:{relative}"],
+        cwd=HERE.parents[2], check=True, capture_output=True, text=True,
+    ).stdout.strip() == reference[field], relative
+assert reference["production_commit"] == reference["parent_commit"]
+assert reference["test_commit"] == gates["c1_reference_commit"]
 assert gates["c1_reference_evidence"]["A_D_A_unmodeled_H_new"] == [0, 0, 0, 0]
 assert gates["c1_reference_evidence"]["owned_C1_directed_matrix_frozen"] == [3, 0, 0]
-assert gates["c1_reference_evidence"]["validate_sh"].startswith("FAIL:")
+assert gates["c1_reference_evidence"]["validate_sh"].startswith("GREEN:")
 assert gates["c1_reference_evidence"]["parent_commit"] == subprocess.run(
     ["git", "rev-parse", gates["c1_reference_commit"] + "^"], cwd=HERE.parents[2],
     check=True, capture_output=True, text=True).stdout.strip()
+assert gates["c1_previous_reference"]["commit"] == "1e4457fec7c02dc426afa74b25ae4660521c73a8"
+c1_n = gates["c1_declared_main_difference"]
+fixture = HERE.parents[2] / c1_n["fixture"]
+assert len(fixture.read_bytes()) == c1_n["fixture_bytes"] == 100
+assert hashlib.sha256(fixture.read_bytes()).hexdigest() == c1_n["fixture_sha256"]
+assert c1_n["class"] == "N(b)(c)" and c1_n["owner"] == "C1"
+assert c1_n["expected_adr_code_subcause_primary"] == [
+    ["NX-E0102", "not_indexable", [57, 59]],
+    ["NX-E0102", "type_mismatch", [81, 83]],
+]
 import d7_family_check as d7_check  # noqa: E402
 assert hashlib.sha256((HERE / "d7_family_check.py").read_bytes()).hexdigest() == gates["d7_classifier_sha256"]
 assert hashlib.sha256((HERE / "d7_cross_gate.py").read_bytes()).hexdigest() == gates["d7_cross_gate_sha256"]
@@ -221,4 +245,16 @@ assert all(next(x for x in migration if x["source_test"] == name)["private_check
 assert len(manifest["explicit_approval_31"]["existing_quota_and_precedence"]) == 17
 assert len(manifest["explicit_approval_31"]["new_fixed_cost_quota"]) == 10
 assert len(manifest["explicit_approval_31"]["formerly_preserved_fixed_cost_quota"]) == 4
-print("R6 v14 contract structure OK")
+approval = manifest["additional_approval_v15b"]
+assert approval["authority"] == "Coordinador, 2026-11-26 20:30 PT"
+assert [row["case"] for row in approval["expectations"]] == [
+    "resource_array_write", "resource_projection",
+]
+assert [row["class"] for row in approval["expectations"]] == ["I", "N(b)(c)"]
+assert "expected_adr_code_subcause_primary" not in approval["expectations"][0]
+assert approval["expectations"][0]["expected_migrated_code_subcause_primary"] == [
+    ["NX-E0102", "type_mismatch", [78, 80]],
+]
+assert approval["expectations"][1]["fixture_sha256"] == c1_n["fixture_sha256"]
+assert approval["expectations"][1]["expected_adr_code_subcause_primary"] == c1_n["expected_adr_code_subcause_primary"]
+print("R6 v15b contract structure OK")
