@@ -2734,28 +2734,31 @@
     "docs/validation/i07c-rediseno/r14-main-baseline.json": "bc641bcd991844dddc9368e9a2f8230cc13259a8b8a4d815a7183ed9090f6f05"
   },
   "frozen_v11_commit": "fcf62d5e43c6a29981abe478dd039db51b3cb524",
-  "c2_reference_commit": "184f2d5568fe52badbec20f8a9a2841566999931",
+  "c2_reference_commit": "be96e08f1a18fa92e296fe89d1dc78dfd805a55f",
   "c2_reference_evidence": {
     "base_commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
-    "tree": "c843f4022d3cc6f19d5cf9b04f4a62e59f985868",
-    "types_blob": "e4fb9e291645a94c5bc8b832fbbce3b7281a8f1f",
+    "tree": "dfe29b71093969c9abca8614933b7a823ff4a5a2",
+    "types_blob": "00a7d8a8b065069a901877390ed2362a9382879c",
     "span_audit_blob": "c11e50f7593e8b7ec0a15feba5b12eae294e8b52",
     "span_inventory_blob": "3b4585f62e857b7090009fc3b5030a40bbc523bf",
     "span_inventory_sha256": "7c2081374adf2e1a318bb9694dbb70f2a09f2a2499007e354c6b83277ef140c4",
     "structural_test_blob": "48ec74dd0634ce34a0203e58bf8da94525cec311",
     "main_release_sha256": "422f68f956608cad7d92b13d975e803c7920456408a0a6192d14efedc76543ac",
-    "candidate_release_sha256": "82d178d7816dd808b9985366a73c4f1ed8ca0eeb617d6ca70bc6cad8821c17b7",
-    "validate_log_sha256": "7daa001bd892592ebc8953608900c3a7b031afceb911058e1bb3f2fbaede5f78",
+    "candidate_release_sha256": "84a9d9d876a32143c3fefebb84a930862b714bc01966ccb36fdb15c9e099a474",
+    "validate_log_sha256": "c04076ec87a67eca0d164600950f5f34d3220ced008eb362e7bcb44de13fa9b6",
     "report_sha256": {
-      "c2-ref-corpus-v15d.json": "2ce4b9aaf58a806cb8b1b305a2bb6e2ff6d16322eeebd18eddbb95afee1bbc46",
-      "c2-ref-owned-v15d.json": "2be04bfff54189c41b22e38e51894a1feb93dbbab996d0696500696e277bd9b0",
-      "c2-ref-discriminators-v15d.json": "b58671325121b9cac79ab6758d309699c492408fe7024df36c55214b0eb26d82",
-      "c2-ref-frame-v15d.txt": "fa0a2d20bf83a9cf47492873e187dd1b9c84011bdc7add24d7e30fcaa2597b15",
-      "c2-ref-perf-v15d.json": "c9bc3381af9869c9ae67d506ce9cd4326540301db4fcaf89ff76eff313a39970",
-      "c2-d-adjudicacion-v15d.json": "d326df34fec0b6cb01985f295ba67357d30521f07802ef2e6b5e029ca440cdf3",
-      "c3-secuencia-v15d-filas.json": "f2eab88c56d01d3880a11525bd28435aebcdf1536cd0ade6bacfb817096d4744",
-      "c3-secuencia-v15d-named.json": "d66a799bce781667dc3f7410304123d79bdd3036e9a8f417e0a2c50e5a258f47",
-      "c3-secuencia-v15d-owned.json": "094c3d1050108c7e97971cdb9e88de1454ace03c1dd514100ed8d657f193801e"
+      "c2-ref-corpus-v15e.json": "ab6fd751ec9e2f242b08072dae16c06c8d115da1a1de510fb2b177a763893898",
+      "c2-ref-owned-v15e.json": "e835701a8664f9df9148600b9a9b4d3d002cd4da1fe3f07524db609f991f6c4c",
+      "c2-ref-owned-debug-v15e.json": "e78d55016cd5214a88d13e3390c4a56fbc91300923f7f5c7f76d671360a8e275",
+      "c2-ref-discriminators-v15e.json": "a9461df39fafd18246d027a9fc3123f856fb6c1cae801d7d830b2fc3e4efcac4",
+      "c2-ref-discriminators-debug-v15e.json": "fd3d8b0934c5017244791b066e0ff23c9439c9cf674dc93e7a3fb1705ccc0bdb",
+      "c2-ref-regression-before-v15e.json": "ebbdf7f05353d59e703190f916940fa5901378b01d143743935e6cd5746824dd",
+      "c2-ref-fuzz-v15e.json": "8448679f12a6e1997eed2be8c3a30959b9f8e0eb960f3f2e756e244dd6197adc",
+      "c2-ref-perf-v15e.json": "93d409e77be3ea3b543420fb9bf6c3560a69d07d87233d3e908316c96bcd7eb7",
+      "c2-ref-validate-v15e.json": "53b39d531e6512599ca8f51b9968cd57fcfc5c7a11f85edb5f9cdf13b70ba7ee",
+      "c2-ref-frame-v15e.txt": "3cf3b6677cb28abd811b525a153d403e50c75a054bdff04f2235a1b2146c8714",
+      "c3-secuencia-v15e-owned.json": "2aedbb8a5a5c338a8cb1bd5a3007f99d0121d65a4795c76443731ce083414c01",
+      "c2_literal_origin_fuzz.py": "ed6eb336ab6717bca942063e7300c7a3716357117c7a21a0e59d56f959170ec0"
     },
     "corpora_complete": 20,
     "rows_complete": 151188,
@@ -2777,11 +2780,11 @@
       3
     ],
     "f06_class": "main",
-    "discriminator_profile_cases": 18,
+    "discriminator_profile_cases": 24,
     "validate_sh": "GREEN: debug 2230/2230, release 2232/2232, stack65 5/5",
     "frame_pair_bytes": 60616,
     "frame_margin_bytes": 5944,
-    "perf_median_ratio": 1.8193269069110523,
+    "perf_median_ratio": 1.758355735751856,
     "d_prime_extensions": [
       {
         "family": "rejected_resource_projection",
@@ -2816,7 +2819,12 @@
         ]
       }
     ],
-    "candidate_debug_sha256": "6ddbdea5ebf2124bd55642c6b243d38ee00f9f1a482c483aaf426850e2044ad7"
+    "candidate_debug_sha256": "37d867419dd39fb29cb25423dfe0e8ca3c89b5c2e3fa556121ce8fe46d2a99cb",
+    "code_commit": "be96e08f1a18fa92e296fe89d1dc78dfd805a55f",
+    "candidate_gate_debug": "NO EVALUADO",
+    "main_debug_sha256": "65e6cc75fc3bce3cac0f4772f744e913c60a0edba11b666bddfd9ddd86946e7b",
+    "frame_exe_sha256": "6db1558de31e43e5ce1a978173c23d412ba8718a388705873538b7771cc62867",
+    "frame_map_sha256": "932bdc1a7d251e564c4c82a8d954b4d8ddb4063902831d764b763718543f49b1"
   },
   "c1_reference_commit": "42cb63fa3c80abe551155f4c9ebd044f3e30914d",
   "c1_reference_evidence": {
@@ -3015,5 +3023,88 @@
     "residuals_status": "2069 and 4425 satisfy D7 counterfactual rule. 5287 is not D7 by deleting u=v; its AssertEq causal rule needs separate adjudication before any C4 change, otherwise main is conserved."
   },
   "d7_classifier_sha256": "4579a2a6719e7504a35369fba35d7fbcd7f207602a7eb14e93b6191295e5845f",
-  "d7_cross_gate_sha256": "72d58973b53a665c707364e25778c91c31c2a553433968e6f023e433ce360c01"
+  "d7_cross_gate_sha256": "72d58973b53a665c707364e25778c91c31c2a553433968e6f023e433ce360c01",
+  "c2_reference_evidence_v15d": {
+    "base_commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
+    "tree": "c843f4022d3cc6f19d5cf9b04f4a62e59f985868",
+    "types_blob": "e4fb9e291645a94c5bc8b832fbbce3b7281a8f1f",
+    "span_audit_blob": "c11e50f7593e8b7ec0a15feba5b12eae294e8b52",
+    "span_inventory_blob": "3b4585f62e857b7090009fc3b5030a40bbc523bf",
+    "span_inventory_sha256": "7c2081374adf2e1a318bb9694dbb70f2a09f2a2499007e354c6b83277ef140c4",
+    "structural_test_blob": "48ec74dd0634ce34a0203e58bf8da94525cec311",
+    "main_release_sha256": "422f68f956608cad7d92b13d975e803c7920456408a0a6192d14efedc76543ac",
+    "candidate_release_sha256": "82d178d7816dd808b9985366a73c4f1ed8ca0eeb617d6ca70bc6cad8821c17b7",
+    "validate_log_sha256": "7daa001bd892592ebc8953608900c3a7b031afceb911058e1bb3f2fbaede5f78",
+    "report_sha256": {
+      "c2-ref-corpus-v15d.json": "2ce4b9aaf58a806cb8b1b305a2bb6e2ff6d16322eeebd18eddbb95afee1bbc46",
+      "c2-ref-owned-v15d.json": "2be04bfff54189c41b22e38e51894a1feb93dbbab996d0696500696e277bd9b0",
+      "c2-ref-discriminators-v15d.json": "b58671325121b9cac79ab6758d309699c492408fe7024df36c55214b0eb26d82",
+      "c2-ref-frame-v15d.txt": "fa0a2d20bf83a9cf47492873e187dd1b9c84011bdc7add24d7e30fcaa2597b15",
+      "c2-ref-perf-v15d.json": "c9bc3381af9869c9ae67d506ce9cd4326540301db4fcaf89ff76eff313a39970",
+      "c2-d-adjudicacion-v15d.json": "d326df34fec0b6cb01985f295ba67357d30521f07802ef2e6b5e029ca440cdf3",
+      "c3-secuencia-v15d-filas.json": "f2eab88c56d01d3880a11525bd28435aebcdf1536cd0ade6bacfb817096d4744",
+      "c3-secuencia-v15d-named.json": "d66a799bce781667dc3f7410304123d79bdd3036e9a8f417e0a2c50e5a258f47",
+      "c3-secuencia-v15d-owned.json": "094c3d1050108c7e97971cdb9e88de1454ace03c1dd514100ed8d657f193801e"
+    },
+    "corpora_complete": 20,
+    "rows_complete": 151188,
+    "classes": {
+      "OK": 62755,
+      "U": 71753,
+      "C": 16678,
+      "H": 2
+    },
+    "A_D_A_unmodeled_H_divergent": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "owned_C2_directed_matrix_frozen": [
+      10,
+      0,
+      3
+    ],
+    "f06_class": "main",
+    "discriminator_profile_cases": 18,
+    "validate_sh": "GREEN: debug 2230/2230, release 2232/2232, stack65 5/5",
+    "frame_pair_bytes": 60616,
+    "frame_margin_bytes": 5944,
+    "perf_median_ratio": 1.8193269069110523,
+    "d_prime_extensions": [
+      {
+        "family": "rejected_resource_projection",
+        "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=[];}",
+        "bytes": 76,
+        "source_sha256": "8a8705d11658267ef7e8812e323ddf04ef5e6f3fc5d252916af1a17c04f52cf4",
+        "expected_code_subcause_primary": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              72,
+              74
+            ]
+          ]
+        ]
+      },
+      {
+        "family": "repeated_recursive_equality",
+        "source": "fn Main(){var q=[];q=[q];q=[q];}",
+        "bytes": 32,
+        "source_sha256": "7bc5e207fc79221c1d7e778c9ccab2dc4de6edb2ec451688cb79ed7ebd3e0581",
+        "expected_code_subcause_primary": [
+          [
+            "NX-E0103",
+            null,
+            [
+              16,
+              18
+            ]
+          ]
+        ]
+      }
+    ],
+    "candidate_debug_sha256": "6ddbdea5ebf2124bd55642c6b243d38ee00f9f1a482c483aaf426850e2044ad7"
+  }
 }

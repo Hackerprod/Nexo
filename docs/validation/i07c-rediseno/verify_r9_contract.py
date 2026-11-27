@@ -147,6 +147,12 @@ assert [len(gates["commits"][f"C{i}"]["matrix45_normative_ids"]) for i in range(
 assert [len(gates["commits"][f"C{i}"]["directed74_normative_ids"]) for i in range(7)] == [
     0, 3, 10, 24, 32, 74, 74,
 ]
+contract = (HERE.parents[1] / "correcciones/I07c-rediseno-restauracion-atomica-R6-final.md").read_text(encoding="utf-8")
+c3_row = next(line for line in contract.splitlines() if line.startswith("| C3 |"))
+assert "**24/74, 5/45, 9/13**" in c3_row
+assert all(name not in c3_row for name in ("atomic_78", "F06", "W0/"))
+readme = (HERE / "README.md").read_text(encoding="utf-8")
+assert "F06 pertenece a C4" in readme and "F06 pertenece a C3" not in readme
 assert all("F06" not in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(3))
 assert all("F06" in gates["commits"][f"C{i}"]["matrix45_normative_ids"] for i in range(4, 7))
 assert not gates["commits"]["C1"]["w1_w1a_full_normative"]
@@ -281,9 +287,8 @@ assert approval["expectations"][0]["expected_migrated_code_subcause_primary"] ==
 assert approval["expectations"][1]["fixture_sha256"] == c1_n["fixture_sha256"]
 assert approval["expectations"][1]["expected_adr_code_subcause_primary"] == c1_n["expected_adr_code_subcause_primary"]
 
-c2 = gates["c2_reference_evidence"]
-c2_commit = gates["c2_reference_commit"]
-assert c2_commit == "184f2d5568fe52badbec20f8a9a2841566999931"
+c2 = gates["c2_reference_evidence_v15d"]
+c2_commit = "184f2d5568fe52badbec20f8a9a2841566999931"
 assert c2["base_commit"] == "af19a34eb295fdd4834bdbc4594e442fbc2b42ec"
 assert subprocess.run(
     ["git", "rev-parse", c2_commit + "^{tree}"], cwd=HERE.parents[2],
@@ -410,4 +415,92 @@ assert [row["id"] for row in named["rows"]] == gates["commits"]["C3"]["additiona
 assert sum(row.get("c2_main_exact", False) for row in named["rows"]) == 7
 assert [sum(row["kind"] == kind for row in named["rows"])
         for kind in ("duplicate_owned_row", "aggregate", "source")] == [3, 1, 7]
+
+# v15e is the active C2 reference; v15d above remains auditable history.
+c2e = gates["c2_reference_evidence"]
+c2e_commit = gates["c2_reference_commit"]
+assert c2e_commit == c2e["code_commit"] == "be96e08f1a18fa92e296fe89d1dc78dfd805a55f"
+assert subprocess.run(
+    ["git", "rev-parse", c2e_commit + "^{tree}"], cwd=HERE.parents[2],
+    check=True, capture_output=True, text=True,
+).stdout.strip() == c2e["tree"]
+for relative, field in (
+    ("src/check/types.rs", "types_blob"),
+    ("tests/i07c_structural_invariants.rs", "structural_test_blob"),
+):
+    assert subprocess.run(
+        ["git", "rev-parse", f"{c2e_commit}:{relative}"], cwd=HERE.parents[2],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip() == c2e[field]
+for name, expected_sha in c2e["report_sha256"].items():
+    relative = f"docs/validation/i07c-rediseno/{name}"
+    blob = subprocess.run(
+        ["git", "show", f"HEAD:{relative}"], cwd=HERE.parents[2],
+        check=True, capture_output=True,
+    ).stdout
+    assert hashlib.sha256(blob).hexdigest() == expected_sha, name
+    assert hashlib.sha256((HERE / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() == expected_sha, name
+corpus_e = data("c2-ref-corpus-v15e.json")
+assert corpus_e["complete"] and corpus_e["commit"] == "C2" and not corpus_e["failures"]
+assert len(corpus_e["corpora"]) == 20 and len(corpus_e["class_by_row"]) == 151188
+assert corpus_e["class_by_row"] == data("r14-main-baseline.json")["class_by_row"]
+assert corpus_e["candidate_sha256"] == c2e["candidate_release_sha256"]
+assert corpus_e["main_sha256"] == c2e["main_release_sha256"]
+assert dict(Counter(corpus_e["class_by_row"].values())) == c2e["classes"]
+assert c2e["candidate_gate_debug"] == "NO EVALUADO"
+for name, candidate_sha in (("c2-ref-owned-v15e.json", c2e["candidate_release_sha256"]),
+                            ("c2-ref-owned-debug-v15e.json", c2e["candidate_debug_sha256"])):
+    report = data(name)
+    assert report["complete"] and not report["failures"] and report["commit"] == "C2"
+    assert report["candidate_sha256"] == candidate_sha and report["f06_class"] == "main"
+    assert report["main_sha256"] == (c2e["main_debug_sha256"] if "debug" in name
+                                     else c2e["main_release_sha256"])
+    assert [report["counts"][family] for family, _ in owned.FAMILIES] == [10, 0, 3]
+for name, candidate_sha in (("c2-ref-discriminators-v15e.json", c2e["candidate_release_sha256"]),
+                            ("c2-ref-discriminators-debug-v15e.json", c2e["candidate_debug_sha256"])):
+    report = data(name)
+    assert report["complete"] and not report["failures"] and len(report["cases"]) == 24
+    assert report["candidate_sha256"] == candidate_sha
+    assert report["script_sha256"] == hashlib.sha256((HERE / "c2_discriminator_gate.py").read_bytes()).hexdigest()
+    for profile in ("f0-0002-b-v2", "f0-0003-b-v1"):
+        for case, spans in c2_gate.EXPECTED_REL.items():
+            row = report["cases"][f"{profile}:{case}"]
+            for verb in ("check", "run"):
+                assert all(row["observed"][verb]["expected_type_spans"][i] == list(span)
+                           for i, span in spans.items())
+before_e = data("c2-ref-regression-before-v15e.json")
+assert before_e["candidate_sha256"] == c2["candidate_release_sha256"]
+assert len(before_e["failures"]) == 12
+assert {failure.split(":")[1] for failure in before_e["failures"]} == set(c2_gate.EXPECTED_REL)
+fuzz_e = data("c2-ref-fuzz-v15e.json")
+assert fuzz_e["complete"] and fuzz_e["programs"] == 14000 and not fuzz_e["failures"]
+assert fuzz_e["candidate_sha256"] == c2e["candidate_release_sha256"]
+assert fuzz_e["counts"].get("A", 0) == fuzz_e["counts"].get("error", 0) == 0
+assert fuzz_e["script_sha256"] == hashlib.sha256((HERE / "c2_literal_origin_fuzz.py").read_bytes()).hexdigest()
+frame_e = (HERE / "c2-ref-frame-v15e.txt").read_text(encoding="utf-8")
+assert frame_e.splitlines()[0] == (f"executable_sha256={c2e['frame_exe_sha256']} "
+                                   f"map_sha256={c2e['frame_map_sha256']}")
+assert f"pair={c2e['frame_pair_bytes']} margin={c2e['frame_margin_bytes']}" in frame_e
+assert c2e["frame_margin_bytes"] >= 1000
+perf_e = data("c2-ref-perf-v15e.json")
+assert perf_e["binary_sha256"] == {"main": c2e["main_release_sha256"],
+                                   "C2": c2e["candidate_release_sha256"]}
+assert perf_e["median_ratio"] == c2e["perf_median_ratio"] <= 3
+c3_owned_e = data("c3-secuencia-v15e-owned.json")
+assert c3_owned_e["commit"] == "C3" and c3_owned_e["candidate_sha256"] == c2e["candidate_release_sha256"]
+assert [c3_owned_e["counts"][family] for family, _ in owned.FAMILIES] == [24, 5, 9]
+assert len(c3_owned_e["failures"]) == 8
+validate_e = data("c2-ref-validate-v15e.json")
+assert validate_e["code_commit"] == c2e_commit and validate_e["clean_clone"]
+assert validate_e["rustc"].startswith("rustc 1.99.1 ") and validate_e["jobs"] == 4
+assert validate_e["nextest_test_threads"] == 4 and validate_e["job_limit_inside_lock"]
+assert validate_e["runner_profile"] == "default"
+assert validate_e["mechanical"] == {"fmt": "passed", "clippy_deny_warnings": "passed",
+                                     "nextest_selection": "passed"}
+assert validate_e["debug"] == {"run": 2230, "passed": 2230, "skipped": 73}
+assert validate_e["release"] == {"run": 2232, "passed": 2232, "skipped": 74}
+assert validate_e["stack65"] == {"option_match126": "5/5", "result_match126": "5/5"}
+assert validate_e["g3_auditor"] == {"sites": 246, "self_test": "passed"}
+assert validate_e["log_sha256"] == c2e["validate_log_sha256"]
+assert c2e["validate_sh"].startswith("GREEN: debug 2230/2230, release 2232/2232")
 print("R6 contract structure OK")

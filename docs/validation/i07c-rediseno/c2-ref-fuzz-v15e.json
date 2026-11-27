@@ -1,0 +1,16 @@
+{
+  "schema": "i07c-c2-literal-origin-fuzz-v1",
+  "complete": true,
+  "programs": 14000,
+  "unique_sources": 2286,
+  "profile": "f0-0003-b-v1",
+  "main_sha256": "422f68f956608cad7d92b13d975e803c7920456408a0a6192d14efedc76543ac",
+  "candidate_sha256": "84a9d9d876a32143c3fefebb84a930862b714bc01966ccb36fdb15c9e099a474",
+  "script_sha256": "ed6eb336ab6717bca942063e7300c7a3716357117c7a21a0e59d56f959170ec0",
+  "counts": {
+    "same": 11298,
+    "B": 2529,
+    "A-unmodeled": 173
+  },
+  "failures": []
+}

@@ -3508,7 +3508,7 @@
       "assertion_after": "G3 span_key audit passed: 246 sites",
       "justification": "Los seis usos nuevos est\u00c3\u00a1n clasificados en c2-span-key-usos.json; el auditor comprueba total 240+6 y dominios OccurrenceId=5, ResultStatus=1 sin rebajar la aserci\u00c3\u00b3n",
       "approval_required": true,
-      "approval_status": "aprobada por el coordinador el 2026-11-27: auditor G3 completo y self-test verdes, 246 sitios (240+6), sin rebajar aserciones",
+      "approval_status": "aprobada por el coordinador el 2026-11-27 12:30 PT: auditor G3 completo y self-test verdes, 246 sitios (240+6), sin rebajar aserciones",
       "owner_commit": "C2"
     }
   ],
