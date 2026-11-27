@@ -4827,6 +4827,16 @@ impl Checker<'_> {
         // Resolving one projection can determine another one's base, so
         // retain undecided projections until the graph reaches a fixed point.
         let mut pending = self.take_pending_projections();
+        let selector_consumers: Vec<_> = pending
+            .iter()
+            .filter_map(|entry| match entry {
+                ObligationKind::Projection(projection) => Some((
+                    projection.result_span.clone(),
+                    projection.selector.span().clone(),
+                )),
+                _ => None,
+            })
+            .collect();
         while !pending.is_empty() {
             let mut next = Vec::new();
             let mut advanced = false;
@@ -4836,9 +4846,22 @@ impl Checker<'_> {
                 };
                 let root = self.root(projection.base);
                 let element = self.graph.type_nodes[&root].array_child;
-                let base = self.concrete(projection.base).filter(|(_, origin)| {
-                    !self.graph.concrete_from_failed_if(projection.base, origin)
+                let raw_base = self.concrete(projection.base);
+                let failed_if_origin = raw_base.as_ref().is_some_and(|(_, origin)| {
+                    // A selector may independently constrain the base of an
+                    // enclosing Index, even when its own `if` result fails.
+                    // That consumer is part of the same projection expression.
+                    let same_projection_selector =
+                        selector_consumers.iter().any(|(result, selector)| {
+                            result.start == projection.result_span.start
+                                && result.end > projection.result_span.end
+                                && selector.start <= origin.start
+                                && origin.end <= selector.end
+                        });
+                    !same_projection_selector
+                        && self.graph.concrete_from_failed_if(projection.base, origin)
                 });
+                let base = raw_base.filter(|_| !failed_if_origin);
                 let indexable = element.is_some();
                 if !finalize && !indexable && base.is_none() {
                     if !projection.checked_without_context
