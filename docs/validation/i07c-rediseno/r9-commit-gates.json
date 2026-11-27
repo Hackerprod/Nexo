@@ -2748,6 +2748,53 @@
     "docs/validation/i07c-rediseno/r14-main-baseline.json": "bc641bcd991844dddc9368e9a2f8230cc13259a8b8a4d815a7183ed9090f6f05"
   },
   "frozen_v11_commit": "fcf62d5e43c6a29981abe478dd039db51b3cb524",
+  "c2_reference_commit": "580781f44eafdf6ed2ebb34d372e163ccfa4c474",
+  "c2_reference_evidence": {
+    "base_commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
+    "tree": "dea73289302c43ff7bd9f1f45c2e527c2cae38e1",
+    "types_blob": "5633d899e2c506ce6132e8a856591e6dbeda9fab",
+    "span_audit_blob": "5fa33bb356e27f766551e662fe8e3e0317b2b705",
+    "span_inventory_blob": "7838f85a56315997a1ff25f955f5df00d84b65a6",
+    "span_inventory_sha256": "f9b9ed1c750cc7029319c3f0b3519baa9fa5e0a8764821ac0dd08320830596d3",
+    "structural_test_blob": "889639b66bcfd91173ffeb05adfad4f2ea758be6",
+    "main_release_sha256": "422f68f956608cad7d92b13d975e803c7920456408a0a6192d14efedc76543ac",
+    "candidate_release_sha256": "cf5eea602f483df7aeb52a5b5d3d8287f2de316495cbae078338a16909bd0369",
+    "validate_log_sha256": "b2487b2d8a72dbac3f1376120b6ec12e5aacd6545d8382ff88ba08a035ccde00",
+    "report_sha256": {
+      "c2-ref-corpus-v15c.json": "7155082182a97a14f3e444008efcc1d9dc4b33a5c608879b66070517187d4b41",
+      "c2-ref-owned-v15c.json": "3489dc27f16cfe704f3094cfe655878816b6b607ce48a1b4c749c6577b7633c9",
+      "c2-ref-discriminators-v15c.json": "4ebf777456c6b32fce0082cf643fe5742e78d8581f6f49b008df36275e87a7b9",
+      "c2-ref-frame-v15c.txt": "2fc75554c0da2d98ca61011df6daedea826917be0dc2e1a9ca6bf13e76e4f73e",
+      "c2-ref-perf-v15c.json": "c5beb8b4d0eb144d4aad9d69efb671394a2398a8b8818ae1aec0a4b16036ab07"
+    },
+    "corpora_complete": 20,
+    "rows_complete": 151188,
+    "classes": {"OK": 62755, "U": 71753, "C": 16678, "H": 2},
+    "A_D_A_unmodeled_H_divergent": [0, 0, 0, 0],
+    "owned_C2_directed_matrix_frozen": [10, 0, 3],
+    "f06_class": "main",
+    "discriminator_profile_cases": 14,
+    "validate_sh": "GREEN: debug 2228/2228, release 2230/2230, stack65 5/5",
+    "frame_pair_bytes": 60520,
+    "frame_margin_bytes": 6040,
+    "perf_median_ratio": 1.666146117204136,
+    "d_prime_extensions": [
+      {
+        "family": "rejected_resource_projection",
+        "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=[];}",
+        "bytes": 76,
+        "source_sha256": "8a8705d11658267ef7e8812e323ddf04ef5e6f3fc5d252916af1a17c04f52cf4",
+        "expected_code_subcause_primary": [["NX-E0102", "type_mismatch", [72, 74]]]
+      },
+      {
+        "family": "repeated_recursive_equality",
+        "source": "fn Main(){var q=[];q=[q];q=[q];}",
+        "bytes": 32,
+        "source_sha256": "7bc5e207fc79221c1d7e778c9ccab2dc4de6edb2ec451688cb79ed7ebd3e0581",
+        "expected_code_subcause_primary": [["NX-E0103", null, [16, 18]]]
+      }
+    ]
+  },
   "c1_reference_commit": "42cb63fa3c80abe551155f4c9ebd044f3e30914d",
   "c1_reference_evidence": {
     "base_commit": "96d564496b1072d09a4a169c3be801d69aa3af96",

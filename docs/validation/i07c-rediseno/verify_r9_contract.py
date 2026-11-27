@@ -4,6 +4,7 @@
 import hashlib
 import importlib.util
 import json
+import statistics
 import subprocess
 from pathlib import Path
 
@@ -267,4 +268,75 @@ assert approval["expectations"][0]["expected_migrated_code_subcause_primary"] ==
 ]
 assert approval["expectations"][1]["fixture_sha256"] == c1_n["fixture_sha256"]
 assert approval["expectations"][1]["expected_adr_code_subcause_primary"] == c1_n["expected_adr_code_subcause_primary"]
+
+c2 = gates["c2_reference_evidence"]
+c2_commit = gates["c2_reference_commit"]
+assert c2_commit == "580781f44eafdf6ed2ebb34d372e163ccfa4c474"
+assert c2["base_commit"] == "af19a34eb295fdd4834bdbc4594e442fbc2b42ec"
+assert subprocess.run(
+    ["git", "rev-parse", c2_commit + "^{tree}"], cwd=HERE.parents[2],
+    check=True, capture_output=True, text=True,
+).stdout.strip() == c2["tree"]
+for relative, field in (
+    ("src/check/types.rs", "types_blob"),
+    ("scripts/i07c_c0_span_audit.py", "span_audit_blob"),
+    ("docs/validation/i07c-rediseno/c2-span-key-usos.json", "span_inventory_blob"),
+    ("tests/i07c_structural_invariants.rs", "structural_test_blob"),
+):
+    blob = subprocess.run(
+        ["git", "rev-parse", f"{c2_commit}:{relative}"], cwd=HERE.parents[2],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert blob == c2[field], relative
+assert hashlib.sha256((HERE / "c2-span-key-usos.json").read_bytes()).hexdigest() == c2["span_inventory_sha256"]
+for name, expected_sha in c2["report_sha256"].items():
+    assert hashlib.sha256((HERE / name).read_bytes()).hexdigest() == expected_sha, name
+
+c2_corpus = data("c2-ref-corpus-v15c.json")
+assert c2_corpus["complete"] and c2_corpus["commit"] == "C2" and not c2_corpus["failures"]
+assert len(c2_corpus["corpora"]) == c2["corpora_complete"] == 20
+assert len(c2_corpus["class_by_row"]) == c2["rows_complete"] == 151188
+from collections import Counter  # noqa: E402
+assert dict(Counter(c2_corpus["class_by_row"].values())) == c2["classes"]
+assert c2["A_D_A_unmodeled_H_divergent"] == [0, 0, 0, 0]
+assert c2_corpus["class_by_row"] == data("r14-main-baseline.json")["class_by_row"]
+assert c2_corpus["main_sha256"] == c2["main_release_sha256"]
+assert c2_corpus["candidate_sha256"] == c2["candidate_release_sha256"]
+
+c2_owned = data("c2-ref-owned-v15c.json")
+assert c2_owned["complete"] and c2_owned["commit"] == "C2" and not c2_owned["failures"]
+assert [c2_owned["counts"][key] for key in (
+    "directed74_normative_ids", "matrix45_normative_ids", "frozen13_normative_ids",
+)] == c2["owned_C2_directed_matrix_frozen"] == [10, 0, 3]
+assert c2_owned["f06_class"] == c2["f06_class"] == "main"
+assert c2_owned["candidate_sha256"] == c2["candidate_release_sha256"]
+
+c2_disc = data("c2-ref-discriminators-v15c.json")
+assert c2_disc["complete"] and not c2_disc["failures"]
+assert len(c2_disc["cases"]) == c2["discriminator_profile_cases"] == 14
+assert c2_disc["candidate_sha256"] == c2["candidate_release_sha256"]
+for row in c2_disc["cases"].values():
+    assert set(row["observed"]) == {"check", "run"}
+    assert all(observed["diagnostics"] == row["expected"] for observed in row["observed"].values())
+import c2_discriminator_gate as c2_gate  # noqa: E402
+for extension, case in zip(c2["d_prime_extensions"],
+                           ("resource_rejected_array", "repeated_recursive_array"), strict=True):
+    source, expected = c2_gate.CASES[case]
+    assert extension["source"] == source
+    assert extension["bytes"] == len(source.encode("ascii"))
+    assert extension["source_sha256"] == hashlib.sha256(source.encode("ascii")).hexdigest()
+    assert extension["expected_code_subcause_primary"] == [
+        [code, subcause, [start, end]] for code, subcause, start, end in expected
+    ]
+
+frame = (HERE / "c2-ref-frame-v15c.txt").read_text(encoding="utf-8")
+assert f"pair={c2['frame_pair_bytes']} margin={c2['frame_margin_bytes']}" in frame
+assert c2["frame_margin_bytes"] >= 1000
+perf = data("c2-ref-perf-v15c.json")
+assert perf["pairs"] == 4000 and perf["profile"] == "f0-0003-b-v1"
+assert perf["binary_sha256"] == {"main": c2["main_release_sha256"],
+                                 "C2": c2["candidate_release_sha256"]}
+ratio = statistics.median(perf["seconds"]["C2"]) / statistics.median(perf["seconds"]["main"])
+assert ratio == perf["median_ratio"] == c2["perf_median_ratio"] and ratio <= 3
+assert c2["validate_sh"].startswith("GREEN: debug 2228/2228, release 2230/2230")
 print("R6 contract structure OK")
