@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check R6 v12 ownership and the immutable v11 evidence blobs."""
+"""Check R6 v13 ownership, D7 declaration and immutable v11 evidence blobs."""
 
 import hashlib
 import importlib.util
@@ -34,7 +34,7 @@ for row in data("r8-matrix45.json")["rows"]:
 print("matrix oracle", 45)
 
 gates = data("r9-commit-gates.json")
-assert gates["schema"] == "i07c-r18-commit-gates-v8"
+assert gates["schema"] == "i07c-r19-commit-gates-v9"
 assert gates["frozen_v11_commit"] == "fcf62d5e43c6a29981abe478dd039db51b3cb524"
 for relative, expected_sha in gates["frozen_v11_sha256"].items():
     blob = subprocess.run(
@@ -66,7 +66,26 @@ assert gates["directed74_unique_sources"] == 48
 assert gates["commits"]["C1"]["c1_independent_probes"] == [
     "recursive_69", "recursive_78_equivalent", "recursive_127_equivalent",
 ]
-assert gates["c1_reference_commit"] == "88205510cdfe8f9df3eef1236a33a0487e9474cf"
+assert gates["c1_reference_commit"] == "1e4457fec7c02dc426afa74b25ae4660521c73a8"
+assert subprocess.run(["git", "rev-parse", f"{gates['c1_reference_commit']}:src/check/types.rs"],
+                      cwd=HERE.parents[2], check=True, capture_output=True, text=True).stdout.strip() == gates["c1_reference_evidence"]["types_blob"]
+assert gates["c1_reference_evidence"]["A_D_A_unmodeled_H_new"] == [0, 0, 0, 0]
+assert gates["c1_reference_evidence"]["owned_C1_directed_matrix_frozen"] == [3, 0, 0]
+assert gates["c1_reference_evidence"]["validate_sh"].startswith("FAIL:")
+d7 = gates["d7_declared_main_differences"]
+assert d7["owner"] == "C4" and len(d7["observed_unmodeled_residuals"]) == 3
+witness = d7["manual_witness"]
+assert len(witness["source"].encode("ascii")) == witness["bytes"] == 78
+assert hashlib.sha256(witness["source"].encode("ascii")).hexdigest() == witness["source_sha256"]
+assert witness["adr_code_primary"] == [["NX-E0103", [62, 64]], ["NX-E0103", [67, 70]]]
+from audit_families import source  # noqa: E402
+directed5 = data("dirigido5.json")
+for row_id, row in d7["observed_unmodeled_residuals"].items():
+    corpus_id, index = row_id.split(":")
+    assert corpus_id == "dirigido5" and row["profile"] == "f0-0002-b-v2"
+    src = source(directed5[int(index)]).encode("ascii")
+    assert len(src) == row["bytes"]
+    assert hashlib.sha256(src).hexdigest() == row["source_sha256"]
 assert gates["owner_directed"]["atomic_78"] == "C3"
 assert gates["owner_matrix"]["W0"] == gates["owner_matrix"]["W0nounion"] == "C3"
 assert gates["owner_matrix"]["F06"] == "C3"
@@ -191,4 +210,4 @@ assert all(next(x for x in migration if x["source_test"] == name)["private_check
 assert len(manifest["explicit_approval_31"]["existing_quota_and_precedence"]) == 17
 assert len(manifest["explicit_approval_31"]["new_fixed_cost_quota"]) == 10
 assert len(manifest["explicit_approval_31"]["formerly_preserved_fixed_cost_quota"]) == 4
-print("R6 v12 contract structure OK")
+print("R6 v13 contract structure OK")

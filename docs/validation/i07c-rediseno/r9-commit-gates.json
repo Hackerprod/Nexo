@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r18-commit-gates-v8",
+  "schema": "i07c-r19-commit-gates-v9",
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "directed74_unique_sources": 48,
   "directed74_duplicate_rows": 26,
@@ -2753,5 +2753,53 @@
     "docs/validation/i07c-rediseno/r14-main-baseline.json": "bc641bcd991844dddc9368e9a2f8230cc13259a8b8a4d815a7183ed9090f6f05"
   },
   "frozen_v11_commit": "fcf62d5e43c6a29981abe478dd039db51b3cb524",
-  "c1_reference_commit": "88205510cdfe8f9df3eef1236a33a0487e9474cf"
+  "c1_reference_commit": "1e4457fec7c02dc426afa74b25ae4660521c73a8",
+  "c1_reference_evidence": {
+    "base_commit": "96d564496b1072d09a4a169c3be801d69aa3af96",
+    "types_blob": "364585898ab62920e965e5743e40ca4088f9f2c4",
+    "test_blob": "b1b8a5e965b350318923aa00c9b4da29de30e4f5",
+    "release_sha256": "2c4612ffaa8daa1f10a365ec1d6ca27ac15bdc5d884aa322730447e6cc1a9831",
+    "candidate_gate_report_sha256": "c29d9c7a20cd129cf903b63c886fe10297954a0bb4569767d8b1c02fe07bdbe6",
+    "corpora_complete": 20,
+    "rows_complete": 151188,
+    "A_D_A_unmodeled_H_new": [0, 0, 0, 0],
+    "owned_C1_directed_matrix_frozen": [3, 0, 0],
+    "f06_class": "main",
+    "validate_sh": "FAIL: check_inferred_depth indexes a node removed by equality rollback"
+  },
+  "d7_declared_main_differences": {
+    "owner": "C4",
+    "clause": "F0-0002 §§4.1.2.2, 4.1.2.5, 13.9",
+    "family_rule": "A previous independent constructor duty with unresolved element survives rejection of a later recursive equality; count C per constructor duty, not per representative or rejected equality.",
+    "C1_C3": "Conserve full main JSON for every unmodeled family member; candidate_gate classifies any divergence A-unmodeled without corpus or span filters.",
+    "C4": "Derive exact ADR signatures by bytes for every demonstrated family member, enumerate equivalents in all 20 frozen corpora, then extend the cross gate by the causal family rule; no ID or span allowlist.",
+    "manual_witness": {
+      "source": "fn Main(){var v=(if true then {return;} else {return;});var a=[];a=[v];v=[a];}",
+      "source_sha256": "cf0279fa3fc51b9498120c6c2c4d2f2f1f23050b5d5a1089ff7e3fc8a5a0d69f",
+      "bytes": 78,
+      "main_code_primary": [["NX-E0103", [73, 76]]],
+      "adr_code_primary": [["NX-E0103", [62, 64]], ["NX-E0103", [67, 70]]]
+    },
+    "observed_unmodeled_residuals": {
+      "dirigido5:2069": {
+        "source_sha256": "46a9d45f31f56be5314629233935cc704da00179b8f3a9c67a35a835174bd6ea",
+        "bytes": 139,
+        "profile": "f0-0002-b-v2",
+        "main_code_primary": [["NX-E0103", [73, 75]], ["NX-E0103", [135, 136]]]
+      },
+      "dirigido5:4425": {
+        "source_sha256": "31028917a84fe41bfc120ade919cccf665fcebe3d4e069d14ddd03dec1e1f1d8",
+        "bytes": 169,
+        "profile": "f0-0002-b-v2",
+        "main_code_primary": [["NX-E0103", [84, 86]], ["NX-E0103", [166, 167]]]
+      },
+      "dirigido5:5287": {
+        "source_sha256": "0c9b69f71591ac0c38514dbf008a6359ad3bbde2384242dc990c52ffe00533c0",
+        "bytes": 119,
+        "profile": "f0-0002-b-v2",
+        "main_code_primary": [["NX-E0103", [101, 102]], ["NX-E0103", [110, 113]]]
+      }
+    },
+    "residuals_status": "A-unmodeled in iteration 2; full ADR signatures and exhaustive equivalent rows remain to be derived before C4"
+  }
 }
