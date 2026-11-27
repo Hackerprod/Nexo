@@ -1059,6 +1059,19 @@ struct NodeJournal {
     obligations_len: usize,
 }
 
+// A source fact belongs to the component that received it, even when a later
+// union chooses another representative. The equality clock reserves its
+// source ordinal before any solver write.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OriginFact {
+    component: u64,
+    equality: EqualityId,
+    ordinal: u64,
+    concrete: Option<Span>,
+    array: Option<Span>,
+    variant: Option<Span>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 struct EqualityId(u64);
 
@@ -1089,6 +1102,7 @@ struct ReadComponent {
     variant_origin: Option<Span>,
     concrete_origin: Option<Span>,
     copyable_origin: Option<Span>,
+    origin_fact: Option<OriginFact>,
 }
 
 #[derive(Clone, Debug)]
@@ -2688,6 +2702,7 @@ thread_local! {
 struct InferenceGraph {
     equality_clock: std::rc::Rc<std::cell::Cell<u64>>,
     equality_records: Vec<EqualityRecord>,
+    origin_facts: HashMap<u64, Vec<OriginFact>>,
     // First planning visit owns the immutable prefix read by this occurrence.
     read_contexts: HashMap<OccurrenceId, std::sync::Arc<ReadContext>>,
     read_views: HashMap<OccurrenceId, u64>,
@@ -2778,6 +2793,11 @@ impl InferenceGraph {
                     variant_origin: node.variant_origin.clone(),
                     concrete_origin: node.concrete.as_ref().map(|(_, span)| span.clone()),
                     copyable_origin: node.copyable_origin.clone(),
+                    origin_fact: self
+                        .origin_facts
+                        .get(&id)
+                        .and_then(|facts| facts.first())
+                        .cloned(),
                 },
             );
             if let Some(child) = node.array_child {
@@ -2867,6 +2887,39 @@ impl InferenceGraph {
     fn finish_node_journal(&mut self, publish: bool) {
         let journal = self.node_journals.pop().expect("node journal");
         if publish {
+            if self.node_journals.is_empty() {
+                if let Some(equality) = self.active_equality {
+                    for key in &journal.order {
+                        let before = journal.before[key].as_ref();
+                        let Some(after) = self.type_nodes.get(key) else {
+                            continue;
+                        };
+                        let concrete = (after.concrete.as_ref().map(|(_, span)| span)
+                            != before
+                                .and_then(|node| node.concrete.as_ref().map(|(_, span)| span)))
+                        .then(|| after.concrete.as_ref().map(|(_, span)| span.clone()))
+                        .flatten();
+                        let array = (after.array_origin
+                            != before.and_then(|node| node.array_origin.clone()))
+                        .then(|| after.array_origin.clone())
+                        .flatten();
+                        let variant = (after.variant_origin
+                            != before.and_then(|node| node.variant_origin.clone()))
+                        .then(|| after.variant_origin.clone())
+                        .flatten();
+                        if concrete.is_some() || array.is_some() || variant.is_some() {
+                            self.origin_facts.entry(*key).or_default().push(OriginFact {
+                                component: *key,
+                                equality,
+                                ordinal: equality.0,
+                                concrete,
+                                array,
+                                variant,
+                            });
+                        }
+                    }
+                }
+            }
             if let Some(parent) = self.node_journals.last_mut() {
                 for key in journal.order {
                     if let std::collections::hash_map::Entry::Vacant(entry) =
@@ -5175,16 +5228,27 @@ impl Checker<'_> {
                 TypeNode {
                     parent: new,
                     size: 1,
-                    concrete: component
-                        .concrete
-                        .clone()
-                        .zip(component.concrete_origin.clone()),
+                    concrete: component.concrete.clone().zip(
+                        component
+                            .origin_fact
+                            .as_ref()
+                            .and_then(|fact| fact.concrete.clone())
+                            .or_else(|| component.concrete_origin.clone()),
+                    ),
                     concrete_intrinsic: false,
                     array_child,
-                    array_origin: component.array_origin.clone(),
+                    array_origin: component
+                        .origin_fact
+                        .as_ref()
+                        .and_then(|fact| fact.array.clone())
+                        .or_else(|| component.array_origin.clone()),
                     array_constructed: false,
                     variant_children,
-                    variant_origin: component.variant_origin.clone(),
+                    variant_origin: component
+                        .origin_fact
+                        .as_ref()
+                        .and_then(|fact| fact.variant.clone())
+                        .or_else(|| component.variant_origin.clone()),
                     variant_constructed: false,
                     bottom_only: false,
                     failed_constructor: false,
@@ -16408,6 +16472,7 @@ pub(crate) fn check_with_partial_limit(
         graph: InferenceGraph {
             equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
             equality_records: Vec::new(),
+            origin_facts: HashMap::new(),
             read_contexts: HashMap::new(),
             read_views: HashMap::new(),
             active_equality: None,
@@ -18017,6 +18082,7 @@ mod quota_tests {
             graph: InferenceGraph {
                 equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
                 equality_records: Vec::new(),
+                origin_facts: HashMap::new(),
                 read_contexts: HashMap::new(),
                 read_views: HashMap::new(),
                 active_equality: None,
@@ -21750,6 +21816,39 @@ mod quota_tests {
             .begin_equality(Type::Deferred(root), Type::I64, site(5));
         assert!(second.0 > first.0);
         checker.graph.finish_equality(second, false);
+    }
+
+    #[test]
+    fn c2_origin_fact_keeps_component_and_reserved_ordinal_on_commit() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = checker.new_variable(&site(1)).unwrap();
+        let right = checker.new_variable(&site(2)).unwrap();
+        let rejected = checker
+            .graph
+            .begin_equality(Type::Deferred(left), Type::I64, site(3));
+        checker.graph.type_node_mut(&left).unwrap().concrete = Some((Type::I64, site(3)));
+        checker.graph.finish_equality(rejected, false);
+        assert!(checker.graph.origin_facts.get(&left).is_none());
+        let accepted = checker
+            .graph
+            .begin_equality(Type::Deferred(right), Type::I64, site(4));
+        checker.graph.begin_node_journal();
+        checker.graph.type_node_mut(&right).unwrap().concrete = Some((Type::I64, site(4)));
+        checker.graph.finish_node_journal(true);
+        checker.graph.finish_equality(accepted, true);
+        let fact = &checker.graph.origin_facts[&right][0];
+        assert_eq!(fact.component, right);
+        assert_eq!(fact.equality, accepted);
+        assert_eq!(fact.ordinal, accepted.0);
+        assert!(accepted.0 > rejected.0);
+        assert_eq!(fact.concrete, Some(site(4)));
+        assert!(checker.graph.origin_facts.get(&left).is_none());
     }
 
     #[test]
