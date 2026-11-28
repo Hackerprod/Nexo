@@ -9,6 +9,9 @@ avisos de Clippy sin cambiar la regla. No se trasladan `2841cc6`, `f5b12b1`,
 pertenece a `ResultStatus`/`JoinRecord` de C3. La reconstrucción r1 y la
 bisección de 61 compilaciones conservan su evidencia histórica; no dan PASS a
 la rama anterior.
+El previo del diferencial C2 es el C1 genuino `af19a34` de esa misma rama;
+la referencia separada `42cb63f` sigue documentada para el port C1, pero no
+se mezcla con los binarios del diferencial D13.
 
 El manifiesto acumulado anterior era C2 **10/74, 0/45, 3/13**. Las tres filas
 que falla la referencia mínima son RC1 y ST1 en `r8-directed74.json`, y otra
@@ -17,6 +20,11 @@ copia de RC1 en la batería congelada. Por ello el reparto ejecutable queda C2
 cinco dirigidas y dos congeladas. La cifra solicitada de 7/74, 0/45, 3/13 no
 resulta de esos IDs; las tres fallas no están en la misma batería. El gate
 `owned_rows_gate.py` conserva su SHA-256; solo cambian los IDs del manifiesto.
+El incremento de C3 pasa a 16 dirigidas, 5 de matriz y 7 congeladas; sus
+totales acumulados no cambian porque ya incluían las tres filas transferidas.
+Las enmiendas y mediciones de la rama larga que aparecen más abajo, incluidas
+sus 64 diferencias y el antiguo 10/0/3, quedan como historial de bisección:
+no son la puerta ni la referencia activas de C2.
 
 `c2_discriminator_gate.py --commit C2` ejecuta 34 pares perfil/caso sin fallos
 en la referencia mínima. Los dos casos `deferred_operand_origin_before_assignment`
@@ -24,16 +32,49 @@ y `failed_nested_if_no_retroactive_index` pasan a C3; en dos perfiles y ambos
 verbos son ocho invocaciones. C3 ejecuta los 38 pares completos. Los SHA-256
 del gate y del runner de filas propias están en `r9-commit-gates.json` y los
 comprueba `verify_r9_contract.py`.
+`c2-min-scope-v15f.json` reproduce en `check` y `run` las tres filas cedidas,
+las ocho invocaciones y dos controles de lectura RC2/RC3 que sí pasan en C2.
+RC1 da E0102/type_mismatch `[52,56)` donde exige E1303 `[52,56)`; ST1 da
+tres E0102 donde exige E1303 `[68,71)`. Los dos discriminadores contienen
+`if` dentro de un operando de literal; el cambio introductor `2841cc6`
+condicionaba la vista provisional precisamente a que el siguiente operando
+fuera un `if`, y `f5b12b1` continuaba sus ramas. Esa dependencia sitúa la
+corrección en C3, no en el `ReadContext` aislado de C2.
+En el sondeo D12 de 5.000 fuentes únicas, el binario mínimo de release dio
+4.993 firmas iguales a `main` y siete mejoras estrictas; A, defecto completo,
+conservación exigida sin cumplir, fallo duro y divergencia debug/release = 0.
+`c2-min-survey-5000-v15f.json` fija el SHA de los tres binarios y los siete
+programas distintos. La sonda de 72 fuentes seleccionadas dio 71 iguales y
+una mejora (`c2-min-d12-short-v15f.json`); no sustituye el sondeo completo.
+El generador de la tanda reproduce 105/105 fuentes con diferencias del sondeo
+congelado D12 a partir de sus semillas, de modo que el nuevo censo usa la misma
+enumeración inicial de 5.000.
 
 La lista de verificación para C3 conserva las cinco familias de los 62 defectos
-D12 de la rama anterior: M1 (24; testigo 158), M2 (18; 306), M3 (7; 830),
-M4 (5; 1124) y M5 (8; 520). El primer introductor de cada miembro y el
-programa fuente se congelan en `c2-commit-bisect-v1.json` y
-`c2-fuzz-5000-pd6.json`; C3 debe evitar tanto esos miembros como sus
-reducciones al recuperar `if` operando. Un caso sin oráculo completo conserva
-`main`; un caso con oráculo completo cumple D12. Las cinco familias históricas
-de mejoras (64 miembros) son un inventario distinto y se reenumeran para el
-binario mínimo antes de congelar el clasificador final.
+D12 de la rama anterior. `c2-min-d12-reductions-v15f.json` guarda un testigo
+por familia, reducido por supresión de sentencias y reproducido con `main`, el
+primer commit introductor y el C2 mínimo. La reducción conserva la clase D12
+del introductor y vuelve exactamente a `main` en C2 mínimo:
+
+| Familia | Miembros | Semilla | Introductor | Reducción (bytes, SHA-256) |
+|---|---:|---:|---|---|
+| M1, sin oráculo completo: conservar `main` | 24 | 158 | `2841cc6` | 181, `c2b75ad4e8b9cfc884855b5e433e61632bc0136645c4c227faf5b27245287e6a` |
+| M2, falso positivo nuevo | 18 | 306 | `2841cc6` | 95, `c2ce4255d10d34e63102ead2268b8b657a40483798f8093258a473cede43bf37` |
+| M3, falso positivo nuevo | 7 | 830 | `f5b12b1` | 194, `9f5730b35dcb9b2c0ff0fec002920b2f2a8ab4468d9794f4319fe38232126861` |
+| M4, falso positivo nuevo | 5 | 1124 | `f5b12b1` | 252, `2d75db6e9d907dcd0298d79f78484ac3278130ac1b41145166e409517a837df8` |
+| M5, falso positivo nuevo | 8 | 520 | `2841cc6` | 122, `913c6993168ded808d2f26f9874cf6550b7b7b8e47d1b530f9cd92e51f9dc1db` |
+
+El primer introductor de cada uno de los 62 miembros y el programa original
+se congelan en `c2-commit-bisect-v1.json` y `c2-fuzz-5000-pd6.json`. C3
+repite originales y reducciones al recuperar `if` operando. Un caso sin
+oráculo completo conserva `main`; un caso con oráculo completo cumple D12.
+Las cinco familias históricas de mejoras (64 miembros) son un inventario
+distinto y se reenumeran para el binario mínimo antes de congelar el
+clasificador final.
+La reenumeración completa de las 120 fuentes históricas en
+`c2-min-iteration-v15f.json` encontró **cero miembros** que sigan cambiando
+frente a `main` (46 C y 74 U); el conjunto de 64 es solo historia de la rama
+larga. No se hereda ninguna excepción de salida de ella para C2 mínimo.
 
 ## Continuación 55 — D12 sustituye D11 para diferencias nuevas
 

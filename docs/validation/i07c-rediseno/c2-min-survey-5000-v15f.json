@@ -1,0 +1,90 @@
+{
+  "schema": "i07c-c2-min-d12-fuzz-v1",
+  "complete": true,
+  "programs": 5000,
+  "unique_sources": 5000,
+  "profile": "f0-0003-b-v1",
+  "survey": true,
+  "main_sha256": "585880cdec018073f72a93b32945b64c2daee6d759e789d0d04c8890aa6ea680",
+  "candidate_sha256": "76c692e53fde9878fe6da5744c60919ae3ec736eac0ed7d9f00ec1d68797e497",
+  "candidate_debug_sha256": "39676e3daa9f2ff64573d3148bf37555f07ddf569e16f1b3a400aae850e70513",
+  "generator_sha256": "bbafdd097916124b5737b8f0c4d9881d1e124e2156a77c6624131c52a702c912",
+  "runner_sha256": "b1ec0dc594e652a60df000e9598fed0565ee671be46154dd35c2ded68d034e75",
+  "counts": {
+    "same": 4993,
+    "improvement": 7
+  },
+  "deltas": [
+    {
+      "seed": 1046,
+      "source": "fn Main(){let x=1;var v1=[];var v2=[];var v3=[];let a0=[[v1[x]],v3[0]];let a1=[v1[x],(if false then v1[0] else v3),(if true then v2[x] else v3[1])];let a2=[v2[x],v1];v3=[];v2=[true];}",
+      "source_sha256": "6b5ebda1f817fa087da215e3198039bff1d55d4073834af49ddf7f215d0afb7d",
+      "status": "improvement",
+      "detail": {
+        "distance_main": 3,
+        "distance_candidate": 2
+      }
+    },
+    {
+      "seed": 1246,
+      "source": "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[[left[x]],(if true then right[x] else tail[1])];let a1=[left[0],right[x],[left[x]]];let a2=[tail[1],left[x]];tail=[];right=[true];}",
+      "source_sha256": "374bf4638e8358f5cdfd5d49536bd7c5f66f7297dd02273aa074e1944ad49c3c",
+      "status": "improvement",
+      "detail": {
+        "distance_main": 1,
+        "distance_candidate": 0
+      }
+    },
+    {
+      "seed": 1591,
+      "source": "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[[left[x]],(if true then right[x] else tail[1])];let a1=[left[0],tail[1],[tail]];let a2=[left[0],right[x]];right=[1];}",
+      "source_sha256": "438f0c5904b6af91d1a9d1c14d06e997ede3f19d99f8c9353e8def7f4745a12f",
+      "status": "improvement",
+      "detail": {
+        "distance_main": 3,
+        "distance_candidate": 1
+      }
+    },
+    {
+      "seed": 3897,
+      "source": "fn Main(){let x=1;var v1=[];var v2=[];var v3=[];let a0=[[v1[x]],v3[1]];let a1=[v3[0],v3[0],v1[x]];let a2=[v1[x],v3[1]];v2=[1];}",
+      "source_sha256": "9c6d842f79c81591fb29d125ed0643b21fbc32e7e336f402eed7136ccdd92948",
+      "status": "improvement",
+      "detail": {
+        "distance_main": 1,
+        "distance_candidate": 0
+      }
+    },
+    {
+      "seed": 4591,
+      "source": "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[[left[x]],right[1]];let a1=[right[x],left[x],right[x]];let a2=[left[0],(if true then right[x] else tail[1])];tail=[];right=[true];}",
+      "source_sha256": "e898c2a9e00b331f63beccc19c9d0b791191427a3f9ac667e483e06921ecb3af",
+      "status": "improvement",
+      "detail": {
+        "distance_main": 1,
+        "distance_candidate": 0
+      }
+    },
+    {
+      "seed": 4834,
+      "source": "fn Main(){let x=1;var alpha=[];var beta=[];var gamma=[];let a0=[[alpha[x]],gamma[0]];let a1=[gamma[0],1,(if true then (if false then alpha[x] else gamma) else beta[1])];let a2=[alpha[x],gamma[0]];beta=[1];}",
+      "source_sha256": "d4e6cb5db438e542f233c6010d8e1a329683245abe13111a7a6b79fd4feba7e7",
+      "status": "improvement",
+      "detail": {
+        "distance_main": 1,
+        "distance_candidate": 0
+      }
+    },
+    {
+      "seed": 4885,
+      "source": "fn Main(){let x=1;var v1=[];var v2=[];var v3=[];let a0=[[v1[x]],v3[0]];let a1=[v1[x],v3[1],v3];let a2=[v2[1],v3];v3=[];v2=[true];}",
+      "source_sha256": "ce175f57741bab27aebecea92ad66ddfe6ca5f974da3c767281ee41da6d7bee9",
+      "status": "improvement",
+      "detail": {
+        "distance_main": 4,
+        "distance_candidate": 3
+      }
+    }
+  ],
+  "hard_failures": []
+}

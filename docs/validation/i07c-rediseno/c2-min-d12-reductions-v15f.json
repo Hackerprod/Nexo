@@ -1,0 +1,724 @@
+{
+  "schema": "i07c-c2-d13-reductions-v1",
+  "main_sha256": "585880cdec018073f72a93b32945b64c2daee6d759e789d0d04c8890aa6ea680",
+  "minimum_sha256": "76c692e53fde9878fe6da5744c60919ae3ec736eac0ed7d9f00ec1d68797e497",
+  "frozen_fuzz_sha256": "68ad03f4a84a5752199af8013df471ffdb51dcf6a10b33df92f878431cef7842",
+  "rows": {
+    "M1": {
+      "seed": 158,
+      "original_bytes": 190,
+      "original_sha256": "696dffd365b8e882d808a4b26e6db0f880b96c963cc75be54ca85bf2812c163e",
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[1],(if false then [s] else t)];let a1=[s[x],(if true then t[x] else u[1]),1];let a2=[t[x],(if false then s[0] else u)];s=[1];}",
+      "bytes": 181,
+      "source_sha256": "c2b75ad4e8b9cfc884855b5e433e61632bc0136645c4c227faf5b27245287e6a",
+      "introductory_commit": "2841cc6",
+      "historical_sha256": "a06ab228d10e628f9ad2912bee159734cc68c35da580ca983e57f06f5bf462aa",
+      "minimum": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              59,
+              83
+            ],
+            "Array<I64>",
+            "Array<Array<I64>>",
+            [
+              53,
+              57
+            ],
+            [
+              59,
+              83
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              113,
+              117
+            ],
+            "I64",
+            "Array<I64>",
+            [
+              94,
+              98
+            ],
+            [
+              113,
+              117
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              160,
+              164
+            ],
+            "Array<I64>",
+            "I64",
+            [
+              140,
+              144
+            ],
+            [
+              160,
+              164
+            ]
+          ]
+        ]
+      ],
+      "minimum_status": "conserve_main",
+      "status": "conserve_main",
+      "main": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              59,
+              83
+            ],
+            "Array<I64>",
+            "Array<Array<I64>>",
+            [
+              53,
+              57
+            ],
+            [
+              59,
+              83
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              113,
+              117
+            ],
+            "I64",
+            "Array<I64>",
+            [
+              94,
+              98
+            ],
+            [
+              113,
+              117
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              160,
+              164
+            ],
+            "Array<I64>",
+            "I64",
+            [
+              140,
+              144
+            ],
+            [
+              160,
+              164
+            ]
+          ]
+        ]
+      ],
+      "candidate": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              59,
+              83
+            ],
+            "Array<I64>",
+            "Array<Array<I64>>",
+            [
+              53,
+              57
+            ],
+            [
+              59,
+              83
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              100,
+              127
+            ],
+            "I64",
+            "Array<I64>",
+            [
+              129,
+              130
+            ],
+            [
+              100,
+              127
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              160,
+              164
+            ],
+            "Array<I64>",
+            "I64",
+            [
+              140,
+              144
+            ],
+            [
+              160,
+              164
+            ]
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              170,
+              171
+            ],
+            "Array<I64>",
+            "Array<Array<I64>>",
+            [
+              140,
+              144
+            ],
+            [
+              170,
+              171
+            ]
+          ]
+        ]
+      ],
+      "oracle_complete": false
+    },
+    "M2": {
+      "seed": 306,
+      "original_bytes": 198,
+      "original_sha256": "3fe4f6127faf543f18e09076e68c9ed5c1932e925f795852a6b6d2a80662ac19",
+      "source": "fn Main(){var left=[];var tail=[];let a0=[tail[0],(if false then left[0] else tail)];tail=[1];}",
+      "bytes": 95,
+      "source_sha256": "c2ce4255d10d34e63102ead2268b8b657a40483798f8093258a473cede43bf37",
+      "introductory_commit": "2841cc6",
+      "historical_sha256": "a06ab228d10e628f9ad2912bee159734cc68c35da580ca983e57f06f5bf462aa",
+      "minimum": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              78,
+              82
+            ],
+            "I64",
+            "Array<I64>",
+            [
+              42,
+              49
+            ],
+            [
+              78,
+              82
+            ]
+          ]
+        ]
+      ],
+      "minimum_status": "conserve_main",
+      "status": "complete_defect",
+      "main": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              78,
+              82
+            ],
+            "I64",
+            "Array<I64>",
+            [
+              42,
+              49
+            ],
+            [
+              78,
+              82
+            ]
+          ]
+        ]
+      ],
+      "candidate": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              51,
+              82
+            ],
+            "I64",
+            "Array<I64>",
+            [
+              90,
+              93
+            ],
+            [
+              51,
+              82
+            ]
+          ]
+        ]
+      ],
+      "oracle_complete": true
+    },
+    "M3": {
+      "seed": 830,
+      "original_bytes": 240,
+      "original_sha256": "4916fd6de65bf34dc41f3dd82b82142c8505e75b137c9f55f6bda94ba0031ac3",
+      "source": "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[tail[1],right];let a1=[right[x],(if false then left[0] else tail),(if false then right[1] else (if true then tail else left[0]))];}",
+      "bytes": 194,
+      "source_sha256": "9f5730b35dcb9b2c0ff0fec002920b2f2a8ab4468d9794f4319fe38232126861",
+      "introductory_commit": "f5b12b1",
+      "historical_sha256": "facb2c6b3a1f056171af146ae6b8128bfb29ad1d4593b85dc401d331af77c204",
+      "minimum": [
+        "rejected",
+        [
+          [
+            "NX-E0103",
+            null,
+            [
+              40,
+              42
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              96,
+              127
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              172,
+              176
+            ],
+            "",
+            "",
+            null,
+            null
+          ]
+        ]
+      ],
+      "minimum_status": "conserve_main",
+      "status": "complete_defect",
+      "main": [
+        "rejected",
+        [
+          [
+            "NX-E0103",
+            null,
+            [
+              40,
+              42
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              96,
+              127
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              172,
+              176
+            ],
+            "",
+            "",
+            null,
+            null
+          ]
+        ]
+      ],
+      "candidate": [
+        "rejected",
+        [
+          [
+            "NX-E0103",
+            null,
+            [
+              40,
+              42
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              96,
+              127
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              172,
+              176
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              182,
+              189
+            ],
+            "",
+            "",
+            null,
+            null
+          ]
+        ]
+      ],
+      "oracle_complete": true
+    },
+    "M4": {
+      "seed": 1124,
+      "original_bytes": 290,
+      "original_sha256": "c82bd6fe2f4bd161262fd9e63fac3ec92d24fac4ad9af9b3c00cb3ca60427f2f",
+      "source": "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[(if true then right[x] else tail[1]),(if false then right[1] else (if true then tail else left[0]))];let a1=[tail[1],[tail],(if true then (if false then left[x] else tail) else right[1])];}",
+      "bytes": 252,
+      "source_sha256": "2d75db6e9d907dcd0298d79f78484ac3278130ac1b41145166e409517a837df8",
+      "introductory_commit": "f5b12b1",
+      "historical_sha256": "facb2c6b3a1f056171af146ae6b8128bfb29ad1d4593b85dc401d331af77c204",
+      "minimum": [
+        "rejected",
+        [
+          [
+            "NX-E0103",
+            null,
+            [
+              40,
+              42
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              52,
+              54
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              143,
+              147
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              180,
+              186
+            ],
+            "",
+            "",
+            null,
+            null
+          ]
+        ]
+      ],
+      "minimum_status": "conserve_main",
+      "status": "complete_defect",
+      "main": [
+        "rejected",
+        [
+          [
+            "NX-E0103",
+            null,
+            [
+              40,
+              42
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              52,
+              54
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              143,
+              147
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              180,
+              186
+            ],
+            "",
+            "",
+            null,
+            null
+          ]
+        ]
+      ],
+      "candidate": [
+        "rejected",
+        [
+          [
+            "NX-E0103",
+            null,
+            [
+              27,
+              29
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              40,
+              42
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              52,
+              54
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              143,
+              147
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              180,
+              186
+            ],
+            "",
+            "",
+            null,
+            null
+          ],
+          [
+            "NX-E0103",
+            null,
+            [
+              229,
+              233
+            ],
+            "",
+            "",
+            null,
+            null
+          ]
+        ]
+      ],
+      "oracle_complete": true
+    },
+    "M5": {
+      "seed": 520,
+      "original_bytes": 248,
+      "original_sha256": "18c07a9f952e4d2d67ea2c58d1d9341fa8de9d4fc1916ed04c109d7a011b9a8d",
+      "source": "fn Main(){var v1=[];var v2=[];var v3=[];let a2=[v3[1],(if false then v2[1] else (if true then v3 else v1[0]))];v3=[true];}",
+      "bytes": 122,
+      "source_sha256": "913c6993168ded808d2f26f9874cf6550b7b7b8e47d1b530f9cd92e51f9dc1db",
+      "introductory_commit": "2841cc6",
+      "historical_sha256": "a06ab228d10e628f9ad2912bee159734cc68c35da580ca983e57f06f5bf462aa",
+      "minimum": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              94,
+              96
+            ],
+            "Bool",
+            "Array<Bool>",
+            [
+              48,
+              53
+            ],
+            [
+              94,
+              96
+            ]
+          ]
+        ]
+      ],
+      "minimum_status": "conserve_main",
+      "status": "complete_defect",
+      "main": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              94,
+              96
+            ],
+            "Bool",
+            "Array<Bool>",
+            [
+              48,
+              53
+            ],
+            [
+              94,
+              96
+            ]
+          ]
+        ]
+      ],
+      "candidate": [
+        "rejected",
+        [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            [
+              55,
+              108
+            ],
+            "Bool",
+            "Array<Bool>",
+            [
+              114,
+              120
+            ],
+            [
+              55,
+              108
+            ]
+          ]
+        ]
+      ],
+      "oracle_complete": true
+    }
+  }
+}

@@ -1,0 +1,519 @@
+{
+  "schema": "i07c-c2-min-scope-v1",
+  "complete": true,
+  "candidate_sha256": "76c692e53fde9878fe6da5744c60919ae3ec736eac0ed7d9f00ec1d68797e497",
+  "discriminator_gate_sha256": "498e224d0e2d7f6837f5f42a05611720f7319e8bffd0b4b98b996ee2b81fdf7d",
+  "owned": {
+    "RC1_read_context_variable": {
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then 1 else true)];s=[1];}",
+      "source_sha256": "638eb888f111ff356adec48f499270f67fa8f177052bcf16c3c7fd072c82e03b",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ],
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              56
+            ]
+          ],
+          "matches_oracle": false
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              56
+            ]
+          ],
+          "matches_oracle": false
+        }
+      }
+    },
+    "ST1_equivalent": {
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then [q] else (if true then [1] else q))];q=[1];}",
+      "source_sha256": "7c7189a366fc11363cb10732cddc6fe4f0429b34538aa866d6a6eec83a49e53e",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          68,
+          71
+        ]
+      ],
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              45,
+              48
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              68,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              77,
+              78
+            ]
+          ],
+          "matches_oracle": false
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              45,
+              48
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              68,
+              71
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              77,
+              78
+            ]
+          ],
+          "matches_oracle": false
+        }
+      }
+    },
+    "RC1_read_context_variable:frozen": {
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then 1 else true)];s=[1];}",
+      "source_sha256": "638eb888f111ff356adec48f499270f67fa8f177052bcf16c3c7fd072c82e03b",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ],
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              56
+            ]
+          ],
+          "matches_oracle": false
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              56
+            ]
+          ],
+          "matches_oracle": false
+        }
+      }
+    }
+  },
+  "controls": {
+    "RC2_read_context_committed": {
+      "source": "fn Main(){var q=[];q=[1];let a=[q[0],(if true then 1 else true)];}",
+      "source_sha256": "dba4d3c51d0aac7b728c72fcf2f97e3c00f9f31d4d63af9e05557c31fad112ec",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E0102",
+          58,
+          62
+        ]
+      ],
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              58,
+              62
+            ]
+          ],
+          "matches_oracle": true
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              58,
+              62
+            ]
+          ],
+          "matches_oracle": true
+        }
+      }
+    },
+    "RC3_read_context_no_retroactive": {
+      "source": "fn Main(){var q=[];let a=[q[0],(if true then 1 else true)];let b:I64=q[0];}",
+      "source_sha256": "e0c7fc81f5850d900f59a899bd2a5beb5e2900d109c9329af5271b73a093f66f",
+      "profile": "f0-0002-b-v2",
+      "expected_code_primary": [
+        [
+          "NX-E1303",
+          52,
+          56
+        ]
+      ],
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E1303",
+              null,
+              52,
+              56
+            ]
+          ],
+          "matches_oracle": true
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E1303",
+              null,
+              52,
+              56
+            ]
+          ],
+          "matches_oracle": true
+        }
+      }
+    }
+  },
+  "discriminators": {
+    "f0-0002-b-v2:deferred_operand_origin_before_assignment": {
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then s else s)];s=[1];}",
+      "source_sha256": "7c521f1e11a534733c0003967d367ac08f11b513b57ac19d9895c92c330db10e",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          53
+        ]
+      ],
+      "profile": "f0-0002-b-v2",
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              45,
+              46
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ]
+          ],
+          "expected_type_spans": [
+            [
+              26,
+              30
+            ],
+            [
+              26,
+              30
+            ]
+          ]
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              45,
+              46
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ]
+          ],
+          "expected_type_spans": [
+            [
+              26,
+              30
+            ],
+            [
+              26,
+              30
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:deferred_operand_origin_before_assignment": {
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then s else s)];s=[1];}",
+      "source_sha256": "7c521f1e11a534733c0003967d367ac08f11b513b57ac19d9895c92c330db10e",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          53
+        ]
+      ],
+      "profile": "f0-0003-b-v1",
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              45,
+              46
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ]
+          ],
+          "expected_type_spans": [
+            [
+              26,
+              30
+            ],
+            [
+              26,
+              30
+            ]
+          ]
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0102",
+              "type_mismatch",
+              45,
+              46
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              52,
+              53
+            ]
+          ],
+          "expected_type_spans": [
+            [
+              26,
+              30
+            ],
+            [
+              26,
+              30
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0002-b-v2:failed_nested_if_no_retroactive_index": {
+      "source": "fn Main(){let x=1;var q=[];var r=[];let a0=[r[0],(if true then q[x][0] else (if r then [1] else q))];r=[1];}",
+      "source_sha256": "3b8ac71814b39a059b95a25434e0be498e13309b8ce351cb09547155f8c0f236",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          81
+        ]
+      ],
+      "profile": "f0-0002-b-v2",
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              24,
+              26
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              87,
+              90
+            ]
+          ],
+          "expected_type_spans": [
+            null,
+            null,
+            [
+              44,
+              48
+            ]
+          ]
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              24,
+              26
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              87,
+              90
+            ]
+          ],
+          "expected_type_spans": [
+            null,
+            null,
+            [
+              44,
+              48
+            ]
+          ]
+        }
+      }
+    },
+    "f0-0003-b-v1:failed_nested_if_no_retroactive_index": {
+      "source": "fn Main(){let x=1;var q=[];var r=[];let a0=[r[0],(if true then q[x][0] else (if r then [1] else q))];r=[1];}",
+      "source_sha256": "3b8ac71814b39a059b95a25434e0be498e13309b8ce351cb09547155f8c0f236",
+      "expected": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          81
+        ]
+      ],
+      "profile": "f0-0003-b-v1",
+      "observed": {
+        "check": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              24,
+              26
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              87,
+              90
+            ]
+          ],
+          "expected_type_spans": [
+            null,
+            null,
+            [
+              44,
+              48
+            ]
+          ]
+        },
+        "run": {
+          "kind": "rejected",
+          "diagnostics": [
+            [
+              "NX-E0103",
+              null,
+              24,
+              26
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              80,
+              81
+            ],
+            [
+              "NX-E0102",
+              "type_mismatch",
+              87,
+              90
+            ]
+          ],
+          "expected_type_spans": [
+            null,
+            null,
+            [
+              44,
+              48
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "failures": []
+}
