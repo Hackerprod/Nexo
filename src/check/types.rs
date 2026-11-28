@@ -8293,11 +8293,15 @@ impl Checker<'_> {
                                     &request.left_origin,
                                     &request.found,
                                 )
-                                && (self.graph.has_operand_origin_in(id, &request.left_origin)
-                                    || self
-                                        .graph
-                                        .projection_sites
-                                        .contains(&span_key(&request.left_origin)))
+                                // A whole unresolved binding may later acquire a
+                                // concrete fixer. Its first literal occurrence is
+                                // not an unambiguous witness for that concrete
+                                // leaf (§13.15, D9); a projection is an actual
+                                // operand of the disputed component.
+                                && self
+                                    .graph
+                                    .projection_sites
+                                    .contains(&span_key(&request.left_origin))
                             {
                                 let source_origin = self.graph.source_component_origin(
                                     id,
@@ -23158,6 +23162,45 @@ mod quota_tests {
                 Some(related),
                 "{source}",
             );
+        }
+    }
+
+    #[test]
+    fn c2_unresolved_array_binding_keeps_concrete_leaf_witness() {
+        let cases = [
+            (
+                "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else (if p then r[0] else s)) else (if p then r else s))];r=q;}",
+                &[(154, 155, 105, 107), (168, 169, 105, 107)][..],
+            ),
+            (
+                "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then r else (if p then ar else aar)) else (if p then (if p then q else ar) else (if p then [q] else true)))];}",
+                &[(131, 134, 123, 125)][..],
+            ),
+        ];
+        for (source, expected) in cases {
+            let ast = parse::parse_new_profile("origin.n", source).unwrap();
+            let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+            let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+            for &(start, end, related_start, related_end) in expected {
+                let error = report
+                    .errors
+                    .iter()
+                    .find(|error| error.primary_span.as_ref().map(span_key) == Some((start, end)))
+                    .unwrap_or_else(|| {
+                        panic!("missing mismatch at {start}..{end}: {:?}", report.errors)
+                    });
+                assert_eq!(error.code, "NX-E0102");
+                assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+                assert_eq!(
+                    error
+                        .related_spans
+                        .iter()
+                        .find(|span| span.role == RelatedRole::ExpectedType)
+                        .map(|span| span_key(&span.span)),
+                    Some((related_start, related_end)),
+                    "{source}",
+                );
+            }
         }
     }
 
