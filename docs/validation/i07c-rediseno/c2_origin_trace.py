@@ -3,7 +3,8 @@
 
 Build the candidate with `cargo build --release --features c2-origin-trace`.
 The trace is emitted only when NEXO_ORIGIN_TRACE is set. Normal CLI JSON and
-diagnostics must still match the frozen P-B observation for the selected rows.
+diagnostics must match the selected iteration report for every traced row.
+The default report is the historical P-B observation.
 """
 
 import argparse
@@ -18,7 +19,7 @@ import tempfile
 import candidate_gate as gate
 
 HERE = Path(__file__).resolve().parent
-FROZEN = HERE / "c2-d8-iteration-pb.json"
+DEFAULT_FROZEN = HERE / "c2-d8-iteration-pb.json"
 
 
 def digest(data):
@@ -28,13 +29,15 @@ def digest(data):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--frozen", type=Path, default=DEFAULT_FROZEN,
+                        help="Iteration report whose candidate output must match the trace build")
     parser.add_argument("--row", action="append",
                         help="Corpus row ID; repeat to trace several rows")
     parser.add_argument("--all", action="store_true", help="Trace all 120 frozen rows")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
+    frozen = json.loads(args.frozen.read_text(encoding="utf-8"))
     if args.all == bool(args.row):
         parser.error("select --all or one or more --row arguments")
     row_ids = list(frozen["rows"]) if args.all else args.row
@@ -80,7 +83,7 @@ def main():
 
     report = {
         "schema": "i07c-c2-origin-trace-v2",
-        "frozen_sha256": gate.sha(FROZEN),
+        "frozen_sha256": gate.sha(args.frozen),
         "binary_sha256": gate.sha(args.binary),
         "rows": observations,
     }
