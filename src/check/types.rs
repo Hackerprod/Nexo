@@ -13,6 +13,17 @@ use crate::frontend::{
 };
 use crate::union::{UnionDescriptor, UnionKind};
 
+// Diagnostic builds only: this trace observes source equalities without
+// changing solver state or the JSON contract of the normal executable.
+#[cfg(feature = "c2-origin-trace")]
+macro_rules! trace_origin {
+    ($($arg:tt)*) => {
+        if std::env::var_os("NEXO_ORIGIN_TRACE").is_some() {
+            eprintln!("C2_ORIGIN\t{}", format_args!($($arg)*));
+        }
+    };
+}
+
 #[cfg(test)]
 #[path = "types/pass_meter.rs"]
 mod pass_meter;
@@ -2853,6 +2864,30 @@ impl InferenceGraph {
     fn begin_equality(&mut self, left: Type, right: Type, found: Span) -> EqualityId {
         let id = EqualityId(Self::next(&self.equality_clock));
         let read_context = std::sync::Arc::new(self.capture_read_context(id, &left, &right));
+        #[cfg(feature = "c2-origin-trace")]
+        {
+            trace_origin!(
+                "enter\tequality={}\tfound={:?}\tleft={:?}\tright={:?}",
+                id.0,
+                found,
+                left,
+                right
+            );
+            let mut keys: Vec<_> = read_context.components.keys().copied().collect();
+            keys.sort_unstable();
+            for component in keys {
+                let entry = &read_context.components[&component];
+                trace_origin!(
+                    "read\tequality={}\tcomponent={}\troot={}\tconcrete={:?}\tarray_element={:?}\tfacts={:?}",
+                    id.0,
+                    component,
+                    entry.root,
+                    entry.concrete,
+                    entry.array_element,
+                    entry.origin_facts
+                );
+            }
+        }
         self.equality_records.borrow_mut().push(EqualityRecord {
             id,
             operands: (left, right),
@@ -2976,6 +3011,8 @@ impl InferenceGraph {
         }
         let mut facts = self.origin_facts.borrow_mut();
         for fact in published {
+            #[cfg(feature = "c2-origin-trace")]
+            trace_origin!("publish\tequality={}\tfact={:?}", equality.0, fact);
             facts.entry(fact.component).or_default().push(fact);
         }
     }
@@ -2998,7 +3035,7 @@ impl InferenceGraph {
                     .cloned()
                     .unwrap_or_default()
             });
-        facts
+        let chosen = facts
             .iter()
             .filter(|fact| fact.path.is_empty())
             .filter_map(|fact| {
@@ -3010,7 +3047,17 @@ impl InferenceGraph {
             .filter(|(_, span)| first_operand.start <= span.start && span.end <= first_operand.end)
             .min_by_key(|(ordinal, _)| *ordinal)
             .map(|(_, span)| span.clone())
-            .unwrap_or_else(|| first_operand.clone())
+            .unwrap_or_else(|| first_operand.clone());
+        #[cfg(feature = "c2-origin-trace")]
+        trace_origin!(
+            "select\tcomponent={}\tepoch={:?}\tfirst={:?}\tchosen={:?}\tfacts={:?}",
+            component,
+            read_context.map(|context| context.epoch.0),
+            first_operand,
+            chosen,
+            facts
+        );
+        chosen
     }
 
     fn has_operand_origin(&self, component: u64) -> bool {
@@ -3205,6 +3252,17 @@ impl InferenceGraph {
         let mut records = self.equality_records.borrow_mut();
         let record = records.last_mut().expect("equality record");
         debug_assert_eq!(record.id, id);
+        #[cfg(feature = "c2-origin-trace")]
+        trace_origin!(
+            "finish\tequality={}\tpublish={}\tleft={:?}\tright={:?}\tsource_left={:?}\tsource_right={:?}\tliteral={:?}",
+            id.0,
+            publish,
+            record.operands.0,
+            record.operands.1,
+            record.source.as_ref().map(|source| &source.left),
+            record.source.as_ref().map(|source| &source.right),
+            record.source.as_ref().and_then(|source| source.literal)
+        );
         let _ = (&record.operands, &record.found);
         let waiting = publish
             && self.obligations[record.join_start..]
@@ -10155,6 +10213,18 @@ impl Checker<'_> {
                 .map(Type::Deferred)
                 .unwrap_or(rhs);
             let right_origin = self.expression_origin(value);
+            #[cfg(feature = "c2-origin-trace")]
+            trace_origin!(
+                "assignment\tlocal={}\tplace={:?}\tvalue={:?}\tconcrete={:?}\texpected={:?}\tleft_origin={:?}\tright={:?}\tright_origin={:?}",
+                local,
+                Self::primary_span(place),
+                Self::primary_span(value),
+                progress.concrete,
+                progress.expected,
+                left_origin,
+                right,
+                right_origin
+            );
             self.unify(
                 visit,
                 Type::Deferred(local),

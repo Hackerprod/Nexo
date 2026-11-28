@@ -16,3 +16,6 @@ name = "i07c_mutant_projection_scale"
 path = "tests/i07c_mutant_projection_scale.rs"
 
 [dependencies]
+
+[features]
+c2-origin-trace = []
