@@ -15758,6 +15758,8 @@ impl Checker<'_> {
             None => None,
         };
         if first_failed
+            && first_partial
+            && expected.is_none()
             && second_var.is_some()
             && let Some((declaration, path)) = right_source.and_then(|e| self.binding_path(e))
         {
@@ -23629,6 +23631,43 @@ mod quota_tests {
                 "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let b1=(if p then r[0] else r[0]);let a0=[q,(if p then (if p then ar else (if p then q[0] else aar)) else (if p then r[0] else s[0]))];s=[[true]];}",
                 (226, 230),
                 (153, 155),
+            ),
+        ];
+        for (source, primary, expected) in cases {
+            let ast = parse::parse_new_profile("origin.n", source).unwrap();
+            let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+            let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+            let error = report
+                .errors
+                .iter()
+                .find(|error| error.primary_span.as_ref().map(span_key) == Some(primary))
+                .unwrap_or_else(|| panic!("missing mismatch at {primary:?}: {:?}", report.errors));
+            assert_eq!(error.code, "NX-E0102", "{source}");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .find(|span| span.role == RelatedRole::ExpectedType)
+                    .map(|span| span_key(&span.span)),
+                Some(expected),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn c2_assignment_partial_witness_requires_unanchored_partial_source() {
+        let cases = [
+            (
+                "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let b1=(if p then r[0] else r[0]);let a0=[q,(if p then (if p then ar else 1) else r[0])];s=[[true]];r=[true];q=[[ar]];}",
+                (188, 192),
+                (151, 153),
+            ),
+            (
+                "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=[(if p then (if p then (if p then q else r[0]) else true) else (if p then (if p then r else r[0]) else r))];r=[true];}\nfn Main(){Helper(1);}",
+                (209, 213),
+                (183, 184),
             ),
         ];
         for (source, primary, expected) in cases {
