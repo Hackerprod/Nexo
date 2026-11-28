@@ -9527,15 +9527,15 @@ impl Checker<'_> {
             // NX-E0103. Once its element is concrete, independent source
             // operands keep their own NX-E0102/NX-E1303 (§13.9).
             let completed_side = |checker: &mut Checker<'_>, ty: Type| {
-                checker.resolved_join_side(ty.clone()).or_else(|| {
-                    checker.resolved_join_side_in_context(
-                        ty,
+                checker
+                    .resolved_join_side_in_context(
+                        ty.clone(),
                         entry_record
                             .as_ref()
                             .map(|record| record.read_context.as_ref()),
                         entry_record.as_ref().map(|record| &record.completion),
                     )
-                })
+                    .or_else(|| checker.resolved_join_side(ty))
             };
             let left = completed_side(self, join.left.clone());
             let right = completed_side(self, join.right.clone());
