@@ -3113,6 +3113,9 @@ impl InferenceGraph {
         };
         let witness = facts
             .iter()
+            // A deferred equality may complete later, but its source read
+            // cannot observe a fact published beyond its entry clock.
+            .filter(|fact| read_context.is_none_or(|context| fact.ordinal <= context.epoch.0))
             .filter(|fact| fact.path.is_empty())
             .filter_map(|fact| {
                 fact.operand
