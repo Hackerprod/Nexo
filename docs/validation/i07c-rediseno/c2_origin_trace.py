@@ -64,11 +64,12 @@ def main():
         unexpected = [line for line in stderr if not line.startswith("C2_ORIGIN\t")]
         if unexpected:
             raise RuntimeError(f"{row_id}: unrelated stderr: {unexpected[:3]}")
-        escaped_case = json.dumps(str(case), ensure_ascii=True)[1:-1]
-        trace = [line.removeprefix("C2_ORIGIN\t").replace(escaped_case, "<SOURCE>")
-                 for line in stderr]
-        if any(str(case) in line or escaped_case in line for line in trace):
-            raise ValueError(f"{row_id}: unnormalized source path")
+        trace = [json.loads(line.removeprefix("C2_ORIGIN\t")) for line in stderr]
+        if any(event.get("schema") != "c2-origin-jsonl-v2" for event in trace):
+            raise ValueError(f"{row_id}: unknown trace schema")
+        if any("source_ordinal" not in event or "state" not in event
+               for event in trace if event.get("event") == "finish"):
+            raise ValueError(f"{row_id}: incomplete equality decision")
         observations[row_id] = {
             "source_sha256": row["source_sha256"],
             "profile": row["profile"],
@@ -78,7 +79,7 @@ def main():
         }
 
     report = {
-        "schema": "i07c-c2-origin-trace-v1",
+        "schema": "i07c-c2-origin-trace-v2",
         "frozen_sha256": gate.sha(FROZEN),
         "binary_sha256": gate.sha(args.binary),
         "rows": observations,

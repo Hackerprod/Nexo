@@ -16,6 +16,7 @@ name = "i07c_mutant_projection_scale"
 path = "tests/i07c_mutant_projection_scale.rs"
 
 [dependencies]
+serde_json = { version = "1", optional = true }
 
 [features]
-c2-origin-trace = []
+c2-origin-trace = ["dep:serde_json"]

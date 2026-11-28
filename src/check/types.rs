@@ -17,9 +17,9 @@ use crate::union::{UnionDescriptor, UnionKind};
 // changing solver state or the JSON contract of the normal executable.
 #[cfg(feature = "c2-origin-trace")]
 macro_rules! trace_origin {
-    ($($arg:tt)*) => {
+    ($value:expr) => {
         if std::env::var_os("NEXO_ORIGIN_TRACE").is_some() {
-            eprintln!("C2_ORIGIN\t{}", format_args!($($arg)*));
+            eprintln!("C2_ORIGIN\t{}", $value);
         }
     };
 }
@@ -1109,6 +1109,8 @@ struct EqualityRecord {
     completion: Completion,
     owner_if: Option<OccurrenceId>,
     source: Option<EqualitySource>,
+    #[cfg(feature = "c2-origin-trace")]
+    trace_source_ordinal: Option<(u32, u32)>,
 }
 
 // Later compatible equalities may fill an unknown entry component. Published
@@ -1794,6 +1796,8 @@ struct OccurrenceKey(OccurrenceRole, usize);
 #[derive(Clone, Default)]
 struct OccurrenceIndex {
     by_node: HashMap<OccurrenceKey, OccurrenceId>,
+    #[cfg(feature = "c2-origin-trace")]
+    by_span: HashMap<(u64, u64), Vec<OccurrenceId>>,
 }
 
 impl OccurrenceIndex {
@@ -1857,10 +1861,14 @@ impl OccurrenceIndex {
         let mut pending = vec![Node::Block(body)];
         let mut preorder = 0u32;
         while let Some(node) = pending.pop() {
-            let (role, address) = match node {
+            let (role, address, site) = match node {
                 Node::Statement(value) => {
                     push_statement(value, &mut pending);
-                    (OccurrenceRole::Statement, std::ptr::from_ref(value).addr())
+                    (
+                        OccurrenceRole::Statement,
+                        std::ptr::from_ref(value).addr(),
+                        Some(span_key(parse::statement_span(value))),
+                    )
                 }
                 Node::Expression(value) => {
                     match value {
@@ -1906,17 +1914,29 @@ impl OccurrenceIndex {
                         Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
                     }
                     let address = std::ptr::from_ref(value).addr();
-                    (OccurrenceRole::Expression, address)
+                    (
+                        OccurrenceRole::Expression,
+                        address,
+                        Some(span_key(value.span())),
+                    )
                 }
                 Node::Block(value) => {
                     pending.extend(value.statements.iter().rev().map(Node::Statement));
-                    (OccurrenceRole::Block, std::ptr::from_ref(value).addr())
+                    (
+                        OccurrenceRole::Block,
+                        std::ptr::from_ref(value).addr(),
+                        None,
+                    )
                 }
                 Node::Pattern(value) => {
                     if let Pattern::Constructor { args, .. } = value {
                         pending.extend(args.iter().rev().map(Node::Pattern));
                     }
-                    (OccurrenceRole::Pattern, std::ptr::from_ref(value).addr())
+                    (
+                        OccurrenceRole::Pattern,
+                        std::ptr::from_ref(value).addr(),
+                        None,
+                    )
                 }
                 Node::Arm(value) => {
                     if let Some(guard) = &value.guard {
@@ -1924,7 +1944,7 @@ impl OccurrenceIndex {
                     }
                     pending.push(Node::Block(&value.body));
                     pending.push(Node::Pattern(&value.pattern));
-                    (OccurrenceRole::Arm, std::ptr::from_ref(value).addr())
+                    (OccurrenceRole::Arm, std::ptr::from_ref(value).addr(), None)
                 }
             };
             let id = OccurrenceId {
@@ -1937,8 +1957,32 @@ impl OccurrenceIndex {
                 .checked_add(1)
                 .expect("function occurrence index exhausted");
             result.by_node.insert(OccurrenceKey(role, address), id);
+            #[cfg(feature = "c2-origin-trace")]
+            if let Some(site) = site {
+                result.by_span.entry(site).or_default().push(id);
+            }
+            #[cfg(not(feature = "c2-origin-trace"))]
+            let _ = site;
         }
         result
+    }
+
+    #[cfg(feature = "c2-origin-trace")]
+    fn source_ordinal(&self, site: &Span) -> Option<(u32, u32)> {
+        let key = span_key(site);
+        let exact = self
+            .by_span
+            .get(&key)
+            .and_then(|ids| ids.iter().min_by_key(|id| id.preorder));
+        let enclosing = self
+            .by_span
+            .iter()
+            .filter(|(span, _)| span.0 <= key.0 && key.1 <= span.1)
+            .min_by_key(|(span, _)| span.1 - span.0)
+            .and_then(|(_, ids)| ids.iter().min_by_key(|id| id.preorder));
+        exact
+            .or(enclosing)
+            .map(|id| (id.function_ordinal, id.preorder))
     }
 
     fn get(&self, role: OccurrenceRole, address: usize) -> Option<OccurrenceId> {
@@ -2864,30 +2908,6 @@ impl InferenceGraph {
     fn begin_equality(&mut self, left: Type, right: Type, found: Span) -> EqualityId {
         let id = EqualityId(Self::next(&self.equality_clock));
         let read_context = std::sync::Arc::new(self.capture_read_context(id, &left, &right));
-        #[cfg(feature = "c2-origin-trace")]
-        {
-            trace_origin!(
-                "enter\tequality={}\tfound={:?}\tleft={:?}\tright={:?}",
-                id.0,
-                found,
-                left,
-                right
-            );
-            let mut keys: Vec<_> = read_context.components.keys().copied().collect();
-            keys.sort_unstable();
-            for component in keys {
-                let entry = &read_context.components[&component];
-                trace_origin!(
-                    "read\tequality={}\tcomponent={}\troot={}\tconcrete={:?}\tarray_element={:?}\tfacts={:?}",
-                    id.0,
-                    component,
-                    entry.root,
-                    entry.concrete,
-                    entry.array_element,
-                    entry.origin_facts
-                );
-            }
-        }
         self.equality_records.borrow_mut().push(EqualityRecord {
             id,
             operands: (left, right),
@@ -2898,6 +2918,8 @@ impl InferenceGraph {
             completion: Completion::default(),
             owner_if: None,
             source: None,
+            #[cfg(feature = "c2-origin-trace")]
+            trace_source_ordinal: None,
         });
         self.active_equality = Some(id);
         self.begin_node_journal();
@@ -3012,7 +3034,13 @@ impl InferenceGraph {
         let mut facts = self.origin_facts.borrow_mut();
         for fact in published {
             #[cfg(feature = "c2-origin-trace")]
-            trace_origin!("publish\tequality={}\tfact={:?}", equality.0, fact);
+            trace_origin!(serde_json::json!({
+                "schema":"c2-origin-jsonl-v2", "event":"publish", "equality_id":equality.0,
+                "component":fact.component, "path":fact.path, "publication_ordinal":fact.ordinal,
+                "source":fact.source.as_ref().map(span_key),
+                "literal":fact.literal.map(|(id, index)| [id.function_ordinal, id.preorder, index]),
+                "provenance":"compatible_equality"
+            }));
             facts.entry(fact.component).or_default().push(fact);
         }
     }
@@ -3035,28 +3063,33 @@ impl InferenceGraph {
                     .cloned()
                     .unwrap_or_default()
             });
-        let chosen = facts
+        let witness = facts
             .iter()
             .filter(|fact| fact.path.is_empty())
             .filter_map(|fact| {
                 fact.operand
                     .as_ref()
                     .or(fact.source.as_ref())
-                    .map(|span| (fact.ordinal, span))
+                    .map(|span| (fact, span))
             })
             .filter(|(_, span)| first_operand.start <= span.start && span.end <= first_operand.end)
-            .min_by_key(|(ordinal, _)| *ordinal)
+            .min_by_key(|(fact, _)| fact.ordinal);
+        let chosen = witness
             .map(|(_, span)| span.clone())
             .unwrap_or_else(|| first_operand.clone());
         #[cfg(feature = "c2-origin-trace")]
-        trace_origin!(
-            "select\tcomponent={}\tepoch={:?}\tfirst={:?}\tchosen={:?}\tfacts={:?}",
-            component,
-            read_context.map(|context| context.epoch.0),
-            first_operand,
-            chosen,
-            facts
-        );
+        trace_origin!(serde_json::json!({
+            "schema":"c2-origin-jsonl-v2", "event":"select", "component":component,
+            "path":[], "epoch":read_context.map(|context| context.epoch.0),
+            "first_operand":span_key(first_operand), "chosen":span_key(&chosen),
+            "witness_provenance":if witness.is_some() { "published_origin_fact" } else { "literal_fallback" },
+            "witness_equality_id":witness.map(|(fact, _)| fact.equality.0),
+            "candidate_facts":facts.iter().map(|fact| serde_json::json!({
+                "equality_id":fact.equality.0, "ordinal":fact.ordinal,
+                "source":fact.source.as_ref().map(span_key), "operand":fact.operand.as_ref().map(span_key),
+                "path":fact.path
+            })).collect::<Vec<_>>()
+        }));
         chosen
     }
 
@@ -3253,16 +3286,18 @@ impl InferenceGraph {
         let record = records.last_mut().expect("equality record");
         debug_assert_eq!(record.id, id);
         #[cfg(feature = "c2-origin-trace")]
-        trace_origin!(
-            "finish\tequality={}\tpublish={}\tleft={:?}\tright={:?}\tsource_left={:?}\tsource_right={:?}\tliteral={:?}",
-            id.0,
-            publish,
-            record.operands.0,
-            record.operands.1,
-            record.source.as_ref().map(|source| &source.left),
-            record.source.as_ref().map(|source| &source.right),
-            record.source.as_ref().and_then(|source| source.literal)
-        );
+        trace_origin!(serde_json::json!({
+            "schema":"c2-origin-jsonl-v2", "event":"finish", "equality_id":id.0,
+            "source_ordinal":record.trace_source_ordinal,
+            "state":if publish { "compatible" } else { "rejected" },
+            "primary":span_key(&record.found),
+            "left_type":format!("{:?}",record.operands.0),
+            "right_type":format!("{:?}",record.operands.1),
+            "source_left":record.source.as_ref().map(|source| span_key(&source.left)),
+            "source_right":record.source.as_ref().map(|source| span_key(&source.right)),
+            "literal":record.source.as_ref().and_then(|source| source.literal)
+                .map(|(id, index)| [id.function_ordinal, id.preorder, index])
+        }));
         let _ = (&record.operands, &record.found);
         let waiting = publish
             && self.obligations[record.join_start..]
@@ -5571,6 +5606,17 @@ impl Checker<'_> {
                 return;
             }
         }
+        #[cfg(feature = "c2-origin-trace")]
+        trace_origin!(serde_json::json!({
+            "schema":"c2-origin-jsonl-v2", "event":"diagnostic_recorded",
+            "code":error.code, "subcause":error.subcause,
+            "primary":error.primary_span.as_ref().map(span_key),
+            "source_ordinal":error.primary_span.as_ref()
+                .and_then(|span| self.occurrences.source_ordinal(span)),
+            "relations":error.related_spans.iter().map(|relation| serde_json::json!({
+                "role":format!("{:?}",relation.role), "span":span_key(&relation.span)
+            })).collect::<Vec<_>>()
+        }));
         self.errors.push(error);
     }
 
@@ -6778,6 +6824,30 @@ impl Checker<'_> {
                 right: right_origin.clone(),
                 literal,
             });
+            #[cfg(feature = "c2-origin-trace")]
+            {
+                record.trace_source_ordinal = self.occurrences.source_ordinal(&found);
+                let mut components: Vec<_> = record.read_context.components.iter().collect();
+                components.sort_by_key(|(component, _)| *component);
+                trace_origin!(serde_json::json!({
+                    "schema":"c2-origin-jsonl-v2", "event":"enter", "equality_id":equality.0,
+                    "source_ordinal":record.trace_source_ordinal,
+                    "primary":span_key(&found), "left_type":format!("{:?}",left),
+                    "right_type":format!("{:?}",right),
+                    "fact_role":self.graph.active_facts.get(&fact).map(|item| format!("{:?}",item.role)),
+                    "fact_site":self.graph.active_facts.get(&fact).map(|item| item.site),
+                    "source_left":span_key(&left_origin), "source_right":span_key(&right_origin),
+                    "literal":literal.map(|(id, index)| [id.function_ordinal, id.preorder, index]),
+                    "components":components.iter().map(|(id, entry)| serde_json::json!({
+                        "component":id, "root":entry.root,
+                        "facts":entry.origin_facts.iter().map(|fact| serde_json::json!({
+                            "equality_id":fact.equality.0, "ordinal":fact.ordinal,
+                            "path":fact.path, "source":fact.source.as_ref().map(span_key),
+                            "operand":fact.operand.as_ref().map(span_key)
+                        })).collect::<Vec<_>>()
+                    })).collect::<Vec<_>>()
+                }));
+            }
         }
         let request = SolverUnify {
             fact,
@@ -10214,17 +10284,16 @@ impl Checker<'_> {
                 .unwrap_or(rhs);
             let right_origin = self.expression_origin(value);
             #[cfg(feature = "c2-origin-trace")]
-            trace_origin!(
-                "assignment\tlocal={}\tplace={:?}\tvalue={:?}\tconcrete={:?}\texpected={:?}\tleft_origin={:?}\tright={:?}\tright_origin={:?}",
-                local,
-                Self::primary_span(place),
-                Self::primary_span(value),
-                progress.concrete,
-                progress.expected,
-                left_origin,
-                right,
-                right_origin
-            );
+            trace_origin!(serde_json::json!({
+                "schema":"c2-origin-jsonl-v2", "event":"assignment",
+                "local":local, "place":span_key(&Self::primary_span(place)),
+                "value":span_key(&Self::primary_span(value)),
+                "source_ordinal":self.occurrences.source_ordinal(&Self::primary_span(value)),
+                "concrete":format!("{:?}",progress.concrete),
+                "expected":format!("{:?}",progress.expected),
+                "chosen":span_key(&left_origin), "witness_provenance":"legacy_type_node",
+                "right_type":format!("{:?}",right), "right_origin":span_key(&right_origin)
+            }));
             self.unify(
                 visit,
                 Type::Deferred(local),
@@ -15601,6 +15670,21 @@ impl Checker<'_> {
         let skip_failed_context_join = (first_failed && !first_partial)
             || (second_failed && !first_anchored)
             || (needs_deferred_join && first_failed);
+        #[cfg(feature = "c2-origin-trace")]
+        trace_origin!(serde_json::json!({
+            "schema":"c2-origin-jsonl-v2", "event":"if_join_context",
+            "owner_ordinal":[progress.consumer.owner.function_ordinal, progress.consumer.owner.preorder],
+            "source_ordinal":self.occurrences.source_ordinal(progress.expr.span()),
+            "if_span":span_key(progress.expr.span()),
+            "first_value":branch_value_expr(then_block).map(|value| span_key(&Self::primary_span(value))),
+            "second_value":right_source.map(|value| span_key(&Self::primary_span(value))),
+            "external_context":expected.is_some(),
+            "first_failed":first_failed, "second_failed":second_failed,
+            "first_anchored":first_anchored, "second_anchored":second_anchored,
+            "skip_join":skip_failed_context_join,
+            "anchor_pending":anchor_pending, "anchor_error":anchor_error.is_some(),
+            "needs_deferred_join":needs_deferred_join
+        }));
         let pending_before_join = self.pending_join_count();
         let join = if anchor_error.is_none()
             && !anchor_pending

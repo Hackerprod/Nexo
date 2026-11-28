@@ -1,0 +1,15 @@
+{
+  "counts": {
+    "equalities": 6892,
+    "events": 28279,
+    "missing_ast_ordinal": 0,
+    "recorded_final_diagnostics": 449,
+    "rejected": 821,
+    "rejected_published": 0,
+    "rows": 120,
+    "selected_fallback": 0,
+    "selected_published": 56,
+    "unrecorded_final_diagnostics": 0
+  },
+  "schema": "c2-r25-trace-invariants-v1"
+}

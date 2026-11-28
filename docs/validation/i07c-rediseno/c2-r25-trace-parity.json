@@ -1,0 +1,13 @@
+{
+  "counts": {
+    "equal_outputs": 1000,
+    "events": 234606,
+    "finish_events": 53495,
+    "normal_trace_markers": 0,
+    "null_source_ordinals": 0,
+    "programs": 1000
+  },
+  "normal_sha256": "8ea18de9bc132fbe91cb63701a8ee232bced290d3c96ab74a026c82a9aaeaf44",
+  "schema": "c2-trace-parity-v1",
+  "trace_sha256": "92b7683704eccb839f4b92c652c09fbb396c92ddbf900a6c44b9bb1ff86ec514"
+}
