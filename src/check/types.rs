@@ -1801,6 +1801,9 @@ struct OccurrenceIndex {
     // Explicit value blocks can retain distinct leaf diagnostics where D9
     // leaves the boundary of a nested union unspecified.
     explicit_value_block_unions: HashSet<OccurrenceId>,
+    // A failed enclosing continuation can retain the nested `if` result as
+    // partial evidence. Its first leaf alone is not an assignment witness.
+    partial_if_witnesses: HashMap<(u64, (u64, u64)), Span>,
     #[cfg(feature = "c2-origin-trace")]
     by_span: HashMap<(u64, u64), Vec<OccurrenceId>>,
 }
@@ -10187,6 +10190,20 @@ impl Checker<'_> {
         }
     }
 
+    fn partial_assignment_origin(&self, local: u64, origin: &Span) -> Span {
+        let key = span_key(origin);
+        self.graph
+            .source_paths(&Type::Deferred(local))
+            .into_iter()
+            .find_map(|(component, _)| {
+                self.occurrences
+                    .partial_if_witnesses
+                    .get(&(component, key))
+                    .cloned()
+            })
+            .unwrap_or_else(|| origin.clone())
+    }
+
     fn prepare_assignment_rhs<'a>(
         &mut self,
         visit: FactId,
@@ -10235,7 +10252,18 @@ impl Checker<'_> {
                 .as_ref()
                 .filter(|_| projected.is_some() || !intrinsic_origin)
                 .filter(|(_, origin)| origin.start < Self::primary_span(place).start)
-                .map(|(_, origin)| origin.clone());
+                .map(|(_, origin)| self.partial_assignment_origin(local, origin));
+            let expected = expected.map(|(ty, origin)| {
+                let witness = self.partial_assignment_origin(local, &origin);
+                #[cfg(feature = "c2-origin-trace")]
+                trace_origin!(serde_json::json!({
+                    "schema":"c2-origin-jsonl-v2", "event":"assignment_witness",
+                    "local":local, "origin":span_key(&origin), "chosen":span_key(&witness),
+                    "components":self.graph.source_paths(&Type::Deferred(local))
+                        .into_iter().map(|(id, path)| serde_json::json!([id, path])).collect::<Vec<_>>()
+                }));
+                (ty, witness)
+            });
             (
                 OwnedCheckContext {
                     expected: expected
@@ -15672,6 +15700,20 @@ impl Checker<'_> {
             Some(Else::If(e)) => self.expression_variable(e),
             None => None,
         };
+        if first_failed && let Some(component) = second_var {
+            let mut first_value = branch_value_expr(then_block);
+            while let Some(Expr::Group(inner, _)) = first_value {
+                first_value = Some(inner);
+            }
+            if let Some(expression @ Expr::If { then_block, .. }) = first_value
+                && let Some(leaf) = branch_value_expr(then_block)
+            {
+                self.occurrences.partial_if_witnesses.insert(
+                    (component, span_key(&Self::primary_span(leaf))),
+                    Self::primary_span(expression),
+                );
+            }
+        }
         let first_join = first_var.map(Type::Deferred).or_else(|| first.clone());
         let second_join = second_var.map(Type::Deferred).or_else(|| second.clone());
         let right_source = match otherwise {
@@ -15729,6 +15771,8 @@ impl Checker<'_> {
             },
             "first_value":branch_value_expr(then_block).map(|value| span_key(&Self::primary_span(value))),
             "second_value":right_source.map(|value| span_key(&Self::primary_span(value))),
+            "first_var":first_var,
+            "second_var":second_var,
             "external_context":expected.is_some(),
             "first_failed":first_failed, "second_failed":second_failed,
             "first_anchored":first_anchored, "second_anchored":second_anchored,
@@ -23259,6 +23303,48 @@ mod quota_tests {
             .map(|error| error.primary_span.as_ref().map(span_key).unwrap())
             .collect::<Vec<_>>();
         assert_eq!(primary, [(144, 148), (166, 170), (223, 226)]);
+    }
+
+    #[test]
+    fn c2_assignment_partial_if_witness_follows_its_component() {
+        let cases = [
+            (
+                "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then s[0] else (if p then (if p then q else s) else r[0]));let a1=aar;r=[3];q=ar;}",
+                (159, 160),
+                (113, 131),
+            ),
+            (
+                "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then r[0] else (if ar then (if q then ar else true) else q[0])),r];let a1=(if p then (if 1 then q[0] else s[0]) else (if p then q else [r]));r=s;s=[[true]];q=[[1<2]];}",
+                (247, 250),
+                (115, 137),
+            ),
+            (
+                "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let b1=(if p then r[0] else r[0]);let a0=[q,(if p then (if p then ar else (if p then q[0] else aar)) else (if p then r[0] else s[0]))];s=[[true]];}",
+                (226, 230),
+                (153, 155),
+            ),
+        ];
+        for (source, primary, expected) in cases {
+            let ast = parse::parse_new_profile("origin.n", source).unwrap();
+            let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+            let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+            let error = report
+                .errors
+                .iter()
+                .find(|error| error.primary_span.as_ref().map(span_key) == Some(primary))
+                .unwrap_or_else(|| panic!("missing mismatch at {primary:?}: {:?}", report.errors));
+            assert_eq!(error.code, "NX-E0102", "{source}");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .find(|span| span.role == RelatedRole::ExpectedType)
+                    .map(|span| span_key(&span.span)),
+                Some(expected),
+                "{source}"
+            );
+        }
     }
 
     #[test]
