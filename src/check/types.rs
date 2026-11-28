@@ -9630,6 +9630,20 @@ impl Checker<'_> {
             let own_inference_cause = causal_inference_sites.iter().any(|&(start, end)| {
                 start <= span.start && span.end <= end && (start, end) != span_key(&span)
             });
+            #[cfg(feature = "c2-origin-trace")]
+            trace_origin!(serde_json::json!({
+                "schema": "c2-origin-jsonl-v2",
+                "event": "constructor_close",
+                "site": span_key(&span),
+                "array_root": root,
+                "element_root": child_root,
+                "failed_constructor": self.graph.failed_constructor(root),
+                "element_concrete": self.concrete(child).map(|(ty, _)| format!("{ty:?}")),
+                "nested_unresolved": unresolved_arrays.contains(&child_root),
+                "variant_element": result_child_owns_inference,
+                "own_inference_cause": own_inference_cause,
+                "shared_inference_root": shared_inference_roots.contains(&root),
+            }));
             // A failed constructor can be caused at a different source site.
             // Its unresolved literal must not add a dependent inference error.
             if (!self.graph.failed_constructor(root)
