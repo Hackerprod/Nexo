@@ -15685,6 +15685,11 @@ impl Checker<'_> {
             "owner_ordinal":[progress.consumer.owner.function_ordinal, progress.consumer.owner.preorder],
             "source_ordinal":self.occurrences.source_ordinal(progress.expr.span()),
             "if_span":span_key(progress.expr.span()),
+            "first_block":span_key(&then_block.span),
+            "second_block":match otherwise {
+                Some(Else::Block(block)) => Some(span_key(&block.span)),
+                _ => None,
+            },
             "first_value":branch_value_expr(then_block).map(|value| span_key(&Self::primary_span(value))),
             "second_value":right_source.map(|value| span_key(&Self::primary_span(value))),
             "external_context":expected.is_some(),
