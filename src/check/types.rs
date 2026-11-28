@@ -23403,6 +23403,50 @@ mod quota_tests {
     }
 
     #[test]
+    fn c2_flattened_union_retains_leaf_after_incompatible_sibling() {
+        let prefix = "fn Main(){var q=[];var r=[];let a0=[(if true then q[0] else (if true then q else r[0]))];q=[1];";
+        for (tail, expected) in [
+            ("}", vec![("NX-E1303", (74, 75))]),
+            ("r=[1];}", vec![("NX-E1303", (74, 75))]),
+            (
+                "r=[true];}",
+                vec![("NX-E1303", (74, 75)), ("NX-E0102", (98, 102))],
+            ),
+        ] {
+            let source = format!("{prefix}{tail}");
+            let ast = parse::parse_new_profile("union.n", &source).unwrap();
+            let resolved = names::resolve_with_option("union.n", &source, &ast, true).unwrap();
+            let report = check_with_partial_limit("union.n", &source, &ast, &resolved, 1_000_000);
+            let observed: Vec<_> = report
+                .errors
+                .iter()
+                .map(|error| {
+                    (
+                        error.code.as_str(),
+                        error.primary_span.as_ref().map(span_key),
+                    )
+                })
+                .collect();
+            let expected: Vec<_> = expected
+                .into_iter()
+                .map(|(code, primary)| (code, Some(primary)))
+                .collect();
+            assert_eq!(observed, expected, "{source}");
+            if tail == "r=[true];}" {
+                assert_eq!(report.errors[1].subcause.as_deref(), Some("type_mismatch"));
+                assert_eq!(
+                    report.errors[1].data.get("expected_type"),
+                    Some(&DataValue::String("I64".into()))
+                );
+                assert_eq!(
+                    report.errors[1].data.get("found_type"),
+                    Some(&DataValue::String("Bool".into()))
+                );
+            }
+        }
+    }
+
+    #[test]
     fn c2_nested_later_union_uses_outer_first_continuation_as_witness() {
         let cases = [
             (
