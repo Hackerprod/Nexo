@@ -22,6 +22,24 @@ P-C migra `JoinRecord`/`PendingDeferredJoin`, el `pending` de literales y el con
 | `compatible_flattened_leaf`: la diferencia única es E0103 excedente de `main` con elemento concreto de constructor no fallido, o C posterior del candidato registrado tras unión con hoja fallida; se coteja con eventos de cierre y unión. | `fn Main(){var q=[];var r=[];var s=[];let a0=[[q],r];let a1=(if true then q[0] else (if true then r[0] else s[0]));q=[1];}` (121 B); §4.1.2.4 y §4.1.2.6. | 4; `64e29a23d1f549df9d6e27d46b45a9e41c89a73a28b8a1d6a46f1052febe5878` | `2b2455f`, `9f07ede`, `c3665f0`, `8f9380a` (regresiones); `cdbea00` (predicado). |
 | `mixed_compatible_constraints`: `main` tiene E0103 y E1303; candidato, dos E1303 de uniones distintas y dos E0102 independientes, todos registrados; el cierre muestra elemento concreto y la traza identifica la hoja desplazada. | `b-projections-t5-2026112402:620`, fuente de 253 B en el corpus; §4.1.2.4, E1/SB y §13.15. | 1; `d10c6bffe1a347e0483bd267cac8b35c5ca72094ad917e553145069642554bea` | `99ec5f5` (regresión), `cdbea00` (predicado). |
 
+Los tres ejemplos de la tabla identificados por fila tienen estos bytes ASCII exactos (sin salto final):
+
+```nexo
+fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then (if p then r else r[0]) else (if p then (if p then r[0] else s) else (if p then r[0] else q[0]))),r];let a1=(if p then aar else [r]);q=[true];q=r;r=[true];}
+```
+
+La fuente anterior es 757 (248 B). Para `assignment_prefix`, 761 (219 B):
+
+```nexo
+fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let b1=(s[0]);let a0=[(if p then q[0] else (if p then (if p then s else ar) else (if ar then s[0] else r[0])))];r=[3];q=r;s=[[true]];}
+```
+
+Para `mixed_compatible_constraints`, 620 (253 B):
+
+```nexo
+fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then r[0] else (if p then (if p then q else q[0]) else (if p then true else s[0]))),r];let a1=(if q then (if p then s[0] else [q,r]) else (if p then aar else s[0]));}
+```
+
 Defectos conocidos compartidos con `main`, **fuera de C2**: CE-A y sus siete omisiones NX-E0103, la tercera NX-E1303 de la fila 757, y la atribución del C a `aar` en 8216. La diferencia de 757 clasificada arriba concierne solo a la *segunda* E1303 de su unión; la tercera sigue registrada como defecto compartido. Las relaciones 233 y 1995 son «ambiguas por ADR, se conserva main» y dejan abierta su pregunta; no se etiquetan como conformes ni como defectos.
 
 **Corte intermedio de la iteración en `960df52` (sin clasificador congelado).** P-C1 `0403b31` tomó el origen escrito del registro de igualdad al materializar `PendingDeferredJoin`, con 120→120 diferencias y cero salidas alteradas en la iteración. P-C2 `960df52` limitó el reemplazo del fijador concreto de una hoja de binding Array pendiente a proyecciones que realmente nombran ese componente: 120→68 diferencias, 52 salidas pasan exactamente a `main`, incluidas 233 y la ruta de 1390; A=0, extras=0. Los 68 residuales son 58 filas de sola omisión E1303, cuatro de sola relación (280, 1183, 1995, 2343) y seis mixtas (620, 761, 820, 953, 988, 1963). No se infiere conformidad de una fila solo por igualar `main`; las cuatro D→C adicionales del oráculo parcial (2138, 2551, 273, 2918) requieren adjudicación de testigo de binding entero antes de absolverse.
