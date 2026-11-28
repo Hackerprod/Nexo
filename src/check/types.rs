@@ -23403,6 +23403,42 @@ mod quota_tests {
     }
 
     #[test]
+    fn c2_nested_later_union_uses_outer_first_continuation_as_witness() {
+        let cases = [
+            (
+                "fn Main(){var q=[];var r=[];var s=[];(if true then s[0] else (if true then (if true then r else r[0]) else q[0]));q=[[1]];}",
+                (96, 100),
+                (51, 55),
+            ),
+            (
+                "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let b1=(r[0]);let a0=[(if p then s[0] else (if p then (if p then [q] else q) else (if p then r else r[0])))];let a1=(if p then (if p then ar else r) else q);q=[true];q=[1];}",
+                (185, 189),
+                (118, 122),
+            ),
+        ];
+        for (source, primary, expected) in cases {
+            let ast = parse::parse_new_profile("union.n", source).unwrap();
+            let resolved = names::resolve_with_option("union.n", source, &ast, true).unwrap();
+            let report = check_with_partial_limit("union.n", source, &ast, &resolved, 1_000_000);
+            let error = report
+                .errors
+                .iter()
+                .find(|error| error.primary_span.as_ref().map(span_key) == Some(primary))
+                .unwrap_or_else(|| panic!("missing conflict: {source}: {:?}", report.errors));
+            assert_eq!(error.code, "NX-E1303", "{source}");
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .find(|related| related.role == RelatedRole::ExpectedType)
+                    .map(|related| span_key(&related.span)),
+                Some(expected),
+                "{source}",
+            );
+        }
+    }
+
+    #[test]
     fn c2_unresolved_array_binding_keeps_concrete_leaf_witness() {
         let cases = [
             (
