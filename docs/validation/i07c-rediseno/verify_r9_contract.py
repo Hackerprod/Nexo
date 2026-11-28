@@ -128,7 +128,7 @@ assert all(gates["owner_matrix"][ident] == "C4" for ident in
            ("F06", "M2", "W0", "w1"))
 assert gates["owner_matrix"]["W0nounion"] == "C3"
 assert [len(gates["owned_corpus_ids"]["C2"][family]) for family in
-        ("directed74", "matrix45", "frozen13")] == [10, 0, 3]
+        ("directed74", "matrix45", "frozen13")] == [8, 0, 2]
 for owned_family, commit_family in (
     ("directed74", "directed74_normative_ids"),
     ("matrix45", "matrix45_normative_ids"),
@@ -145,7 +145,10 @@ assert [len(gates["commits"][f"C{i}"]["matrix45_normative_ids"]) for i in range(
     0, 0, 0, 5, 13, 45, 45,
 ]
 assert [len(gates["commits"][f"C{i}"]["directed74_normative_ids"]) for i in range(7)] == [
-    0, 3, 10, 24, 32, 74, 74,
+    0, 3, 8, 24, 32, 74, 74,
+]
+assert [len(gates["commits"][f"C{i}"]["frozen13_normative_ids"]) for i in range(7)] == [
+    0, 0, 2, 9, 11, 13, 13,
 ]
 contract = (HERE.parents[1] / "correcciones/I07c-rediseno-restauracion-atomica-R6-final.md").read_text(encoding="utf-8")
 c3_row = next(line for line in contract.splitlines() if line.startswith("| C3 |"))
@@ -208,6 +211,8 @@ assert len(baseline["corpora"]) == 20 and len(baseline["class_by_row"]) == 15118
 assert {key for key, label in baseline["class_by_row"].items() if label == "H"} == set(hard["rows"])
 assert baseline["classifier_sha256"] == gates["frozen_v11_sha256"]["docs/validation/i07c-rediseno/candidate_gate.py"]
 import owned_rows_gate as owned  # noqa: E402
+assert hashlib.sha256((HERE / "owned_rows_gate.py").read_bytes()).hexdigest() == gates[
+    "owned_rows_gate_sha256"]
 assert tuple(name for name, _ in owned.FAMILIES) == (
     "directed74_normative_ids", "matrix45_normative_ids", "frozen13_normative_ids")
 for family, filename in owned.FAMILIES:
@@ -344,6 +349,10 @@ for row in c2_disc["cases"].values():
     assert set(row["observed"]) == {"check", "run"}
     assert all(observed["diagnostics"] == row["expected"] for observed in row["observed"].values())
 import c2_discriminator_gate as c2_gate  # noqa: E402
+assert hashlib.sha256((HERE / "c2_discriminator_gate.py").read_bytes()).hexdigest() == gates[
+    "c2_discriminator_gate_sha256"]
+assert sorted(c2_gate.C3_OPERAND_IF) == gates["c3_operand_if_discriminators"]
+assert len(c2_gate.CASES) * 2 - 2 - len(c2_gate.C3_OPERAND_IF) * 2 == 34
 for extension, case in zip(c2["d_prime_extensions"],
                            ("resource_rejected_array", "repeated_recursive_array"), strict=True):
     source, expected = c2_gate.CASES[case]
@@ -416,7 +425,7 @@ assert sum(row.get("c2_main_exact", False) for row in named["rows"]) == 7
 assert [sum(row["kind"] == kind for row in named["rows"])
         for kind in ("duplicate_owned_row", "aggregate", "source")] == [3, 1, 7]
 
-# v15e is the active C2 reference; v15d above remains auditable history.
+# v15e is retained as auditable history; the D13 minimum is the active C2 reference.
 c2e = gates["c2_reference_evidence"]
 c2e_commit = gates["c2_reference_commit"]
 assert c2e_commit == c2e["code_commit"] == "be96e08f1a18fa92e296fe89d1dc78dfd805a55f"

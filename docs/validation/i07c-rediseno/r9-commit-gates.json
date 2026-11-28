@@ -28,11 +28,11 @@
     "waiting_projection_candidate_conflict": "C5",
     "waiting_projection_refuted": "C5",
     "join_record": "C3",
-    "ST1_equivalent": "C2",
+    "ST1_equivalent": "C3",
     "W1_atomic_compound": "C3",
     "W1a_without_later_assignment": "C3",
     "M2_partial_witness_chain": "C3",
-    "RC1_read_context_variable": "C2",
+    "RC1_read_context_variable": "C3",
     "RC2_read_context_committed": "C2",
     "RC3_read_context_no_retroactive": "C2",
     "SU1_suspended_order": "C5",
@@ -127,7 +127,7 @@
     "w3": "C5"
   },
   "owner_frozen13": {
-    "RC1_read_context_variable": "C2",
+    "RC1_read_context_variable": "C3",
     "RC2_read_context_committed": "C2",
     "RC3_read_context_no_retroactive": "C2",
     "SU1_suspended_order": "C5",
@@ -203,10 +203,8 @@
       "directed74_normative_ids": [
         "B_M1",
         "B_M2",
-        "RC1_read_context_variable",
         "RC2_read_context_committed",
         "RC3_read_context_no_retroactive",
-        "ST1_equivalent",
         "planned",
         "recursive_127_equivalent",
         "recursive_69",
@@ -214,7 +212,6 @@
       ],
       "matrix45_normative_ids": [],
       "frozen13_normative_ids": [
-        "RC1_read_context_variable",
         "RC2_read_context_committed",
         "RC3_read_context_no_retroactive"
       ],
@@ -996,10 +993,8 @@
       "directed74": [
         "B_M1",
         "B_M2",
-        "RC1_read_context_variable",
         "RC2_read_context_committed",
         "RC3_read_context_no_retroactive",
-        "ST1_equivalent",
         "planned",
         "recursive_127_equivalent",
         "recursive_69",
@@ -1007,7 +1002,6 @@
       ],
       "matrix45": [],
       "frozen13": [
-        "RC1_read_context_variable",
         "RC2_read_context_committed",
         "RC3_read_context_no_retroactive"
       ],
@@ -3024,6 +3018,12 @@
   },
   "d7_classifier_sha256": "4579a2a6719e7504a35369fba35d7fbcd7f207602a7eb14e93b6191295e5845f",
   "d7_cross_gate_sha256": "72d58973b53a665c707364e25778c91c31c2a553433968e6f023e433ce360c01",
+  "c2_discriminator_gate_sha256": "498e224d0e2d7f6837f5f42a05611720f7319e8bffd0b4b98b996ee2b81fdf7d",
+  "owned_rows_gate_sha256": "1820ce8bb26374c9630d309a9abc509cf4e9452d0e9cce25e76df80959fb3e78",
+  "c3_operand_if_discriminators": [
+    "deferred_operand_origin_before_assignment",
+    "failed_nested_if_no_retroactive_index"
+  ],
   "c2_reference_evidence_v15d": {
     "base_commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
     "tree": "c843f4022d3cc6f19d5cf9b04f4a62e59f985868",

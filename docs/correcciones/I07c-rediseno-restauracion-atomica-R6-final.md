@@ -1,5 +1,40 @@
 # I07c R6 final v15f — contrato causal y cierre de tipos
 
+## Continuación 58 — D13: C2 mínimo, `if` operando en C3
+
+La referencia de código C2 es `i07c-rediseno-c2-min` (`4116b2a`, base
+`af19a34`): conserva P1/`ReadContext`; el segundo commit solo resuelve cuatro
+avisos de Clippy sin cambiar la regla. No se trasladan `2841cc6`, `f5b12b1`,
+`e2d638f` ni `b0358fa`. El tratamiento de un `if` como operando de literal
+pertenece a `ResultStatus`/`JoinRecord` de C3. La reconstrucción r1 y la
+bisección de 61 compilaciones conservan su evidencia histórica; no dan PASS a
+la rama anterior.
+
+El manifiesto acumulado anterior era C2 **10/74, 0/45, 3/13**. Las tres filas
+que falla la referencia mínima son RC1 y ST1 en `r8-directed74.json`, y otra
+copia de RC1 en la batería congelada. Por ello el reparto ejecutable queda C2
+**8/74, 0/45, 2/13** y C3 **24/74, 5/45, 9/13**. Desde C1 (3/74), C2 añade
+cinco dirigidas y dos congeladas. La cifra solicitada de 7/74, 0/45, 3/13 no
+resulta de esos IDs; las tres fallas no están en la misma batería. El gate
+`owned_rows_gate.py` conserva su SHA-256; solo cambian los IDs del manifiesto.
+
+`c2_discriminator_gate.py --commit C2` ejecuta 34 pares perfil/caso sin fallos
+en la referencia mínima. Los dos casos `deferred_operand_origin_before_assignment`
+y `failed_nested_if_no_retroactive_index` pasan a C3; en dos perfiles y ambos
+verbos son ocho invocaciones. C3 ejecuta los 38 pares completos. Los SHA-256
+del gate y del runner de filas propias están en `r9-commit-gates.json` y los
+comprueba `verify_r9_contract.py`.
+
+La lista de verificación para C3 conserva las cinco familias de los 62 defectos
+D12 de la rama anterior: M1 (24; testigo 158), M2 (18; 306), M3 (7; 830),
+M4 (5; 1124) y M5 (8; 520). El primer introductor de cada miembro y el
+programa fuente se congelan en `c2-commit-bisect-v1.json` y
+`c2-fuzz-5000-pd6.json`; C3 debe evitar tanto esos miembros como sus
+reducciones al recuperar `if` operando. Un caso sin oráculo completo conserva
+`main`; un caso con oráculo completo cumple D12. Las cinco familias históricas
+de mejoras (64 miembros) son un inventario distinto y se reenumeran para el
+binario mínimo antes de congelar el clasificador final.
+
 ## Continuación 55 — D12 sustituye D11 para diferencias nuevas
 
 La decisión D12 del coordinador conserva fuera de C2 los defectos compartidos con `main`. Para cada fuente con oráculo completo se comparan multiconjuntos de diagnósticos identificados por `(código, primario, subcausa, relaciones)`; `d(X)=|X Δ oráculo|`, contando multiplicidades. Una diferencia nueva se acepta como familia **mejora respecto del oráculo** solo si `d(candidato)<d(main)` y el candidato no introduce ningún diagnóstico ausente del oráculo que `main` no tuviera ya. El resultado de ejecución debe conservar su clase. Un diagnóstico compartido erróneo puede permanecer y se registra como deuda del producto. Si la distancia no baja estrictamente o aparece un falso positivo nuevo, se corrige el candidato o se conserva `main` mediante una condición estructural de procedencia. Para fuentes sin oráculo completo, toda diferencia nueva fuera de los 64 miembros históricos enumerados debe volver a `main`. Los 64 siguen aceptados por la adjudicación previa; la fila 761 prevalece sobre el oráculo actual por derivación manual de B r26b y exige un `oracle_override` congelado. No se usan identificadores de fila, corpus, spans ni nombres de fuente como predicados para fuentes nuevas.
@@ -486,8 +521,8 @@ En C0–C5, «idéntico a `main`» **incluye reproducir exactamente estas dos H*
 |---|---|---|
 | C0 | Prepasada `OccurrenceId`/`ConsumerId`, índices en `Frame` y contador de pasadas solo de prueba; `src/check/types.rs`. Portar auditor G3 en `tests/i07c_structural_invariants.rs`. Los 240 `span_key` se clasifican por dominio. | 0/74, 0/45, 0/13 normativos; **20/20 corpus/perfiles idénticos a `main`, incluidas las dos filas H históricas** en salida completa; 103/103 `match` idénticos; 200/200 pila. |
 | C1 | Referencia de dos commits sobre `96d5644`: producción `36ddf3f` (`EqualityId`/`EqualityRecord` mínimo, `NodeJournal`, reversión de igualdad rechazada, origen del deber previo único y arreglo del pánico de profundidad); prueba `42cb63f` (solo dos expectativas del test existente: `resource_array_write` I y `resource_projection` N, más regresión de tres variantes). La aserción E3 de `src/ir/i07c_tests.rs` está en el commit de producción y tenía aprobación G3. Luna porta ambos commits separados. | **3/74, 0/45, 0/13**: `recursive_69`, `recursive_78_equivalent`, `recursive_127_equivalent`; F06=`main`. Referencia: `validate.sh` verde, gate cruzado completo debug y release 20/20 corpus, 151.188 filas, A/D/A-unmodeled 0/0/0 y H nuevas 0; mapas por fila idénticos. Luna repite `validate.sh` y sus propias puertas en el port. |
-| C2 | Extender el `EqualityRecord`/journal ya iniciado en C1 a primera escritura por `(node,campo)`, `ReadContext` por entrada/epoch, `OriginFact` por componente y `Completion`; migrar las vistas de planificación en `src/check/types.rs`. El cierre `Waiting` conserva obligaciones por ID y reintenta desde el grafo publicado. Las sustituciones de pruebas aprobadas preceden a la retirada de símbolos. | IDs contractuales acumulados **10/74, 0/45, 3/13**; F06 bajo puerta cruzada `main` u oráculo completo. Resultado de Luna y gate completo por commit: **por verificar**. |
-| C3 | `ResultStatus`, `JoinRecord` de uniones `if` y adaptadores tipados del camino conservado de `match`; reactivar la igualdad de ancla con sus dependencias causales. Préstamo dirigido T5 E1/F3; `src/check/types.rs`; portar G3 de constructor pendiente. | **24/74, 5/45, 9/13**; W1/W1a completos, repro `match` de 88 B `checked`, 29/29 sondas, 88 `match` de `main` y 15 D6 ADR; cinco T5-array. Resultado de Luna: **a verificar por Luna con el gate completo**. |
+| C2 | Referencia mínima `4116b2a` sobre `af19a34`: P1 y `ReadContext` por entrada/epoch; journal y hechos de origen ya presentes. No incluye la publicación provisional de la proyección cuando el siguiente operando es `if` ni la continuidad de ramas de `f5b12b1`. | IDs contractuales acumulados **8/74, 0/45, 2/13**; F06 bajo puerta cruzada `main` u oráculo completo; 34 pares de discriminadores propios. Censo D12 y puerta completa de la referencia mínima: en validación. |
+| C3 | `ResultStatus`, `JoinRecord` de uniones `if` y adaptadores tipados del camino conservado de `match`; reactivar la igualdad de ancla con sus dependencias causales. Recuperar RC1, ST1, RC1 congelada y las ocho invocaciones de los dos discriminadores de `if` operando sin reintroducir las 62 fallas D12 de M1–M5. Préstamo dirigido T5 E1/F3; `src/check/types.rs`; portar G3 de constructor pendiente. | **24/74, 5/45, 9/13**; W1/W1a completos, repro `match` de 88 B `checked`, 29/29 sondas, 88 `match` de `main` y 15 D6 ADR; cinco T5-array. Resultado de Luna: **a verificar por Luna con el gate completo**. |
 | C4 | `ConstructorDuty` y reservas C/D/V hasta punto fijo; retirar `emitted_sites` como autoridad temprana y banderas de raíz sustituidas en `src/check/types.rs`. Cerrar W0, `atomic_78`, F06 y M2 y la familia D7: cada deber previo independiente conserva su C después de rechazar una igualdad posterior, incluso si comparte representante. | IDs contractuales 32/74, 13/45, 11/13 y esperado ADR de la familia D7; resultado de Luna y gate completo por commit: **por verificar**. |
 | C5 | `Waiting`/`Suspended`, activación privada, replay por ordinal, cierre de representantes y cuota real; `src/check/types.rs`. | **74/74** (48 fuentes), **45/45**, **13/13**, 35/35 B3; todos los IDs restantes del manifiesto, proyección válida/refutada, límites de cuota `0..coste−1` con un E0003 y `observed=limit+1`.  Resultado de Luna: **a verificar por Luna con el gate completo**. |
 | C6 | Retirar solo rutas y campos de `main` sustituidos en C1–C5, sin segundo flujo; auditar que cada fila de `r9-test-migration.json` quedó resuelta y aprobada **en el commit que retiró su símbolo**, y eliminar residuos no usados; `src/check/types.rs` y tests autorizados. | Mantener 74/74, 45/45, 13/13, 88/88 `match` exactos, 15/15 D6 ADR, 7/7 con esperado exterior, M1 2/2, cinco T5, 152 RD, 54 aceptación; **A núcleo=0 y A completo=0 en todos los programas modelables de 20 corpus/perfiles**, los demás con conservación explícita; siguiente puerta completa debug/release, fuzz, medidor y pila.  Resultado de Luna: **a verificar por Luna con el gate completo**. |

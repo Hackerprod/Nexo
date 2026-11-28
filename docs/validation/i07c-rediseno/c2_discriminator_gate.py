@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""C2 causal discriminators from R6-final §7 and the C1 D/D' findings.
+"""C2/C3 causal discriminators from R6-final and the C1 D/D' findings.
 
 The expected diagnostics below are the source-site consequences of atomic
 rejection, independent equalities, and constructor-specific E0103/E0113.
@@ -110,6 +110,14 @@ EXPECTED_REL = {
     "later_union_deferred_conflicts_report_first_only": {0: (56, 58), 1: (151, 156)},
 }
 
+# D13: these two sources require ResultStatus/JoinRecord for an if used as
+# a literal operand. Each is exercised in two profiles and by check/run:
+# eight invocations move together to C3.
+C3_OPERAND_IF = frozenset({
+    "deferred_operand_origin_before_assignment",
+    "failed_nested_if_no_retroactive_index",
+})
+
 
 def observed(binary, case_path, source, profile, verb):
     case_path.write_bytes(source.encode("ascii"))
@@ -140,13 +148,17 @@ def main():
     parser.add_argument("--candidate-exe", type=Path, required=True)
     parser.add_argument("--case", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--commit", choices=("C2", "C3"), default="C3")
     args = parser.parse_args()
-    report = {"schema": "i07c-c2-discriminators-v1", "complete": True,
+    report = {"schema": "i07c-c2-discriminators-v2", "complete": True,
+              "commit": args.commit,
               "candidate_sha256": hashlib.sha256(args.candidate_exe.read_bytes()).hexdigest(),
               "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               "cases": {}, "failures": []}
     for profile in ("f0-0002-b-v2", "f0-0003-b-v1"):
         for name, (source, expected) in CASES.items():
+            if args.commit == "C2" and name in C3_OPERAND_IF:
+                continue
             # Some is introduced after the f0-0002 profile. The remaining
             # discriminators are valid in both profiles.
             if profile == "f0-0002-b-v2" and name in (
