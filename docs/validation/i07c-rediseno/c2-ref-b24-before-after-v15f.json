@@ -1,0 +1,971 @@
+{
+  "schema": "i07c-c2-b24-before-after-v1",
+  "binary_sha256": {
+    "main": "e05f70f3f2281ea51ed40a40850e1b64636573e419e631066c777dc578ccd3d3",
+    "be96e08": "231a3b6544c3cfdae30266fd276a4a894c7d7fe18704de11c41cabb9f27638a2",
+    "candidate_55dd808": "3a93fc157c2a039eabcf2512a9ce8bc7f2824a0acb8092034b3894f1aba10585"
+  },
+  "discriminator_sha256": "40b5d30e881c8472ca2de6bd9ba302019599f44ba4954e0ba0d61b3f2bfd2bde",
+  "cases": {
+    "f0-0002-b-v2:literal_origin_after_prior_if": {
+      "source": "fn Main(){let x=1;var s=[];var u=[];let a1=[(if false then s[0] else u)];let a2=[s[x],(if false then u else u),1];u=[true];}",
+      "source_sha256": "2ac18eb26b3797e43dd732551e9b3387b1a797d1d02e404f5064b526e5c848b2",
+      "expected_rel": {
+        "0": [
+          81,
+          85
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                69,
+                70
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                69,
+                70
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "f0-0003-b-v1:literal_origin_after_prior_if": {
+      "source": "fn Main(){let x=1;var s=[];var u=[];let a1=[(if false then s[0] else u)];let a2=[s[x],(if false then u else u),1];u=[true];}",
+      "source_sha256": "2ac18eb26b3797e43dd732551e9b3387b1a797d1d02e404f5064b526e5c848b2",
+      "expected_rel": {
+        "0": [
+          81,
+          85
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                69,
+                70
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                69,
+                70
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                111,
+                112
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                81,
+                85
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "f0-0002-b-v2:literal_origin_after_nested_array": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[0],(if false then [s] else t)];u=[true];}",
+      "source_sha256": "52669b7d158835b7a01146a52ebedd7f468330627048d6acbbc1de7f5a5162a6",
+      "expected_rel": {
+        "0": [
+          71,
+          75
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                58,
+                61
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                58,
+                61
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "f0-0003-b-v1:literal_origin_after_nested_array": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[0],(if false then [s] else t)];u=[true];}",
+      "source_sha256": "52669b7d158835b7a01146a52ebedd7f468330627048d6acbbc1de7f5a5162a6",
+      "expected_rel": {
+        "0": [
+          71,
+          75
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                58,
+                61
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                58,
+                61
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                92,
+                93
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "f0-0002-b-v2:literal_origin_after_if_projection": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u)];let a1=[s[0],(if true then t[x] else u[1])];u=[1];}",
+      "source_sha256": "6392294fa84a22cca1780858d75125ff59ffe45f4e99b1aa576a2916d6c88f99",
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                78,
+                79
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                78,
+                79
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "f0-0003-b-v1:literal_origin_after_if_projection": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u)];let a1=[s[0],(if true then t[x] else u[1])];u=[1];}",
+      "source_sha256": "6392294fa84a22cca1780858d75125ff59ffe45f4e99b1aa576a2916d6c88f99",
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                78,
+                79
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                78,
+                79
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                119,
+                123
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "f0-0002-b-v2:literal_origin_after_two_literals": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],s[0]];let a2=[s[0],(if true then s else t[0])];u=[true];}",
+      "source_sha256": "944164d44d72a7e21900272f055d31ce9671be4b4257090ca3f87391581f08f8",
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "f0-0003-b-v1:literal_origin_after_two_literals": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],s[0]];let a2=[s[0],(if true then s else t[0])];u=[true];}",
+      "source_sha256": "944164d44d72a7e21900272f055d31ce9671be4b4257090ca3f87391581f08f8",
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "observed": {
+        "main": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        },
+        "be96e08": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                71,
+                75
+              ]
+            ]
+          }
+        },
+        "candidate_55dd808": {
+          "check": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          },
+          "run": {
+            "outcome": "rejected",
+            "diagnostics": [
+              [
+                "NX-E0102",
+                "type_mismatch",
+                109,
+                110
+              ]
+            ],
+            "expected_type_spans": [
+              [
+                90,
+                94
+              ]
+            ]
+          }
+        }
+      }
+    }
+  }
+}

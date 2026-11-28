@@ -1,0 +1,979 @@
+{
+  "schema": "i07c-c2-origin-adjudication-v15f",
+  "sample_rule": "first 30 old/new differences by ascending seed in reconstructed narrow generator (not B private generator)",
+  "sample_count": 30,
+  "correct_changes": 30,
+  "defects_found": 0,
+  "old_binary_sha256": "74875e2ec0bda3cd50e296729b3f5e27e3cee6aa9c3f58d16d77871c4059a9dd",
+  "candidate_release_sha256": "3a93fc157c2a039eabcf2512a9ce8bc7f2824a0acb8092034b3894f1aba10585",
+  "candidate_debug_sha256": "d063a218bb84a68d36ee25079ca6577f2005f3b477e00df17d1a06b9e7abba54",
+  "sample_debug_release_equal": 30,
+  "rows": [
+    {
+      "seed": 4,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[0],(if false then u else u),s[0]];u=[1];}",
+      "source_sha256": "6c9ccbf1fe5064e90249415ffe46e9c31a8a63b50e383c4c4e6c1978b877f20c",
+      "first_operand": "s[0]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            91,
+            92
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            98,
+            99
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 5,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[[u],[u]];let a1=[t[1],(if false then u else u),1];u=[1];}",
+      "source_sha256": "91a57712606c813dab472dc70e3b2f26fc3ac69646fedb1d66d1051f5fde80cc",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        70,
+        74
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            100,
+            101
+          ],
+          "old_expected": [
+            90,
+            91
+          ],
+          "new_expected": [
+            70,
+            74
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 16,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],(if false then u else u),true];u=[1];}",
+      "source_sha256": "fa9855a97627fe30d6b9cf7fb74e27ec008883163f9f8b8f9ae8d1659703b977",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            91,
+            92
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            98,
+            99
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            101,
+            105
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 19,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[x],(if false then u else u),t[1]];u=[true];}",
+      "source_sha256": "9366fc52ed4b60eb55fd3fe3378f578491cfbd0ccb9e072ace9fd07355caab68",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            91,
+            92
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            98,
+            99
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 24,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],(if false then u else u),s[0]];u=[true];}",
+      "source_sha256": "ace141a10aede17f1f4514e5dc07c4939ae202e4ddabfc3ba815351921db3264",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            91,
+            92
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            98,
+            99
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 43,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),u];let a1=[t[1],[u],s[0]];u=[1];}",
+      "source_sha256": "291ffd6d1785ed010bbf314d307ec5aa922e7f9ae37168b4f9f267a8675e6000",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        92,
+        96
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            101,
+            105
+          ],
+          "old_expected": [
+            97,
+            100
+          ],
+          "new_expected": [
+            92,
+            96
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 53,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if true then t[x] else u[1]),t[1]];let a1=[s[x],(if false then u else u),1];u=[true];}",
+      "source_sha256": "551f664a9736d6b6b4c493246e3a82b75d3c26a6a57de2684b9d166790466ec9",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        97,
+        101
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            127,
+            128
+          ],
+          "old_expected": [
+            117,
+            118
+          ],
+          "new_expected": [
+            97,
+            101
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 66,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),u];let a1=[s[x],(if false then [s] else t),true];u=[true];}",
+      "source_sha256": "fa49a3fb28bf272ddf7376bad9f53979a95c257d3095bdeef9e069ed6a56638d",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        92,
+        96
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            113,
+            114
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            92,
+            96
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 76,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),[u]];let a1=[t[1],(if false then [s] else t),true];u=[1];}",
+      "source_sha256": "23fe5d49dce025ff2fe65391341a01c9b5922ac6899a6418297926a113093edf",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            126,
+            130
+          ],
+          "old_expected": [
+            114,
+            117
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 81,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),u];let a1=[t[x],[u],1];u=[true];}",
+      "source_sha256": "4638076d6641c4b19868532311290207633df220ab513c443b4f4e20198dbf6c",
+      "first_operand": "t[x]",
+      "first_operand_span": [
+        92,
+        96
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            101,
+            102
+          ],
+          "old_expected": [
+            98,
+            99
+          ],
+          "new_expected": [
+            92,
+            96
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 93,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],u];let a1=[t[1],(if false then [s] else t),s[0]];u=[1];}",
+      "source_sha256": "419b776c397cd3922d396da2d5f4f4fef41e220b5572e117a019070ad0035c7e",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        69,
+        73
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            101,
+            105
+          ],
+          "old_expected": [
+            89,
+            92
+          ],
+          "new_expected": [
+            69,
+            73
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 97,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u),u];let a1=[s[x],(if false then [s] else t),true];u=[1];}",
+      "source_sha256": "e0636b39285124106a6e8036b2ddd04c099378cf19fc773274a51b22461a2387",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        92,
+        96
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            113,
+            114
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            92,
+            96
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 103,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),[u]];let a1=[s[0],(if false then [s] else t),true];u=[1];}",
+      "source_sha256": "4faf3dbdd4d5ec5eee4b361085dcad111f9fb5f405cd8ab891bfe17221962efb",
+      "first_operand": "s[0]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            115,
+            116
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 104,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),[u]];let a1=[t[1],(if false then [s] else t),true];u=[1];}",
+      "source_sha256": "23fe5d49dce025ff2fe65391341a01c9b5922ac6899a6418297926a113093edf",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            126,
+            130
+          ],
+          "old_expected": [
+            114,
+            117
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 111,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),[u]];let a1=[t[x],s[0],true];u=[true];}",
+      "source_sha256": "e508b043fa72a311fb7122af3a4fbcc1cc861f26ed1ab8e11093605fda22fea5",
+      "first_operand": "t[x]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            104,
+            108
+          ],
+          "old_expected": [
+            99,
+            103
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 122,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if true then t[x] else u[1]),u];let a1=[s[x],[u],true];u=[1];}",
+      "source_sha256": "1a034bbddca89d7e7f213bafb7a1d311d08e33325bb5e41de5ef6fff93390d9e",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            103,
+            107
+          ],
+          "old_expected": [
+            99,
+            102
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 129,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),u];let a1=[s[0],(if true then t[x] else u[1]),1];u=[true];}",
+      "source_sha256": "293b89f08f2075d36b738e43865e573081787008c51c64537deeaec43a43589b",
+      "first_operand": "s[0]",
+      "first_operand_span": [
+        92,
+        96
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            121,
+            125
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            92,
+            96
+          ]
+        },
+        {
+          "primary": [
+            127,
+            128
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            92,
+            96
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 138,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],u];let a1=[s[x],[u],t[1]];u=[1];}",
+      "source_sha256": "2972265efcdc771dc6df6eb8aa5f9118302032250114fdc4fddff5b3774fde9a",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        69,
+        73
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            78,
+            82
+          ],
+          "old_expected": [
+            74,
+            77
+          ],
+          "new_expected": [
+            69,
+            73
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 140,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[x],(if false then u else u),true];u=[true];}",
+      "source_sha256": "76f4d87f91515e0a5b7b12bd3c384fba4480224ff29f7a948e7a58ae5e6ee37e",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            91,
+            92
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            98,
+            99
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            101,
+            105
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 141,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[[u],[u]];let a1=[t[x],[u],true];u=[true];}",
+      "source_sha256": "eea42a8e56e7913d59a83af38c5df36e18657afb0bf1e1c1ccd6e175d53c904f",
+      "first_operand": "t[x]",
+      "first_operand_span": [
+        70,
+        74
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            79,
+            83
+          ],
+          "old_expected": [
+            76,
+            77
+          ],
+          "new_expected": [
+            70,
+            74
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 154,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[x],(if false then [s] else t),[u]];u=[1];}",
+      "source_sha256": "1bc616a79543fa57fc970859eb6b78f751002670e5f01cd98b3027503f788260",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            92,
+            93
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 158,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],u];let a1=[s[0],[u],t[1]];u=[true];}",
+      "source_sha256": "58c8a282afdda6a4207535711808096533013873789843ff052e43ed7665ec78",
+      "first_operand": "s[0]",
+      "first_operand_span": [
+        69,
+        73
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            78,
+            82
+          ],
+          "old_expected": [
+            74,
+            77
+          ],
+          "new_expected": [
+            69,
+            73
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 162,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[[u],t[1]];let a1=[t[x],(if false then [s] else t),true];u=[true];}",
+      "source_sha256": "dbe1685085c32a8eebf772cfac432a20dc2868c582e451e5dd20c317ecd395f6",
+      "first_operand": "t[x]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            100,
+            101
+          ],
+          "old_expected": [
+            53,
+            56
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        },
+        {
+          "primary": [
+            103,
+            107
+          ],
+          "old_expected": [
+            53,
+            56
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 164,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[0] else u),u];let a1=[s[x],(if true then t[x] else u[1]),t[1]];u=[1];}",
+      "source_sha256": "1d370dd6b44b331ccfcebfc73130db8faec9d8322057b6ccd40b473bbd36da60",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        92,
+        96
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            121,
+            125
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            92,
+            96
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 168,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u),[u]];let a1=[s[x],(if false then u else u),true];u=[1];}",
+      "source_sha256": "da20d4763abf67a5b45dd532f4538e537371262523dc7231015a514d6c675f0a",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            124,
+            128
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 174,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[x],(if false then [s] else t),true];u=[1];}",
+      "source_sha256": "428f21532d6e9a2285274281aeca28770b5573dd9ad5f8ccaf083f38409972f2",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        71,
+        75
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            92,
+            93
+          ],
+          "old_expected": [
+            58,
+            61
+          ],
+          "new_expected": [
+            71,
+            75
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 177,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u),[u]];let a1=[s[0],(if false then u else u),1];u=[1];}",
+      "source_sha256": "f7045376d49660908ce87beea229d7ea9f9e127a5c17e93542e6ff14eed222c3",
+      "first_operand": "s[0]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            124,
+            125
+          ],
+          "old_expected": [
+            78,
+            79
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 187,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],u];let a1=[t[1],[u],true];u=[true];}",
+      "source_sha256": "f56719adc9d673054f839399d815a508695eaed92537e5c871b47f7885acab1d",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        69,
+        73
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            78,
+            82
+          ],
+          "old_expected": [
+            75,
+            76
+          ],
+          "new_expected": [
+            69,
+            73
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 190,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u),[u]];let a1=[t[1],s[0],true];u=[1];}",
+      "source_sha256": "c985fa18eadd873f2fcbee7beb4754add04c579e350e0df7511e7d8fba23ae31",
+      "first_operand": "t[1]",
+      "first_operand_span": [
+        94,
+        98
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            104,
+            108
+          ],
+          "old_expected": [
+            99,
+            103
+          ],
+          "new_expected": [
+            94,
+            98
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    },
+    {
+      "seed": 194,
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if true then t[x] else u[1]),t[1]];let a1=[s[x],(if false then u else u),true];u=[1];}",
+      "source_sha256": "343649f28581e8060a2d967dcf8444a7b383cd8cb1d7ad702ee5b8369575d9b0",
+      "first_operand": "s[x]",
+      "first_operand_span": [
+        97,
+        101
+      ],
+      "changed_diagnostics": [
+        {
+          "primary": [
+            127,
+            131
+          ],
+          "old_expected": [
+            117,
+            118
+          ],
+          "new_expected": [
+            97,
+            101
+          ]
+        }
+      ],
+      "adjudication": "correct_first_operand",
+      "adr": "F0-0002 §4.1.2.4"
+    }
+  ]
+}

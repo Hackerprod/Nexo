@@ -1,0 +1,27 @@
+{
+  "schema": "i07c-c2-evidence-v15f-v1",
+  "code_commit": "55dd8084dcdc3d25ef17885669645c9368d551d0",
+  "status": "EN VALIDACION; gate release C2 with C1 previous FAIL",
+  "final_reference": null,
+  "gate_release_rows": 151188,
+  "gate_release_failures": {
+    "A-unmodeled": 74,
+    "D": 46
+  },
+  "gate_debug_eight": "NO EVALUADO",
+  "files": {
+    "c2-ref-adjudicacion-v15f.json": "dfc1b8285795297a555a149a095e2b3437f9782719c73bb22ab2d4af763c08ab",
+    "c2-ref-b24-before-after-v15f.json": "99920351dc4f37950aace20c272008ce0a9b9a1f4693b529d2ea02f7cdb777a3",
+    "c2-ref-corpus-v15f.json": "a7e9bfbac48beec7f31ac1c8dffcae8962d93574df129f7f9e90c3d1a51b5aa6",
+    "c2-ref-discriminators-debug-v15f.json": "f64c4daab7358c72eded67444c1ce27f8f974c42d9d39a52b6e76adbeead9e4c",
+    "c2-ref-discriminators-v15f.json": "f3cbe1b2621f0a86ed1d13d3cbe2d94e7d18c9d2978590650d5381fe48ac575a",
+    "c2-ref-fuzz-narrow-v15f.json": "1d6f0a43a9e83c9c9d2f852dc58db16100ad324ad3ffcdc70f430abf60ff238c",
+    "c2-ref-fuzz-varied-v15f.json": "de2145684c27c8743a709f7be8cd0c3092f18cf02b3ba473f877b953928d56c0",
+    "c2-ref-owned-debug-v15f.json": "4ba2297938266223c92ca4f7618db07ddeec33c59c9590a746db05061610c4af",
+    "c2-ref-owned-v15f.json": "53a64fa0a900df359dad3b20cac9b669ad6ad24b7b6d5db0a30da8910a3a5cb6",
+    "c2-ref-validate-v15f.json": "f6b00655c32da4177d662150f750f0011621012d966e7e25eae8c19a7d35752d",
+    "c2-ref-frame-v15f.txt": "81350bd58ba4968521458d28b37857bda03df9030c34786fb3a218159099450c",
+    "c2-ref-perf-v15f.json": "de8326e3e5ab3a0586d7e8063ffa9a1c28c2240327f03336d10e16b7dbfe7d56",
+    "c2_debug_eight_gate.py": "8ee1c5e916b0ea40043ba4509830d1353181de5acc326f1dcfa6b58a6b22a386"
+  }
+}

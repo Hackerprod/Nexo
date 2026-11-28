@@ -1,0 +1,16 @@
+{
+  "schema": "i07c-c2-validate-v15f-v1",
+  "code_commit": "55dd8084dcdc3d25ef17885669645c9368d551d0",
+  "clean_clone": true,
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "jobs": 4,
+  "runner_profile": "default",
+  "debug": {"run": 2234, "passed": 2234, "skipped": 73},
+  "release": {"run": 2236, "passed": 2236, "skipped": 74},
+  "stack65": {"option_match126": "5/5", "result_match126": "5/5"},
+  "log_sha256": "2ea06b246d59c22a0a02243022cfb01438cb0052fc024d8c875ad195ccf5e629",
+  "g3_auditor": {"sites": 258, "self_test": "passed"},
+  "mechanical": {"fmt": "passed", "clippy_deny_warnings": "passed", "nextest_selection": "passed"},
+  "nextest_test_threads": 4,
+  "job_limit_inside_lock": true
+}

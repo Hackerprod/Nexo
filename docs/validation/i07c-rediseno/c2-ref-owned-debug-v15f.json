@@ -1,0 +1,15 @@
+{
+  "schema": "i07c-r16-owned-rows-v1",
+  "commit": "C2",
+  "complete": true,
+  "main_sha256": "e05f70f3f2281ea51ed40a40850e1b64636573e419e631066c777dc578ccd3d3",
+  "candidate_sha256": "d063a218bb84a68d36ee25079ca6577f2005f3b477e00df17d1a06b9e7abba54",
+  "runner_sha256": "1820ce8bb26374c9630d309a9abc509cf4e9452d0e9cce25e76df80959fb3e78",
+  "counts": {
+    "directed74_normative_ids": 10,
+    "matrix45_normative_ids": 0,
+    "frozen13_normative_ids": 3
+  },
+  "f06_class": "main",
+  "failures": []
+}
