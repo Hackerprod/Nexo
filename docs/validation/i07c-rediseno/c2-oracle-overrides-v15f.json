@@ -1,0 +1,14 @@
+{
+  "schema": "i07c-c2-oracle-overrides-v1",
+  "entries": [
+    {
+      "source_sha256": "6f9c59d0f367d30977de3bdabd6109933552129b241e464e4150a2203c2763b6",
+      "profile": "f0-0002-b-v2",
+      "historical_member": "b-projections-t5-2026112402:761",
+      "clause": "F0-0002 §4.1.2.7; B r26b §3",
+      "derivation": "The prior r[0] context fixes r's element. The rejected r=[3] is diagnosed on 3 [200,201); q=r at [205,206) is compatible and has no independent C. The oracle currently moves that C to q=r, contrary to B's manually validated derivation.",
+      "candidate_diagnostic": ["NX-E0102", "type_mismatch", [200, 201]],
+      "oracle_diagnostic": ["NX-E0102", "type_mismatch", [205, 206]]
+    }
+  ]
+}
