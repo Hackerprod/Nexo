@@ -1,0 +1,99 @@
+{
+  "schema": "i07c-c2-family-members-v1",
+  "families": {
+    "assignment_prefix": {
+      "count": 1,
+      "members_sha256": "de5874c22bd62c50424c96efb5b73e365d9c425871cb3085198467848e7ede32",
+      "members": [
+        "b-projections-t5-2026112402:761"
+      ]
+    },
+    "compatible_flattened_leaf": {
+      "count": 4,
+      "members_sha256": "64e29a23d1f549df9d6e27d46b45a9e41c89a73a28b8a1d6a46f1052febe5878",
+      "members": [
+        "b-projections-2026112403:1963",
+        "b-projections-2026112403:988",
+        "b-projections-t5-2026112402:820",
+        "b-projections-t5-2026112402:953"
+      ]
+    },
+    "mixed_compatible_constraints": {
+      "count": 1,
+      "members_sha256": "d10c6bffe1a347e0483bd267cac8b35c5ca72094ad917e553145069642554bea",
+      "members": [
+        "b-projections-t5-2026112402:620"
+      ]
+    },
+    "outer_first_witness": {
+      "count": 2,
+      "members_sha256": "9bf3ef5d4f2535bfbf85d3d8d43cddd9f4dfa34303176a165e6537f31b0e1050",
+      "members": [
+        "b-projections-2026112401:1183",
+        "b-projections-2026112401:280"
+      ]
+    },
+    "single_e1303_per_union": {
+      "count": 56,
+      "members_sha256": "2752ca88a4e7a00c80f16615e1fd22dde665063dc56422f2a44275bafd6c9e60",
+      "members": [
+        "b-projections-2026112401:1196",
+        "b-projections-2026112401:2919",
+        "b-projections-2026112401:2977",
+        "b-projections-2026112403:1451",
+        "b-projections-2026112403:1916",
+        "b-projections-2026112403:2532",
+        "b-projections-t5-2026112402:2072",
+        "b-projections-t5-2026112402:468",
+        "b-projections-t5-2026112402:757",
+        "b-projections-t5-2026112402:838",
+        "b:2709",
+        "b:3042",
+        "b:3122",
+        "c1-nueva2:3259",
+        "c1-nueva2:4479",
+        "c1-nueva2:5438",
+        "c1-nueva:1530",
+        "c1-nueva:4486",
+        "c1-nueva:631",
+        "c1-nueva:7624",
+        "c1:11189",
+        "c1:11474",
+        "c1:13247",
+        "c1:13626",
+        "c1:15115",
+        "c1:15304",
+        "c1:18686",
+        "c1:21363",
+        "c1:8216",
+        "c1:921",
+        "c2-nueva2:1737",
+        "c2-nueva2:3112",
+        "c2-nueva2@f0-0003-b-v1:1737",
+        "c2-nueva2@f0-0003-b-v1:1954",
+        "c2-nueva2@f0-0003-b-v1:2536",
+        "c2-nueva2@f0-0003-b-v1:3112",
+        "c2-nueva2@f0-0003-b-v1:469",
+        "c2:15473",
+        "c2:176",
+        "c2:2858",
+        "c2:8742",
+        "c2@f0-0003-b-v1:15473",
+        "c2@f0-0003-b-v1:176",
+        "c2@f0-0003-b-v1:2858",
+        "c2@f0-0003-b-v1:7609",
+        "c2@f0-0003-b-v1:8742",
+        "s4417061:2070",
+        "s4417061:2565",
+        "s4417061:397",
+        "s7021993:2391",
+        "s7021993:278",
+        "s7021993:3267",
+        "s7021993:4268",
+        "s9908255:1013",
+        "s9908255:1955",
+        "s9908255:483"
+      ]
+    }
+  }
+}

@@ -1,0 +1,3808 @@
+{
+  "schema": "i07c-c2-family-check-v1",
+  "iteration_sha256": "b928e5ffa8c87b8dd8d9566b53ec67668636dde1249f88e94c369fdfd3e86290",
+  "trace_sha256": "466e306ca81e0517c521e97ce0a3f764cbf8b6f328d766963af0e736d282740c",
+  "members": {
+    "b-projections-2026112401:280": {
+      "family": "outer_first_witness",
+      "witness": {
+        "outer_ordinal": [
+          0,
+          28
+        ],
+        "inner_ordinal": [
+          0,
+          49
+        ],
+        "primary": [
+          185,
+          189
+        ],
+        "old": [
+          178,
+          179
+        ],
+        "new": [
+          118,
+          122
+        ]
+      },
+      "source_sha256": "0a288a3eed29a94ab2a48199d3093a10f894fa58696e33de07936da367e1e079"
+    },
+    "b-projections-2026112401:1183": {
+      "family": "outer_first_witness",
+      "witness": {
+        "outer_ordinal": [
+          0,
+          28
+        ],
+        "inner_ordinal": [
+          0,
+          40
+        ],
+        "primary": [
+          151,
+          155
+        ],
+        "old": [
+          144,
+          145
+        ],
+        "new": [
+          112,
+          116
+        ]
+      },
+      "source_sha256": "6044eee5a1e92e41767fe481578f56d2e6fcec9cd97836e666e9d7a2a98a38da"
+    },
+    "b-projections-2026112401:1196": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          55
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            197,
+            201
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                126,
+                127
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                197,
+                201
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            187,
+            191
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                126,
+                127
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                187,
+                191
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "a18ddd06a42488a344897218c4177e594a46edf983432a33af4d0b3552029bd1"
+    },
+    "b-projections-2026112401:2919": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          51
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            187,
+            191
+          ],
+          "expected_type": "Array<Bool>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                105,
+                148
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                187,
+                191
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            177,
+            181
+          ],
+          "expected_type": "Array<Bool>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                105,
+                148
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                177,
+                181
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "b4a372d033cafa756b32b6ddad484365984c58f0aeb691f054b1b4f097784a00"
+    },
+    "b-projections-2026112401:2977": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          38
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            151,
+            152
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                103,
+                126
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                151,
+                152
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            144,
+            145
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                103,
+                126
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                144,
+                145
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "1d58414e210f874ff27c7387c45c33228397fe1692dfce71c37eb908b788eedf"
+    },
+    "b-projections-t5-2026112402:468": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          29
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            128,
+            129
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                92,
+                93
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                128,
+                129
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            121,
+            122
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                92,
+                93
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                121,
+                122
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "04f8dbe2108bad6ea73176793eec035fc2e50028f1d25d0f29b24d01cf4eb173"
+    },
+    "b-projections-t5-2026112402:620": {
+      "family": "mixed_compatible_constraints",
+      "witness": {
+        "constructor": [
+          52,
+          54
+        ],
+        "shifted_join": [
+          [
+            163,
+            167
+          ],
+          [
+            153,
+            157
+          ]
+        ],
+        "inner_join": [
+          131,
+          135
+        ],
+        "independent": [
+          [
+            185,
+            186
+          ],
+          [
+            216,
+            217
+          ]
+        ]
+      },
+      "source_sha256": "39009f8614541599aa9fa82eaaed3295ddec7fd99dd1a131fc16b043c2b05248"
+    },
+    "b-projections-t5-2026112402:757": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          49
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            182,
+            186
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                93,
+                114
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                182,
+                186
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            172,
+            176
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                93,
+                114
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                172,
+                176
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "3f8eeeedc58636d05e66950cf8b7100f3726e6dc6dbf28447897ecb3d9a1dae5"
+    },
+    "b-projections-t5-2026112402:761": {
+      "family": "assignment_prefix",
+      "witness": {
+        "earlier_primary": [
+          200,
+          201
+        ],
+        "later_primary": [
+          205,
+          206
+        ],
+        "witness": [
+          157,
+          159
+        ]
+      },
+      "source_sha256": "6f9c59d0f367d30977de3bdabd6109933552129b241e464e4150a2203c2763b6"
+    },
+    "b-projections-t5-2026112402:820": {
+      "family": "compatible_flattened_leaf",
+      "witness": {
+        "kind": "resolved_constructor",
+        "site": [
+          70,
+          72
+        ],
+        "element": "I64"
+      },
+      "source_sha256": "9560892e2604b675d18f3fad14bb5acc764f34b2203f2ed0c76d248aab093504"
+    },
+    "b-projections-t5-2026112402:838": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          23
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            109,
+            110
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                84,
+                85
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                109,
+                110
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            102,
+            103
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                84,
+                85
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                102,
+                103
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "7851383d20f5239a6faa886aaaa0adf2611bd06b112ed5f72d1b617582734b9c"
+    },
+    "b-projections-t5-2026112402:953": {
+      "family": "compatible_flattened_leaf",
+      "witness": {
+        "kind": "resolved_constructor",
+        "site": [
+          70,
+          72
+        ],
+        "element": "Array(Array(I64))"
+      },
+      "source_sha256": "f6bb591708fb1fd87f49d7589ba26a545305fa02821cf066420c86d8879b7aa5"
+    },
+    "b-projections-t5-2026112402:2072": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          23
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            119,
+            123
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                91,
+                92
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                119,
+                123
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            109,
+            113
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<Array<I64>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                91,
+                92
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                109,
+                113
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "e3509441d4e4b6492f509b8575b19176b88cbed3eaca18a73fa3406f0ca696c3"
+    },
+    "b-projections-2026112403:988": {
+      "family": "compatible_flattened_leaf",
+      "witness": {
+        "kind": "later_assignment",
+        "primary": [
+          191,
+          195
+        ],
+        "constructor_sites": [
+          [
+            52,
+            54
+          ],
+          [
+            61,
+            63
+          ],
+          [
+            52,
+            54
+          ],
+          [
+            61,
+            63
+          ],
+          [
+            52,
+            54
+          ],
+          [
+            61,
+            63
+          ]
+        ]
+      },
+      "source_sha256": "c80e8902474123d6f18ba92dcdc65fb726c9059bbd4211e79ef86d933ddc59ca"
+    },
+    "b-projections-2026112403:1451": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          42
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            179,
+            183
+          ],
+          "expected_type": "Array<Array<Bool>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                149,
+                152
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                179,
+                183
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            169,
+            173
+          ],
+          "expected_type": "Array<Array<Bool>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                149,
+                152
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                169,
+                173
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "299299639b5efc5be7dae0dafc4b9f7c763b20927893f187d32b23c4462687cc"
+    },
+    "b-projections-2026112403:1916": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          39
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            153,
+            157
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                93,
+                114
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                153,
+                157
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            143,
+            147
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                93,
+                114
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                143,
+                147
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "7260147b07dd45ecb4f66cc4314d7614cb641af47ed372f170306afb51d2fcea"
+    },
+    "b-projections-2026112403:1963": {
+      "family": "compatible_flattened_leaf",
+      "witness": {
+        "kind": "second_union",
+        "primary": [
+          209,
+          213
+        ]
+      },
+      "source_sha256": "2cf090e47e815e22a58e33e067d1f432dcd1e330d6d48a97f100554bd7de256e"
+    },
+    "b-projections-2026112403:2532": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          58
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            194,
+            198
+          ],
+          "expected_type": "Array<Bool>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                113,
+                156
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                194,
+                198
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            185,
+            188
+          ],
+          "expected_type": "Array<Bool>",
+          "found_type": "Array<Array<Array<Bool>>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                113,
+                156
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                185,
+                188
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "6ebd73078e6a99f7f313c607fe1e30e58ead4447406491aebfd1d8dbe785659f"
+    },
+    "c1:921": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          40
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            148,
+            149
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                123,
+                124
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                148,
+                149
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            141,
+            142
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                123,
+                124
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                141,
+                142
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "aecf4f4c5e56c5ac105c56290eb2d32d16904ff4b6361ecaa7117725f8f08d7b"
+    },
+    "c1:8216": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          32
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            134,
+            135
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                110
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                134,
+                135
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            127,
+            128
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                110
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                127,
+                128
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "25c8d058676effafffcacdc9791082f4318465ba056fe0b77ebeb590f0cd0410"
+    },
+    "c1:11189": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          33
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            145,
+            149
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                106,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                145,
+                149
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            135,
+            139
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                106,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                135,
+                139
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "625ce898aa55592133e7a617632977a198f549cdf5374de5a79541856c03d53b"
+    },
+    "c1:11474": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          34
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            141,
+            142
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                101,
+                102
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                141,
+                142
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            130,
+            135
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                101,
+                102
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                130,
+                135
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "ec8513c88a5db39de7bc453ee8a95d8ba494eeeba31a2ae88ac0f9e034d4a9b8"
+    },
+    "c1:13247": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          36
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            140,
+            141
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                104,
+                105
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                140,
+                141
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            133,
+            134
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                104,
+                105
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                133,
+                134
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "9e52677e01d30f60576f2fda42a43c9231d9096b24665c04b30744f3401309c2"
+    },
+    "c1:13626": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          33
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            138,
+            140
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                108,
+                113
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                138,
+                140
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            130,
+            132
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                108,
+                113
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                130,
+                132
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "86ffc587a1a71ebcea3b89a6193707c7e0eb280f70a2494762b703697d2aad5d"
+    },
+    "c1:15115": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          33
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            137,
+            141
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                102
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                137,
+                141
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            130,
+            131
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                102
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                130,
+                131
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "7201ce44bddaa4bb3935756013123b3533c0538fc5dc9acc62bc8d7b06e9efec"
+    },
+    "c1:15304": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          41
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            174,
+            175
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                106,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                174,
+                175
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            164,
+            168
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                106,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                164,
+                168
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "c84b767a24b6be0320f31883561a4699263759e452a516f1540ecc2341f04103"
+    },
+    "c1:18686": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          33
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            135,
+            136
+          ],
+          "expected_type": "Array<Bool>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                96,
+                97
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                135,
+                136
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            125,
+            129
+          ],
+          "expected_type": "Array<Bool>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                96,
+                97
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                125,
+                129
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "9392ca9e3178696a22fdac1dc0464a9a81f67e97765c10deeb4f0adad9a5e2fa"
+    },
+    "c1:21363": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          34
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            138,
+            139
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                102,
+                103
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                138,
+                139
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            131,
+            132
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                102,
+                103
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                131,
+                132
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "d18c3ce0f2667b70b1ec69b644e7e2103a01a92eccd3adae9aba5668566cae1f"
+    },
+    "c2:176": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          36
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            150,
+            151
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                122,
+                123
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                150,
+                151
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            140,
+            144
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                122,
+                123
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                140,
+                144
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48"
+    },
+    "c2:2858": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          30
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            131,
+            133
+          ],
+          "expected_type": "Array<Array<Array<Array<I64>>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                103,
+                106
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                131,
+                133
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            123,
+            125
+          ],
+          "expected_type": "Array<Array<Array<Array<I64>>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                103,
+                106
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                123,
+                125
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091"
+    },
+    "c2:8742": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          31
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            145,
+            149
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                110
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                145,
+                149
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            138,
+            139
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                110
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                138,
+                139
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0"
+    },
+    "c2:15473": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          38
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            161,
+            165
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                133
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                161,
+                165
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            151,
+            155
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                133
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                151,
+                155
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6"
+    },
+    "c2@f0-0003-b-v1:176": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          36
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            150,
+            151
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                122,
+                123
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                150,
+                151
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            140,
+            144
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                122,
+                123
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                140,
+                144
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48"
+    },
+    "c2@f0-0003-b-v1:2858": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          30
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            131,
+            133
+          ],
+          "expected_type": "Array<Array<Array<Array<I64>>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                103,
+                106
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                131,
+                133
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            123,
+            125
+          ],
+          "expected_type": "Array<Array<Array<Array<I64>>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                103,
+                106
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                123,
+                125
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091"
+    },
+    "c2@f0-0003-b-v1:7609": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          44
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            195,
+            199
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                157,
+                160
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                195,
+                199
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            188,
+            189
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                157,
+                160
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                188,
+                189
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "99d07ccbf76eeefabcc0d2892003cf5f282fb3931a5fdf5159678964d7fd643a"
+    },
+    "c2@f0-0003-b-v1:8742": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          31
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            145,
+            149
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                110
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                145,
+                149
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            138,
+            139
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                110
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                138,
+                139
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0"
+    },
+    "c2@f0-0003-b-v1:15473": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          38
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            161,
+            165
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                133
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                161,
+                165
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            151,
+            155
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                133
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                151,
+                155
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6"
+    },
+    "b:2709": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          39
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            155,
+            156
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                127
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                155,
+                156
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            145,
+            149
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                109,
+                127
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                145,
+                149
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "707676a78299c9bf0d5c1b8c8d113e4704751d43aba774ddcf289ae314e9e89e"
+    },
+    "b:3042": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          42
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            164,
+            165
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                113,
+                114
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                164,
+                165
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            153,
+            158
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<Array<Array<I64>>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                113,
+                114
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                153,
+                158
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "48e43ff14dc93ae10946ee3c7fddbc1c40db22eda0d4f9c09921be243640b1f6"
+    },
+    "b:3122": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          35
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            149,
+            153
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                106,
+                111
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                149,
+                153
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            139,
+            143
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                106,
+                111
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                139,
+                143
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "078d9ec14e4da91c3ec10f5d4c8212d6d6371360b6d6047a70af729082736ffd"
+    },
+    "s7021993:278": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          55
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            192,
+            193
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                116,
+                153
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                192,
+                193
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            182,
+            186
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                116,
+                153
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                182,
+                186
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "5c2578c9947eb05f78db23a614f1004c29826031926e95996f669c8eb17948c6"
+    },
+    "s7021993:2391": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          35
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            153,
+            157
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                117,
+                118
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                153,
+                157
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            146,
+            147
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                117,
+                118
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                146,
+                147
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "779084982aab40af16fe6c9fc7b62a58c2b2607cd4792e596a74cac93192bd02"
+    },
+    "s7021993:3267": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          42
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            192,
+            193
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                153,
+                154
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                192,
+                193
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            182,
+            186
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                153,
+                154
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                182,
+                186
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "2708d538810e5c6bf28bdd69b5c1a0d95bb19f71dd69925c48e1fb8fc9c23aa4"
+    },
+    "s7021993:4268": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          39
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            154,
+            158
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                122,
+                127
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                154,
+                158
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            144,
+            148
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                122,
+                127
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                144,
+                148
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "4083b3294d0ee7cade3b4ef6d224d9a3e445e38721a0710f11c9c778bc2d7e28"
+    },
+    "s4417061:397": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          56
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            191,
+            192
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                155
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                191,
+                192
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            184,
+            185
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                155
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                184,
+                185
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "9f8a06898f714c881631dd565ee1b2376b4e2c8a8d222f7b457e2de02858c9ca"
+    },
+    "s4417061:2070": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          56
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            212,
+            217
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                133,
+                155
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                212,
+                217
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            202,
+            206
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                133,
+                155
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                202,
+                206
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "fc7ac11ab8d20121ca0146cbd0404ca08208f5dbc48f9d3319c6a9527f9cf196"
+    },
+    "s4417061:2565": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          38
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            150,
+            154
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                111,
+                112
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                150,
+                154
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            140,
+            144
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                111,
+                112
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                140,
+                144
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "74f35a203e5c40978ab78a6bbdc986910868b565674828267dee093a505108a3"
+    },
+    "s9908255:483": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          35
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            144,
+            148
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                116
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                144,
+                148
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            133,
+            138
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                115,
+                116
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                133,
+                138
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "ab91c11be0a9709a4b30f1bb90d3d534dba3485f36f87901a60423dde1cf2fe3"
+    },
+    "s9908255:1013": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          50
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            199,
+            200
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                163,
+                164
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                199,
+                200
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            192,
+            193
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                163,
+                164
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                192,
+                193
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "229668ced3a28a74e656b672ff1b8922ae471e2029e54c7a569d4e8a5f15c6b7"
+    },
+    "s9908255:1955": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          52
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            181,
+            185
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                104,
+                143
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                181,
+                185
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            172,
+            175
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "Array<Array<I64>>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                104,
+                143
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                172,
+                175
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "97d7764692b63f6e2b952f999332c01a88262430377ca478a8ac07fed1faa71d"
+    },
+    "c1-nueva:631": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          41
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            154,
+            158
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                115
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                154,
+                158
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            144,
+            148
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                115
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                144,
+                148
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "4637a654b82ab2164386232768bbc9bb344daa1f44ab5ca2efeda3996a62cd86"
+    },
+    "c1-nueva:1530": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          40
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            153,
+            154
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                110,
+                128
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                153,
+                154
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            146,
+            147
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                110,
+                128
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                146,
+                147
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "332fa4cffc1c2ae647ea2c3e7d6218373d4f222664deaacaeaff7a681e440bae"
+    },
+    "c1-nueva:4486": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          32
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            133,
+            134
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                98
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                133,
+                134
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            126,
+            127
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                98
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                126,
+                127
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "e4714a312eaa81c4dd8ea90540f709d0326159cdb66737fc4d3359e461a55a4a"
+    },
+    "c1-nueva:7624": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          37
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            143,
+            145
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                113,
+                118
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                143,
+                145
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            135,
+            137
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Array<I64>",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                113,
+                118
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                135,
+                137
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "bc75dc16a13250e49c6e564beec0bce786d504513cf16f8dafe2249ce3054a80"
+    },
+    "c1-nueva2:3259": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          31
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            136,
+            140
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                108,
+                109
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                136,
+                140
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            126,
+            130
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                108,
+                109
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                126,
+                130
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "f35ffe282f46303be9dbcd167af497d2cc5c94c2f6ea7ef8b36d4d25122cb3dd"
+    },
+    "c1-nueva2:4479": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          32
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            135,
+            136
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                108,
+                111
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                135,
+                136
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            128,
+            129
+          ],
+          "expected_type": "Array<Array<Array<I64>>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                108,
+                111
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                128,
+                129
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "197c3d636f68d84462780f4c1390a3878e10da77e9dd4f2ae2901ef1631f26c0"
+    },
+    "c1-nueva2:5438": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          31
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            133,
+            137
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                98
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                133,
+                137
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            126,
+            127
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                97,
+                98
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                126,
+                127
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "82eb7eb0420b7890e40263516d2630c4bc218f34432dd495fc2c900636cec08b"
+    },
+    "c2-nueva2:1737": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          44
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            155,
+            159
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                119,
+                120
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                155,
+                159
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            148,
+            149
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                119,
+                120
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                148,
+                149
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "3890579e7c2c28f74ee8a32a51ed3f2beebd6d4bf10ff1dbc8b05f05c44f378d"
+    },
+    "c2-nueva2:3112": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          33
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            131,
+            132
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                102,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                131,
+                132
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            124,
+            125
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                102,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                124,
+                125
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "866fc70921e23d94f17c3ea0f82c0bb75299c55cf50a40f11be1cbff6834dd40"
+    },
+    "c2-nueva2@f0-0003-b-v1:469": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          42
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            188,
+            189
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                149,
+                150
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                188,
+                189
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            178,
+            182
+          ],
+          "expected_type": "Array<I64>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                149,
+                150
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                178,
+                182
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "f35f907393f0817456d32b8710bdc6a36fb0d954c241114399fb530a1f4332fa"
+    },
+    "c2-nueva2@f0-0003-b-v1:1737": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          44
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            155,
+            159
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                119,
+                120
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                155,
+                159
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            148,
+            149
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                119,
+                120
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                148,
+                149
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "3890579e7c2c28f74ee8a32a51ed3f2beebd6d4bf10ff1dbc8b05f05c44f378d"
+    },
+    "c2-nueva2@f0-0003-b-v1:1954": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          46
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            193,
+            197
+          ],
+          "expected_type": "Array<Array<Array<Array<I64>>>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                157,
+                158
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                193,
+                197
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            186,
+            187
+          ],
+          "expected_type": "Array<Array<Array<Array<I64>>>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                157,
+                158
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                186,
+                187
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "45150801cfb79d8e1be2621ee7d71037e40c32ce9dac4e1c0c961ad902d8f368"
+    },
+    "c2-nueva2@f0-0003-b-v1:2536": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          51
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            180,
+            184
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                121,
+                141
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                180,
+                184
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            170,
+            174
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "Bool",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                121,
+                141
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                170,
+                174
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "6fa35dee2c71ce782b28f7572639d2ef772ee2aebea5c0828d2344edbad6b1d3"
+    },
+    "c2-nueva2@f0-0003-b-v1:3112": {
+      "family": "single_e1303_per_union",
+      "witness": {
+        "owner_ordinal": [
+          0,
+          33
+        ],
+        "omitted": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            131,
+            132
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                102,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                131,
+                132
+              ]
+            }
+          ]
+        },
+        "prior": {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            124,
+            125
+          ],
+          "expected_type": "Array<Array<I64>>",
+          "found_type": "I64",
+          "relations": [
+            {
+              "role": "expected_type",
+              "span": [
+                102,
+                107
+              ]
+            },
+            {
+              "role": "found_type",
+              "span": [
+                124,
+                125
+              ]
+            }
+          ]
+        },
+        "clause": "F0-0002 \u00a74.1.2.4; N(d)"
+      },
+      "source_sha256": "866fc70921e23d94f17c3ea0f82c0bb75299c55cf50a40f11be1cbff6834dd40"
+    }
+  },
+  "families": {
+    "assignment_prefix": {
+      "count": 1,
+      "members_sha256": "de5874c22bd62c50424c96efb5b73e365d9c425871cb3085198467848e7ede32",
+      "members": [
+        "b-projections-t5-2026112402:761"
+      ]
+    },
+    "compatible_flattened_leaf": {
+      "count": 4,
+      "members_sha256": "64e29a23d1f549df9d6e27d46b45a9e41c89a73a28b8a1d6a46f1052febe5878",
+      "members": [
+        "b-projections-2026112403:1963",
+        "b-projections-2026112403:988",
+        "b-projections-t5-2026112402:820",
+        "b-projections-t5-2026112402:953"
+      ]
+    },
+    "mixed_compatible_constraints": {
+      "count": 1,
+      "members_sha256": "d10c6bffe1a347e0483bd267cac8b35c5ca72094ad917e553145069642554bea",
+      "members": [
+        "b-projections-t5-2026112402:620"
+      ]
+    },
+    "outer_first_witness": {
+      "count": 2,
+      "members_sha256": "9bf3ef5d4f2535bfbf85d3d8d43cddd9f4dfa34303176a165e6537f31b0e1050",
+      "members": [
+        "b-projections-2026112401:1183",
+        "b-projections-2026112401:280"
+      ]
+    },
+    "single_e1303_per_union": {
+      "count": 56,
+      "members_sha256": "2752ca88a4e7a00c80f16615e1fd22dde665063dc56422f2a44275bafd6c9e60",
+      "members": [
+        "b-projections-2026112401:1196",
+        "b-projections-2026112401:2919",
+        "b-projections-2026112401:2977",
+        "b-projections-2026112403:1451",
+        "b-projections-2026112403:1916",
+        "b-projections-2026112403:2532",
+        "b-projections-t5-2026112402:2072",
+        "b-projections-t5-2026112402:468",
+        "b-projections-t5-2026112402:757",
+        "b-projections-t5-2026112402:838",
+        "b:2709",
+        "b:3042",
+        "b:3122",
+        "c1-nueva2:3259",
+        "c1-nueva2:4479",
+        "c1-nueva2:5438",
+        "c1-nueva:1530",
+        "c1-nueva:4486",
+        "c1-nueva:631",
+        "c1-nueva:7624",
+        "c1:11189",
+        "c1:11474",
+        "c1:13247",
+        "c1:13626",
+        "c1:15115",
+        "c1:15304",
+        "c1:18686",
+        "c1:21363",
+        "c1:8216",
+        "c1:921",
+        "c2-nueva2:1737",
+        "c2-nueva2:3112",
+        "c2-nueva2@f0-0003-b-v1:1737",
+        "c2-nueva2@f0-0003-b-v1:1954",
+        "c2-nueva2@f0-0003-b-v1:2536",
+        "c2-nueva2@f0-0003-b-v1:3112",
+        "c2-nueva2@f0-0003-b-v1:469",
+        "c2:15473",
+        "c2:176",
+        "c2:2858",
+        "c2:8742",
+        "c2@f0-0003-b-v1:15473",
+        "c2@f0-0003-b-v1:176",
+        "c2@f0-0003-b-v1:2858",
+        "c2@f0-0003-b-v1:7609",
+        "c2@f0-0003-b-v1:8742",
+        "s4417061:2070",
+        "s4417061:2565",
+        "s4417061:397",
+        "s7021993:2391",
+        "s7021993:278",
+        "s7021993:3267",
+        "s7021993:4268",
+        "s9908255:1013",
+        "s9908255:1955",
+        "s9908255:483"
+      ]
+    }
+  },
+  "unresolved": []
+}
