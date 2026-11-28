@@ -3116,10 +3116,25 @@ impl InferenceGraph {
             .map(|(_, span)| span.clone())
             .unwrap_or_else(|| first_operand.clone());
         #[cfg(feature = "c2-origin-trace")]
+        let concrete_origin = {
+            let mut root = component;
+            while let Some(node) = self.type_nodes.get(&root) {
+                if node.parent == root {
+                    break;
+                }
+                root = node.parent;
+            }
+            self.type_nodes
+                .get(&root)
+                .and_then(|node| node.concrete.as_ref())
+                .map(|(_, origin)| span_key(origin))
+        };
+        #[cfg(feature = "c2-origin-trace")]
         trace_origin!(serde_json::json!({
             "schema":"c2-origin-jsonl-v2", "event":"select", "component":component,
             "path":[], "epoch":read_context.map(|context| context.epoch.0),
             "first_operand":span_key(first_operand), "chosen":span_key(&chosen),
+            "current_concrete":concrete_origin,
             "witness_provenance":if witness.is_some() { "published_origin_fact" } else { "literal_fallback" },
             "witness_equality_id":witness.map(|(fact, _)| fact.equality.0),
             "candidate_facts":facts.iter().map(|fact| serde_json::json!({
@@ -14839,6 +14854,40 @@ impl Checker<'_> {
             let first_operand_origin = pending
                 .first()
                 .map(|(_, index)| Self::primary_span(&items[*index]));
+            #[cfg(feature = "c2-origin-trace")]
+            {
+                let witnesses = pending
+                    .iter()
+                    .map(|(id, index)| {
+                        let concrete = self.concrete(*id);
+                        let facts = self
+                            .graph
+                            .origin_facts
+                            .borrow()
+                            .get(id)
+                            .cloned()
+                            .unwrap_or_default();
+                        serde_json::json!({
+                            "component":id,
+                            "operand":span_key(&Self::primary_span(&items[*index])),
+                            "concrete":format!("{concrete:?}"),
+                            "facts":facts.iter().map(|fact| serde_json::json!({
+                                "ordinal":fact.ordinal,
+                                "operand":fact.operand.as_ref().map(span_key),
+                                "concrete":fact.concrete.as_ref().map(span_key),
+                                "source":fact.source.as_ref().map(span_key),
+                                "path":fact.path,
+                            })).collect::<Vec<_>>(),
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                trace_origin!(serde_json::json!({
+                    "schema":"c2-origin-jsonl-v2", "event":"literal_resolution_entry",
+                    "literal":span_key(span), "item":span_key(&concrete_origin),
+                    "got":format!("{got:?}"), "first_grounded":first_grounded,
+                    "witnesses":witnesses,
+                }));
+            }
             let mut first_conflict = false;
             for (id, source_index) in pending.iter() {
                 let source_origin = Self::primary_span(&items[*source_index]);
@@ -14908,6 +14957,12 @@ impl Checker<'_> {
                 first_conflict |= self.pending_join_count() > before_conflict;
             }
             if first_conflict {
+                #[cfg(feature = "c2-origin-trace")]
+                trace_origin!(serde_json::json!({
+                    "schema":"c2-origin-jsonl-v2", "event":"literal_resolution_result",
+                    "literal":span_key(span), "item":span_key(&concrete_origin),
+                    "outcome":"conflict", "retained":item_origin.as_ref().map(span_key),
+                }));
                 // ADR §4.1.2.2,4: a rejected shape equality
                 // cannot replace the first array element as the
                 // reference for later siblings.
@@ -14923,6 +14978,12 @@ impl Checker<'_> {
             } else {
                 concrete_origin
             });
+            #[cfg(feature = "c2-origin-trace")]
+            trace_origin!(serde_json::json!({
+                "schema":"c2-origin-jsonl-v2", "event":"literal_resolution_result",
+                "literal":span_key(span), "outcome":"committed",
+                "retained":item_origin.as_ref().map(span_key),
+            }));
         } else if let Some(prior) = item_type.clone() {
             let prior_origin = origin.cloned().unwrap_or_else(|| span.clone());
             let concrete_origin = Self::primary_span(item);
