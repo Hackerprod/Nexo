@@ -2761,6 +2761,7 @@ struct InferenceGraph {
     pre_assignment_snapshot: HashMap<u64, Option<ConcreteEvidence>>,
     projected_bases: HashSet<u64>,
     projection_items: HashSet<u64>,
+    projection_sites: HashSet<(u64, u64)>,
     assigned_bases: HashSet<u64>,
     assignment_starts: HashMap<u64, u64>,
     first_assignment_rhs_starts: HashMap<u64, u64>,
@@ -13947,6 +13948,7 @@ impl Checker<'_> {
                         };
                         self.graph.expr_vars.insert(span_key(e.span()), child);
                         self.graph.projection_items.insert(child);
+                        self.graph.projection_sites.insert(span_key(e.span()));
                         self.graph
                             .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                         return Ok(Type::Deferred(child));
@@ -15617,43 +15619,51 @@ impl Checker<'_> {
                                 && !failed
                                 && !anchored
                                 && let Some((base, base_span)) = progress.anchor.as_ref()
-                                && let Some(found) = second.clone().or_else(|| {
-                                    branch_value_expr(block)
-                                        .and_then(|mut expr| {
-                                            while let Expr::Group(inner, _) = expr {
-                                                expr = inner;
-                                            }
-                                            matches!(expr, Expr::Index { .. })
-                                                .then(|| self.expression_variable(expr))
-                                                .flatten()
-                                        })
-                                        .map(Type::Deferred)
-                                })
                             {
-                                let found_span =
-                                    branch_value_span(block).unwrap_or_else(|| block.span.clone());
-                                match self.unify(
-                                    *visit,
-                                    base.clone(),
-                                    found,
-                                    base_span.clone(),
-                                    found_span.clone(),
-                                    found_span,
-                                    true,
-                                ) {
-                                    Err(error) if error.operation == Operation::AnalysisLimit => {
-                                        return IfAction::Done(Err(error));
-                                    }
-                                    Err(error) => {
-                                        // A preceding branch already owns this union's
-                                        // one diagnostic. Still test later valid branches:
-                                        // compatible equalities must remain available to
-                                        // subsequent source occurrences (§4.1.2.4).
-                                        if progress.anchor_error.is_none() {
+                                // Conditional projection results can remain deferred
+                                // after their branch visit. Only a *source projection*
+                                // can lend that witness: a synthesized nested union
+                                // can reuse its component ID without being that site.
+                                let projected_pair =
+                                    self.graph.projection_sites.contains(&span_key(base_span))
+                                        && branch_value_expr(block).is_some_and(|expr| {
+                                            self.graph
+                                                .projection_sites
+                                                .contains(&span_key(&Self::primary_span(expr)))
+                                        });
+                                let found = second.clone().or_else(|| {
+                                    projected_pair
+                                        .then(|| {
+                                            branch_value_expr(block)
+                                                .and_then(|expr| self.expression_variable(expr))
+                                                .map(Type::Deferred)
+                                        })
+                                        .flatten()
+                                });
+                                if (progress.anchor_error.is_none() || projected_pair)
+                                    && let Some(found) = found
+                                {
+                                    let found_span = branch_value_span(block)
+                                        .unwrap_or_else(|| block.span.clone());
+                                    match self.unify(
+                                        *visit,
+                                        base.clone(),
+                                        found,
+                                        base_span.clone(),
+                                        found_span.clone(),
+                                        found_span,
+                                        true,
+                                    ) {
+                                        Err(error)
+                                            if error.operation == Operation::AnalysisLimit =>
+                                        {
+                                            return IfAction::Done(Err(error));
+                                        }
+                                        Err(error) if progress.anchor_error.is_none() => {
                                             progress.anchor_error = Some(error);
                                         }
+                                        _ => {}
                                     }
-                                    Ok(_) => {}
                                 }
                             }
                             return IfAction::Done(
@@ -17037,6 +17047,7 @@ pub(crate) fn check_with_partial_limit(
             pre_assignment_snapshot: HashMap::new(),
             projected_bases: HashSet::new(),
             projection_items: HashSet::new(),
+            projection_sites: HashSet::new(),
             assigned_bases: HashSet::new(),
             assignment_starts: HashMap::new(),
             first_assignment_rhs_starts: HashMap::new(),
@@ -18653,6 +18664,7 @@ mod quota_tests {
                 pre_assignment_snapshot: HashMap::new(),
                 projected_bases: HashSet::new(),
                 projection_items: HashSet::new(),
+                projection_sites: HashSet::new(),
                 assigned_bases: HashSet::new(),
                 assignment_starts: HashMap::new(),
                 first_assignment_rhs_starts: HashMap::new(),
@@ -22752,6 +22764,20 @@ mod quota_tests {
                 .find(|span| span.role == RelatedRole::ExpectedType)
                 .map(|span| span_key(&span.span)),
             Some((151, 156)),
+        );
+    }
+
+    #[test]
+    fn c2_synthesized_union_does_not_lend_projection_anchor() {
+        let source = "fn Main(){var q=[];var r=[];var s=[];let a0=[(if true then (if true then [r] else s) else (if true then r else q[0]))];q=[1];}";
+        let ast = parse::parse_new_profile("union.n", source).unwrap();
+        let resolved = names::resolve_with_option("union.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("union.n", source, &ast, &resolved, 1_000_000);
+        assert_eq!(report.errors.len(), 1, "{:?}", report.errors);
+        assert_eq!(report.errors[0].code, "NX-E0103");
+        assert_eq!(
+            report.errors[0].primary_span.as_ref().map(span_key),
+            Some((25, 27))
         );
     }
 

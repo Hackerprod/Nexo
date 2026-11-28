@@ -258,8 +258,10 @@ fn deferred_array_conflict_keeps_whole_operand_types() {
         (
             "fn Main(){let ar=[1];let aar=[[1]];var r=[];let a=[r,ar,aar];}",
             "aar",
-            "ar,aar",
-            2,
+            // The pending first operand remains this literal's source
+            // witness when the next operand completes its element type.
+            "r,ar",
+            1,
             "Array<I64>",
             "Array<Array<I64>>",
         ),

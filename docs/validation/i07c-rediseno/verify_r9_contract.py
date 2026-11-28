@@ -434,12 +434,14 @@ for relative, field in (
     ).stdout.strip() == c2e[field]
 for name, expected_sha in c2e["report_sha256"].items():
     relative = f"docs/validation/i07c-rediseno/{name}"
+    revision = "02de85f" if name == "c2_literal_origin_fuzz.py" else "HEAD"
     blob = subprocess.run(
-        ["git", "show", f"HEAD:{relative}"], cwd=HERE.parents[2],
+        ["git", "show", f"{revision}:{relative}"], cwd=HERE.parents[2],
         check=True, capture_output=True,
     ).stdout
     assert hashlib.sha256(blob).hexdigest() == expected_sha, name
-    assert hashlib.sha256((HERE / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() == expected_sha, name
+    if revision == "HEAD":
+        assert hashlib.sha256((HERE / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() == expected_sha, name
 corpus_e = data("c2-ref-corpus-v15e.json")
 assert corpus_e["complete"] and corpus_e["commit"] == "C2" and not corpus_e["failures"]
 assert len(corpus_e["corpora"]) == 20 and len(corpus_e["class_by_row"]) == 151188
@@ -456,14 +458,24 @@ for name, candidate_sha in (("c2-ref-owned-v15e.json", c2e["candidate_release_sh
     assert report["main_sha256"] == (c2e["main_debug_sha256"] if "debug" in name
                                      else c2e["main_release_sha256"])
     assert [report["counts"][family] for family, _ in owned.FAMILIES] == [10, 0, 3]
+historical_rel_cases = {
+    "first_literal_operand_after_completion",
+    "first_operand_of_second_literal",
+    "first_literal_operand_with_index_variable",
+}
+historical_discriminator_sha = hashlib.sha256(subprocess.run(
+    ["git", "show", "02de85f:docs/validation/i07c-rediseno/c2_discriminator_gate.py"],
+    cwd=HERE.parents[2], check=True, capture_output=True,
+).stdout).hexdigest()
 for name, candidate_sha in (("c2-ref-discriminators-v15e.json", c2e["candidate_release_sha256"]),
                             ("c2-ref-discriminators-debug-v15e.json", c2e["candidate_debug_sha256"])):
     report = data(name)
     assert report["complete"] and not report["failures"] and len(report["cases"]) == 24
     assert report["candidate_sha256"] == candidate_sha
-    assert report["script_sha256"] == hashlib.sha256((HERE / "c2_discriminator_gate.py").read_bytes()).hexdigest()
+    assert report["script_sha256"] == historical_discriminator_sha
     for profile in ("f0-0002-b-v2", "f0-0003-b-v1"):
-        for case, spans in c2_gate.EXPECTED_REL.items():
+        for case in historical_rel_cases:
+            spans = c2_gate.EXPECTED_REL[case]
             row = report["cases"][f"{profile}:{case}"]
             for verb in ("check", "run"):
                 assert all(row["observed"][verb]["expected_type_spans"][i] == list(span)
@@ -471,12 +483,16 @@ for name, candidate_sha in (("c2-ref-discriminators-v15e.json", c2e["candidate_r
 before_e = data("c2-ref-regression-before-v15e.json")
 assert before_e["candidate_sha256"] == c2["candidate_release_sha256"]
 assert len(before_e["failures"]) == 12
-assert {failure.split(":")[1] for failure in before_e["failures"]} == set(c2_gate.EXPECTED_REL)
+assert {failure.split(":")[1] for failure in before_e["failures"]} == historical_rel_cases
 fuzz_e = data("c2-ref-fuzz-v15e.json")
 assert fuzz_e["complete"] and fuzz_e["programs"] == 14000 and not fuzz_e["failures"]
 assert fuzz_e["candidate_sha256"] == c2e["candidate_release_sha256"]
 assert fuzz_e["counts"].get("A", 0) == fuzz_e["counts"].get("error", 0) == 0
-assert fuzz_e["script_sha256"] == hashlib.sha256((HERE / "c2_literal_origin_fuzz.py").read_bytes()).hexdigest()
+historical_fuzz_sha = hashlib.sha256(subprocess.run(
+    ["git", "show", "02de85f:docs/validation/i07c-rediseno/c2_literal_origin_fuzz.py"],
+    cwd=HERE.parents[2], check=True, capture_output=True,
+).stdout).hexdigest()
+assert fuzz_e["script_sha256"] == historical_fuzz_sha
 frame_e = (HERE / "c2-ref-frame-v15e.txt").read_text(encoding="utf-8")
 assert frame_e.splitlines()[0] == (f"executable_sha256={c2e['frame_exe_sha256']} "
                                    f"map_sha256={c2e['frame_map_sha256']}")

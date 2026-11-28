@@ -91,6 +91,10 @@ CASES = {
         [("NX-E0102", "type_mismatch", 74, 79),
          ("NX-E1303", None, 176, 178)],
     ),
+    "synthesized_union_does_not_lend_projection_anchor": (
+        "fn Main(){var q=[];var r=[];var s=[];let a0=[(if true then (if true then [r] else s) else (if true then r else q[0]))];q=[1];}",
+        [("NX-E0103", None, 25, 27)],
+    ),
 }
 
 # The second literal in the middle case must select its own first operand.
