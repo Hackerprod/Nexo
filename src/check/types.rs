@@ -1795,6 +1795,13 @@ struct ConsumerId {
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 struct OccurrenceKey(OccurrenceRole, usize);
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+struct PartialIfWitnessKey {
+    declaration: u64,
+    path: Vec<u8>,
+    leaf: (u64, u64),
+}
+
 #[derive(Clone, Default)]
 struct OccurrenceIndex {
     by_node: HashMap<OccurrenceKey, OccurrenceId>,
@@ -1803,7 +1810,7 @@ struct OccurrenceIndex {
     explicit_value_block_unions: HashSet<OccurrenceId>,
     // A failed enclosing continuation can retain the nested `if` result as
     // partial evidence. Its first leaf alone is not an assignment witness.
-    partial_if_witnesses: HashMap<(u64, (u64, u64)), Span>,
+    partial_if_witnesses: HashMap<PartialIfWitnessKey, Span>,
     #[cfg(feature = "c2-origin-trace")]
     by_span: HashMap<(u64, u64), Vec<OccurrenceId>>,
 }
@@ -10190,15 +10197,44 @@ impl Checker<'_> {
         }
     }
 
-    fn partial_assignment_origin(&self, local: u64, origin: &Span) -> Span {
-        let key = span_key(origin);
+    fn binding_path(&self, expression: &Expr) -> Option<(u64, Vec<u8>)> {
+        let mut expression = expression;
+        let mut path = Vec::new();
+        loop {
+            match expression {
+                Expr::Group(inner, _) => expression = inner,
+                Expr::Index { target, .. } => {
+                    path.push(0);
+                    expression = target;
+                }
+                Expr::Name(_, span) => {
+                    let ResolvedUse::Local(local) = self.resolved.uses.get(&span.start)? else {
+                        return None;
+                    };
+                    return Some((local.name_span.start, path));
+                }
+                _ => return None,
+            }
+        }
+    }
+
+    fn partial_assignment_origin(&self, local: u64, place: &Expr, origin: &Span) -> Span {
+        let Some((declaration, place_path)) = self.binding_path(place) else {
+            return origin.clone();
+        };
         self.graph
             .source_paths(&Type::Deferred(local))
             .into_iter()
-            .find_map(|(component, _)| {
+            .find_map(|(_, component_path)| {
+                let mut path = place_path.clone();
+                path.extend(component_path);
                 self.occurrences
                     .partial_if_witnesses
-                    .get(&(component, key))
+                    .get(&PartialIfWitnessKey {
+                        declaration,
+                        path,
+                        leaf: span_key(origin),
+                    })
                     .cloned()
             })
             .unwrap_or_else(|| origin.clone())
@@ -10252,9 +10288,9 @@ impl Checker<'_> {
                 .as_ref()
                 .filter(|_| projected.is_some() || !intrinsic_origin)
                 .filter(|(_, origin)| origin.start < Self::primary_span(place).start)
-                .map(|(_, origin)| self.partial_assignment_origin(local, origin));
+                .map(|(_, origin)| self.partial_assignment_origin(local, place, origin));
             let expected = expected.map(|(ty, origin)| {
-                let witness = self.partial_assignment_origin(local, &origin);
+                let witness = self.partial_assignment_origin(local, place, &origin);
                 #[cfg(feature = "c2-origin-trace")]
                 trace_origin!(serde_json::json!({
                     "schema":"c2-origin-jsonl-v2", "event":"assignment_witness",
@@ -15700,7 +15736,17 @@ impl Checker<'_> {
             Some(Else::If(e)) => self.expression_variable(e),
             None => None,
         };
-        if first_failed && let Some(component) = second_var {
+        let first_join = first_var.map(Type::Deferred).or_else(|| first.clone());
+        let second_join = second_var.map(Type::Deferred).or_else(|| second.clone());
+        let right_source = match otherwise {
+            Some(Else::Block(b)) => branch_value_expr(b),
+            Some(Else::If(e)) => Some(e.as_ref()),
+            None => None,
+        };
+        if first_failed
+            && second_var.is_some()
+            && let Some((declaration, path)) = right_source.and_then(|e| self.binding_path(e))
+        {
             let mut first_value = branch_value_expr(then_block);
             while let Some(Expr::Group(inner, _)) = first_value {
                 first_value = Some(inner);
@@ -15709,18 +15755,15 @@ impl Checker<'_> {
                 && let Some(leaf) = branch_value_expr(then_block)
             {
                 self.occurrences.partial_if_witnesses.insert(
-                    (component, span_key(&Self::primary_span(leaf))),
+                    PartialIfWitnessKey {
+                        declaration,
+                        path,
+                        leaf: span_key(&Self::primary_span(leaf)),
+                    },
                     Self::primary_span(expression),
                 );
             }
         }
-        let first_join = first_var.map(Type::Deferred).or_else(|| first.clone());
-        let second_join = second_var.map(Type::Deferred).or_else(|| second.clone());
-        let right_source = match otherwise {
-            Some(Else::Block(b)) => branch_value_expr(b),
-            Some(Else::If(e)) => Some(e.as_ref()),
-            None => None,
-        };
         // If the second branch already failed and both sides are fully
         // determined, its partial type cannot resolve anything. Rejoining
         // that type would repeat its existing diagnostic at finalization.
