@@ -2660,6 +2660,7 @@ struct VisitFact {
     role: FactRole,
     tainted: bool,
     numeric_domain_owner: Option<(u64, u64)>,
+    literal_first_operand: Option<Span>,
 }
 
 #[cfg(test)]
@@ -3280,6 +3281,7 @@ impl InferenceGraph {
                 role,
                 tainted: false,
                 numeric_domain_owner: None,
+                literal_first_operand: None,
             },
         );
         #[cfg(test)]
@@ -3314,6 +3316,21 @@ impl InferenceGraph {
             fact.role,
         );
         fact
+    }
+
+    fn literal_owns_origin(&self, fact: FactId, origin: &Span, found: &Span) -> bool {
+        let mut current = Some(fact);
+        while let Some(id) = current {
+            let owner = self.fact(id);
+            if owner.literal_first_operand.as_ref() == Some(origin)
+                && owner.site.0 <= found.start
+                && found.end <= owner.site.1
+            {
+                return true;
+            }
+            current = owner.parent;
+        }
+        false
     }
 
     fn child_fact(
@@ -3351,6 +3368,7 @@ impl InferenceGraph {
                 role,
                 tainted,
                 numeric_domain_owner,
+                literal_first_operand: None,
             },
         );
         #[cfg(test)]
@@ -8008,6 +8026,11 @@ impl Checker<'_> {
                             if error.code == "NX-E0102"
                                 && error.subcause.as_deref() == Some("type_mismatch")
                                 && request.policy.related_expected
+                                && self.graph.literal_owns_origin(
+                                    request.fact,
+                                    &request.left_origin,
+                                    &request.found,
+                                )
                             {
                                 let source_origin = self.graph.source_component_origin(
                                     id,
@@ -14150,11 +14173,14 @@ impl Checker<'_> {
     #[allow(clippy::too_many_arguments)]
     fn array_next<'a>(
         &mut self,
-        _visit: FactId,
+        visit: FactId,
         state: &mut ArrayFrameState<'a>,
     ) -> (&'a Expr, OwnedCheckContext) {
         let index = state.next;
         let item = &state.items[index];
+        if index == 0 {
+            self.graph.fact_mut(visit).literal_first_operand = Some(Self::primary_span(item));
+        }
         let origin = if index == 0 {
             state.context.expected_span.clone()
         } else {
