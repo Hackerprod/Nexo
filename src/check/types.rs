@@ -1116,7 +1116,7 @@ struct ReadComponent {
     root: u64,
     concrete: Option<Type>,
     array_element: Option<u64>,
-    origin_fact: Option<OriginFact>,
+    origin_facts: Vec<OriginFact>,
 }
 
 #[derive(Clone, Debug)]
@@ -2825,12 +2825,14 @@ impl InferenceGraph {
                     root,
                     concrete: node.concrete.as_ref().map(|(ty, _)| ty.clone()),
                     array_element: node.array_child,
-                    origin_fact: self
+                    origin_facts: self
                         .origin_facts
                         .borrow()
                         .get(&id)
-                        .and_then(|facts| facts.first())
-                        .cloned(),
+                        .into_iter()
+                        .flat_map(|facts| facts.iter().filter(|fact| fact.ordinal < epoch.0))
+                        .cloned()
+                        .collect(),
                 },
             );
             if let Some(child) = node.array_child {
@@ -2984,40 +2986,30 @@ impl InferenceGraph {
         first_operand: &Span,
         read_context: Option<&ReadContext>,
     ) -> Span {
-        // The AST-selected operand bounds every source fact, including a
-        // fact captured before a deferred equality. Component IDs and global
-        // equality ordinals alone do not identify a literal occurrence.
-        let within =
-            |origin: &Span| first_operand.start <= origin.start && origin.end <= first_operand.end;
-        let entry = read_context
+        // The entry epoch is authoritative for a deferred read. A later
+        // completion may supply the type but cannot replace this witness.
+        let facts = read_context
             .and_then(|context| context.components.get(&component))
-            .and_then(|component| component.origin_fact.as_ref())
-            .and_then(|fact| {
-                fact.operand
-                    .as_ref()
-                    .or(fact.concrete.as_ref())
-                    .or(fact.array.as_ref())
-                    .or(fact.variant.as_ref())
-            })
-            .filter(|origin| within(origin));
-        entry
-            .cloned()
-            .or_else(|| {
+            .map(|entry| entry.origin_facts.clone())
+            .unwrap_or_else(|| {
                 self.origin_facts
                     .borrow()
                     .get(&component)
-                    .and_then(|facts| {
-                        facts
-                            .iter()
-                            .filter_map(|fact| fact.operand.as_ref())
-                            // The AST's first operand of this literal bounds the
-                            // source occurrence. Global equality ordinals can refer
-                            // to earlier statements or later completions.
-                            .filter(|origin| within(origin))
-                            .min_by_key(|origin| (origin.start, origin.end))
-                            .cloned()
-                    })
+                    .cloned()
+                    .unwrap_or_default()
+            });
+        facts
+            .iter()
+            .filter(|fact| fact.path.is_empty())
+            .filter_map(|fact| {
+                fact.operand
+                    .as_ref()
+                    .or(fact.source.as_ref())
+                    .map(|span| (fact.ordinal, span))
             })
+            .filter(|(_, span)| first_operand.start <= span.start && span.end <= first_operand.end)
+            .min_by_key(|(ordinal, _)| *ordinal)
+            .map(|(_, span)| span.clone())
             .unwrap_or_else(|| first_operand.clone())
     }
 
@@ -22658,6 +22650,47 @@ mod quota_tests {
         assert_eq!(
             checker.graph.type_nodes[&child].concrete,
             Some((Type::I64, site(3)))
+        );
+    }
+
+    #[test]
+    fn c2_entry_origin_read_cannot_take_a_later_operand_fact() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        checker.graph.record_operand_origin(root, site(2));
+        let equality = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::I64, site(3));
+        let entry = checker
+            .graph
+            .equality_records
+            .borrow()
+            .last()
+            .unwrap()
+            .read_context
+            .clone();
+        checker.graph.finish_equality(equality, true);
+        checker.graph.record_operand_origin(root, site(11));
+        let operand = Span {
+            file: site(1).file,
+            start: 10,
+            end: 12,
+        };
+        assert_eq!(
+            checker
+                .graph
+                .source_component_origin(root, &operand, Some(&entry)),
+            operand
+        );
+        assert_eq!(
+            checker.graph.source_component_origin(root, &operand, None),
+            site(11)
         );
     }
 
