@@ -1,0 +1,7736 @@
+{
+  "schema": "i07c-c2-d10-trace-survey-v1",
+  "audit_sha256": "a87009813af64e42df2865a2ce4151fddfdde8775b10c306aab7e9c7aea7d78d",
+  "trace_exe_sha256": "39c2156cce7205a7f228f37c791640802b4f58b0796145b18bf3bce38eb0ed04",
+  "rows": [
+    {
+      "seed": 53,
+      "source_sha256": "4d347f0379a155fa4dda39863736348362a238ab49f8f3d853ab6c85cddafc87",
+      "changed": [
+        {
+          "primary": [
+            150,
+            154
+          ],
+          "main_relation": [
+            132,
+            136
+          ],
+          "candidate_relation": [
+            108,
+            115
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 36,
+                  "operand": null,
+                  "ordinal": 36,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 36,
+                  "operand": null,
+                  "ordinal": 36,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 41,
+                  "operand": [
+                    108,
+                    115
+                  ],
+                  "ordinal": 41,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 42,
+                  "operand": [
+                    108,
+                    115
+                  ],
+                  "ordinal": 42,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 45,
+                  "operand": null,
+                  "ordinal": 45,
+                  "path": [],
+                  "source": [
+                    108,
+                    115
+                  ]
+                }
+              ],
+              "chosen": [
+                108,
+                115
+              ],
+              "component": 6,
+              "current_concrete": null,
+              "epoch": 47,
+              "event": "select",
+              "first_operand": [
+                108,
+                115
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 41,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 25,
+              "operand": null,
+              "ordinal": 25,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                132,
+                136
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 25,
+              "operand": null,
+              "ordinal": 25,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                132,
+                136
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 25,
+              "operand": null,
+              "ordinal": 25,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                132,
+                136
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 25,
+              "operand": null,
+              "ordinal": 25,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                132,
+                136
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 25,
+              "operand": null,
+              "ordinal": 25,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                132,
+                136
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 25,
+              "operand": null,
+              "ordinal": 25,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": [
+                132,
+                136
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                132,
+                136
+              ],
+              "equality_id": 44,
+              "operand": null,
+              "ordinal": 44,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                132,
+                136
+              ],
+              "equality_id": 44,
+              "operand": null,
+              "ordinal": 44,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                132,
+                136
+              ],
+              "equality_id": 44,
+              "operand": null,
+              "ordinal": 44,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 148,
+      "source_sha256": "ffc50fedf0a3fd91a660e59b9b4fc24f5e071fc6f17a8fb97640bd36088c7d04",
+      "changed": [
+        {
+          "primary": [
+            144,
+            148
+          ],
+          "main_relation": [
+            122,
+            126
+          ],
+          "candidate_relation": [
+            85,
+            93
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 25,
+                  "operand": null,
+                  "ordinal": 25,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 25,
+                  "operand": null,
+                  "ordinal": 25,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                },
+                {
+                  "equality_id": 26,
+                  "operand": null,
+                  "ordinal": 26,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 26,
+                  "operand": null,
+                  "ordinal": 26,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 27,
+                  "operand": null,
+                  "ordinal": 27,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 3,
+              "current_concrete": [
+                122,
+                126
+              ],
+              "epoch": 29,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 18,
+                  "operand": null,
+                  "ordinal": 18,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 18,
+                  "operand": null,
+                  "ordinal": 18,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 25,
+                  "operand": null,
+                  "ordinal": 25,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 26,
+                  "operand": null,
+                  "ordinal": 26,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 4,
+              "current_concrete": null,
+              "epoch": 30,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 25,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 41,
+                  "operand": null,
+                  "ordinal": 41,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 41,
+                  "operand": null,
+                  "ordinal": 41,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 43,
+                  "operand": null,
+                  "ordinal": 43,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 3,
+              "current_concrete": [
+                122,
+                126
+              ],
+              "epoch": 45,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 34,
+                  "operand": null,
+                  "ordinal": 34,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 34,
+                  "operand": null,
+                  "ordinal": 34,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 41,
+                  "operand": null,
+                  "ordinal": 41,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 4,
+              "current_concrete": null,
+              "epoch": 46,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 41,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                },
+                {
+                  "equality_id": 60,
+                  "operand": null,
+                  "ordinal": 60,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 60,
+                  "operand": null,
+                  "ordinal": 60,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 3,
+              "current_concrete": [
+                122,
+                126
+              ],
+              "epoch": 63,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 50,
+                  "operand": null,
+                  "ordinal": 50,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 50,
+                  "operand": null,
+                  "ordinal": 50,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 55,
+                  "operand": [
+                    85,
+                    93
+                  ],
+                  "ordinal": 55,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 56,
+                  "operand": [
+                    85,
+                    93
+                  ],
+                  "ordinal": 56,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 60,
+                  "operand": null,
+                  "ordinal": 60,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 4,
+              "current_concrete": null,
+              "epoch": 64,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 55,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 9,
+              "operand": null,
+              "ordinal": 9,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 26,
+              "operand": null,
+              "ordinal": 26,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 26,
+              "operand": null,
+              "ordinal": 26,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 26,
+              "operand": null,
+              "ordinal": 26,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 42,
+              "operand": null,
+              "ordinal": 42,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 42,
+              "operand": null,
+              "ordinal": 42,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 42,
+              "operand": null,
+              "ordinal": 42,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 60,
+              "operand": null,
+              "ordinal": 60,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 60,
+              "operand": null,
+              "ordinal": 60,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 60,
+              "operand": null,
+              "ordinal": 60,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        },
+        {
+          "primary": [
+            155,
+            160
+          ],
+          "main_relation": [
+            122,
+            126
+          ],
+          "candidate_relation": [
+            85,
+            93
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 25,
+                  "operand": null,
+                  "ordinal": 25,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 25,
+                  "operand": null,
+                  "ordinal": 25,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                },
+                {
+                  "equality_id": 26,
+                  "operand": null,
+                  "ordinal": 26,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 26,
+                  "operand": null,
+                  "ordinal": 26,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 27,
+                  "operand": null,
+                  "ordinal": 27,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 3,
+              "current_concrete": [
+                122,
+                126
+              ],
+              "epoch": 29,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 18,
+                  "operand": null,
+                  "ordinal": 18,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 18,
+                  "operand": null,
+                  "ordinal": 18,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 25,
+                  "operand": null,
+                  "ordinal": 25,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 26,
+                  "operand": null,
+                  "ordinal": 26,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 4,
+              "current_concrete": null,
+              "epoch": 30,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 25,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 41,
+                  "operand": null,
+                  "ordinal": 41,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 41,
+                  "operand": null,
+                  "ordinal": 41,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 43,
+                  "operand": null,
+                  "ordinal": 43,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 3,
+              "current_concrete": [
+                122,
+                126
+              ],
+              "epoch": 45,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 34,
+                  "operand": null,
+                  "ordinal": 34,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 34,
+                  "operand": null,
+                  "ordinal": 34,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 41,
+                  "operand": null,
+                  "ordinal": 41,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 4,
+              "current_concrete": null,
+              "epoch": 46,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 41,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                },
+                {
+                  "equality_id": 60,
+                  "operand": null,
+                  "ordinal": 60,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 60,
+                  "operand": null,
+                  "ordinal": 60,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    109,
+                    116
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 3,
+              "current_concrete": [
+                122,
+                126
+              ],
+              "epoch": 63,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 50,
+                  "operand": null,
+                  "ordinal": 50,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 50,
+                  "operand": null,
+                  "ordinal": 50,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 55,
+                  "operand": [
+                    85,
+                    93
+                  ],
+                  "ordinal": 55,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 56,
+                  "operand": [
+                    85,
+                    93
+                  ],
+                  "ordinal": 56,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                },
+                {
+                  "equality_id": 60,
+                  "operand": null,
+                  "ordinal": 60,
+                  "path": [],
+                  "source": [
+                    85,
+                    93
+                  ]
+                }
+              ],
+              "chosen": [
+                85,
+                93
+              ],
+              "component": 4,
+              "current_concrete": null,
+              "epoch": 64,
+              "event": "select",
+              "first_operand": [
+                85,
+                93
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 55,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 9,
+              "operand": null,
+              "ordinal": 9,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 26,
+              "operand": null,
+              "ordinal": 26,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 26,
+              "operand": null,
+              "ordinal": 26,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 26,
+              "operand": null,
+              "ordinal": 26,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 42,
+              "operand": null,
+              "ordinal": 42,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 42,
+              "operand": null,
+              "ordinal": 42,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 42,
+              "operand": null,
+              "ordinal": 42,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 60,
+              "operand": null,
+              "ordinal": 60,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 60,
+              "operand": null,
+              "ordinal": 60,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                122,
+                126
+              ],
+              "equality_id": 60,
+              "operand": null,
+              "ordinal": 60,
+              "owner_if": [
+                0,
+                21
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 332,
+      "source_sha256": "70fddc4c88bf973994b029360d0d9f195ca7491a5c1315f7159966830ef8feb5",
+      "changed": [
+        {
+          "primary": [
+            219,
+            226
+          ],
+          "main_relation": [
+            207,
+            212
+          ],
+          "candidate_relation": [
+            146,
+            154
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    28,
+                    30
+                  ]
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    28,
+                    30
+                  ]
+                },
+                {
+                  "equality_id": 68,
+                  "operand": null,
+                  "ordinal": 68,
+                  "path": [],
+                  "source": [
+                    102,
+                    110
+                  ]
+                },
+                {
+                  "equality_id": 73,
+                  "operand": [
+                    146,
+                    154
+                  ],
+                  "ordinal": 73,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 74,
+                  "operand": [
+                    146,
+                    154
+                  ],
+                  "ordinal": 74,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 76,
+                  "operand": null,
+                  "ordinal": 76,
+                  "path": [],
+                  "source": [
+                    146,
+                    154
+                  ]
+                },
+                {
+                  "equality_id": 76,
+                  "operand": null,
+                  "ordinal": 76,
+                  "path": [],
+                  "source": [
+                    155,
+                    163
+                  ]
+                },
+                {
+                  "equality_id": 80,
+                  "operand": null,
+                  "ordinal": 80,
+                  "path": [],
+                  "source": [
+                    146,
+                    154
+                  ]
+                },
+                {
+                  "equality_id": 80,
+                  "operand": null,
+                  "ordinal": 80,
+                  "path": [],
+                  "source": [
+                    193,
+                    201
+                  ]
+                },
+                {
+                  "equality_id": 81,
+                  "operand": null,
+                  "ordinal": 81,
+                  "path": [],
+                  "source": [
+                    146,
+                    154
+                  ]
+                }
+              ],
+              "chosen": [
+                146,
+                154
+              ],
+              "component": 0,
+              "current_concrete": null,
+              "epoch": 83,
+              "event": "select",
+              "first_operand": [
+                146,
+                154
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 73,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 21,
+              "operand": null,
+              "ordinal": 21,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 21,
+              "operand": null,
+              "ordinal": 21,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 21,
+              "operand": null,
+              "ordinal": 21,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 21,
+              "operand": null,
+              "ordinal": 21,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 21,
+              "operand": null,
+              "ordinal": 21,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 21,
+              "operand": null,
+              "ordinal": 21,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 20,
+              "operand": null,
+              "ordinal": 20,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 21,
+              "operand": null,
+              "ordinal": 21,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": null,
+              "ordinal": 51,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": null,
+              "ordinal": 51,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": null,
+              "ordinal": 51,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": null,
+              "ordinal": 51,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": null,
+              "ordinal": 51,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": null,
+              "ordinal": 51,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": null,
+              "ordinal": 51,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [],
+              "source": [
+                207,
+                212
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                207,
+                212
+              ],
+              "equality_id": 81,
+              "operand": null,
+              "ordinal": 81,
+              "owner_if": [
+                0,
+                49
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 333,
+      "source_sha256": "43f159e3841997ad34567b60ade4decdf7157074ca1788d2d3c50d059ab790ac",
+      "changed": [
+        {
+          "primary": [
+            150,
+            156
+          ],
+          "main_relation": [
+            99,
+            133
+          ],
+          "candidate_relation": [
+            89,
+            97
+          ],
+          "selects": [],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 14,
+              "operand": null,
+              "ordinal": 14,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                99,
+                133
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 34,
+              "operand": null,
+              "ordinal": 34,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                99,
+                133
+              ],
+              "variant": null
+            }
+          ]
+        },
+        {
+          "primary": [
+            162,
+            167
+          ],
+          "main_relation": [
+            99,
+            133
+          ],
+          "candidate_relation": [
+            89,
+            97
+          ],
+          "selects": [],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 14,
+              "operand": null,
+              "ordinal": 14,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                99,
+                133
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 34,
+              "operand": null,
+              "ordinal": 34,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                99,
+                133
+              ],
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 416,
+      "source_sha256": "4c4501875c48267cc9eddc6ed3f43fd7bf75071e0faeb2b2eb1a013338545490",
+      "changed": [
+        {
+          "primary": [
+            152,
+            153
+          ],
+          "main_relation": [
+            138,
+            139
+          ],
+          "candidate_relation": [
+            94,
+            98
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 84,
+                  "operand": null,
+                  "ordinal": 84,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    24,
+                    26
+                  ]
+                },
+                {
+                  "equality_id": 84,
+                  "operand": null,
+                  "ordinal": 84,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    24,
+                    26
+                  ]
+                },
+                {
+                  "equality_id": 88,
+                  "operand": [
+                    53,
+                    57
+                  ],
+                  "ordinal": 88,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 89,
+                  "operand": [
+                    53,
+                    57
+                  ],
+                  "ordinal": 89,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 91,
+                  "operand": null,
+                  "ordinal": 91,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    74,
+                    75
+                  ]
+                },
+                {
+                  "equality_id": 92,
+                  "operand": null,
+                  "ordinal": 92,
+                  "path": [],
+                  "source": [
+                    53,
+                    57
+                  ]
+                },
+                {
+                  "equality_id": 94,
+                  "operand": [
+                    94,
+                    98
+                  ],
+                  "ordinal": 94,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 95,
+                  "operand": [
+                    94,
+                    98
+                  ],
+                  "ordinal": 95,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 99,
+                  "operand": null,
+                  "ordinal": 99,
+                  "path": [],
+                  "source": [
+                    94,
+                    98
+                  ]
+                },
+                {
+                  "equality_id": 99,
+                  "operand": null,
+                  "ordinal": 99,
+                  "path": [],
+                  "source": [
+                    128,
+                    132
+                  ]
+                },
+                {
+                  "equality_id": 100,
+                  "operand": null,
+                  "ordinal": 100,
+                  "path": [],
+                  "source": [
+                    94,
+                    98
+                  ]
+                },
+                {
+                  "equality_id": 101,
+                  "operand": null,
+                  "ordinal": 101,
+                  "path": [],
+                  "source": [
+                    128,
+                    132
+                  ]
+                },
+                {
+                  "equality_id": 103,
+                  "operand": null,
+                  "ordinal": 103,
+                  "path": [],
+                  "source": [
+                    94,
+                    98
+                  ]
+                }
+              ],
+              "chosen": [
+                94,
+                98
+              ],
+              "component": 0,
+              "current_concrete": null,
+              "epoch": 104,
+              "event": "select",
+              "first_operand": [
+                94,
+                98
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 94,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 13,
+              "operand": null,
+              "ordinal": 13,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 40,
+              "operand": null,
+              "ordinal": 40,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 41,
+              "operand": null,
+              "ordinal": 41,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 68,
+              "operand": null,
+              "ordinal": 68,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                35
+              ],
+              "path": [],
+              "source": [
+                138,
+                139
+              ],
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 495,
+      "source_sha256": "45c873a192cbe27bbfcc770e9c5f6a169ecc648fabb76e97b897b92e92a812ea",
+      "changed": [
+        {
+          "primary": [
+            135,
+            143
+          ],
+          "main_relation": [
+            96,
+            104
+          ],
+          "candidate_relation": [
+            87,
+            94
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 21,
+                  "operand": null,
+                  "ordinal": 21,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 21,
+                  "operand": null,
+                  "ordinal": 21,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                }
+              ],
+              "chosen": [
+                87,
+                94
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 31,
+              "event": "select",
+              "first_operand": [
+                87,
+                94
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 40,
+                  "operand": null,
+                  "ordinal": 40,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 40,
+                  "operand": null,
+                  "ordinal": 40,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                }
+              ],
+              "chosen": [
+                87,
+                94
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 50,
+              "event": "select",
+              "first_operand": [
+                87,
+                94
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": null,
+                  "ordinal": 59,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 64,
+                  "operand": [
+                    87,
+                    94
+                  ],
+                  "ordinal": 64,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 65,
+                  "operand": [
+                    87,
+                    94
+                  ],
+                  "ordinal": 65,
+                  "path": [],
+                  "source": null
+                }
+              ],
+              "chosen": [
+                87,
+                94
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 71,
+              "event": "select",
+              "first_operand": [
+                87,
+                94
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 64,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": [
+                96,
+                104
+              ],
+              "equality_id": 27,
+              "operand": null,
+              "ordinal": 27,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                96,
+                104
+              ],
+              "equality_id": 27,
+              "operand": null,
+              "ordinal": 27,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                96,
+                104
+              ],
+              "equality_id": 46,
+              "operand": null,
+              "ordinal": 46,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                96,
+                104
+              ],
+              "equality_id": 46,
+              "operand": null,
+              "ordinal": 46,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                96,
+                104
+              ],
+              "equality_id": 67,
+              "operand": null,
+              "ordinal": 67,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                96,
+                104
+              ],
+              "equality_id": 67,
+              "operand": null,
+              "ordinal": 67,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                96,
+                104
+              ],
+              "equality_id": 67,
+              "operand": null,
+              "ordinal": 67,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 508,
+      "source_sha256": "4cda6ae37ab88f460f852b424eba1575912eed24abc18cfb817adfca2159c3ac",
+      "changed": [
+        {
+          "primary": [
+            176,
+            178
+          ],
+          "main_relation": [
+            146,
+            150
+          ],
+          "candidate_relation": [
+            125,
+            130
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": [
+                    125,
+                    130
+                  ],
+                  "ordinal": 59,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 62,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 59,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": [
+                    125,
+                    130
+                  ],
+                  "ordinal": 59,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": null,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 59,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0,
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 10,
+              "current_concrete": null,
+              "epoch": 64,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": [
+                    125,
+                    130
+                  ],
+                  "ordinal": 59,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 65,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 59,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                146,
+                150
+              ],
+              "equality_id": 61,
+              "operand": null,
+              "ordinal": 61,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                146,
+                150
+              ],
+              "equality_id": 61,
+              "operand": null,
+              "ordinal": 61,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                146,
+                150
+              ],
+              "equality_id": 61,
+              "operand": null,
+              "ordinal": 61,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        },
+        {
+          "primary": [
+            185,
+            187
+          ],
+          "main_relation": [
+            146,
+            150
+          ],
+          "candidate_relation": [
+            125,
+            130
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": [
+                    125,
+                    130
+                  ],
+                  "ordinal": 59,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 62,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 59,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": [
+                    125,
+                    130
+                  ],
+                  "ordinal": 59,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": null,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 59,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0,
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 10,
+              "current_concrete": null,
+              "epoch": 64,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    35,
+                    37
+                  ]
+                },
+                {
+                  "equality_id": 59,
+                  "operand": [
+                    125,
+                    130
+                  ],
+                  "ordinal": 59,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    156,
+                    158
+                  ]
+                }
+              ],
+              "chosen": [
+                125,
+                130
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 65,
+              "event": "select",
+              "first_operand": [
+                125,
+                130
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 59,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 15,
+              "operand": null,
+              "ordinal": 15,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 38,
+              "operand": null,
+              "ordinal": 38,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [
+                0,
+                0,
+                0
+              ],
+              "source": [
+                146,
+                150
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                146,
+                150
+              ],
+              "equality_id": 61,
+              "operand": null,
+              "ordinal": 61,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                146,
+                150
+              ],
+              "equality_id": 61,
+              "operand": null,
+              "ordinal": 61,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                146,
+                150
+              ],
+              "equality_id": 61,
+              "operand": null,
+              "ordinal": 61,
+              "owner_if": [
+                0,
+                39
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 548,
+      "source_sha256": "8acd20d6a7208efea5c5bea25763e6551c5aeed07d736d3b5a6de843b6354a97",
+      "changed": [
+        {
+          "primary": [
+            132,
+            136
+          ],
+          "main_relation": [
+            120,
+            125
+          ],
+          "candidate_relation": [
+            87,
+            94
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 57,
+                  "operand": null,
+                  "ordinal": 57,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 57,
+                  "operand": null,
+                  "ordinal": 57,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    64,
+                    68
+                  ]
+                },
+                {
+                  "equality_id": 61,
+                  "operand": null,
+                  "ordinal": 61,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    69,
+                    77
+                  ]
+                },
+                {
+                  "equality_id": 62,
+                  "operand": null,
+                  "ordinal": 62,
+                  "path": [
+                    0,
+                    0
+                  ],
+                  "source": [
+                    63,
+                    78
+                  ]
+                },
+                {
+                  "equality_id": 62,
+                  "operand": null,
+                  "ordinal": 62,
+                  "path": [
+                    0,
+                    0
+                  ],
+                  "source": [
+                    63,
+                    78
+                  ]
+                },
+                {
+                  "equality_id": 64,
+                  "operand": [
+                    87,
+                    94
+                  ],
+                  "ordinal": 64,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 65,
+                  "operand": [
+                    87,
+                    94
+                  ],
+                  "ordinal": 65,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 67,
+                  "operand": null,
+                  "ordinal": 67,
+                  "path": [],
+                  "source": [
+                    87,
+                    94
+                  ]
+                },
+                {
+                  "equality_id": 67,
+                  "operand": null,
+                  "ordinal": 67,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    95,
+                    103
+                  ]
+                }
+              ],
+              "chosen": [
+                87,
+                94
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 70,
+              "event": "select",
+              "first_operand": [
+                87,
+                94
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 64,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 30,
+              "operand": null,
+              "ordinal": 30,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 30,
+              "operand": null,
+              "ordinal": 30,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 30,
+              "operand": null,
+              "ordinal": 30,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 30,
+              "operand": null,
+              "ordinal": 30,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 48,
+              "operand": null,
+              "ordinal": 48,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 48,
+              "operand": null,
+              "ordinal": 48,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 48,
+              "operand": null,
+              "ordinal": 48,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 48,
+              "operand": null,
+              "ordinal": 48,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [],
+              "source": [
+                120,
+                125
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                120,
+                125
+              ],
+              "equality_id": 69,
+              "operand": null,
+              "ordinal": 69,
+              "owner_if": [
+                0,
+                24
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 563,
+      "source_sha256": "b5e1254557e20636d283b5bd235084e70f3affb5e79bbd6ca8cba8c5bb74da45",
+      "changed": [
+        {
+          "primary": [
+            164,
+            168
+          ],
+          "main_relation": [
+            53,
+            57
+          ],
+          "candidate_relation": [
+            157,
+            160
+          ],
+          "selects": [],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 10,
+              "operand": null,
+              "ordinal": 10,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 10,
+              "operand": null,
+              "ordinal": 10,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 10,
+              "operand": null,
+              "ordinal": 10,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 10,
+              "operand": null,
+              "ordinal": 10,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 10,
+              "operand": null,
+              "ordinal": 10,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 10,
+              "operand": null,
+              "ordinal": 10,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 33,
+              "operand": null,
+              "ordinal": 33,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 33,
+              "operand": null,
+              "ordinal": 33,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 33,
+              "operand": null,
+              "ordinal": 33,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 33,
+              "operand": null,
+              "ordinal": 33,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 33,
+              "operand": null,
+              "ordinal": 33,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 33,
+              "operand": null,
+              "ordinal": 33,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": [
+                53,
+                57
+              ],
+              "ordinal": 51,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 52,
+              "operand": [
+                53,
+                57
+              ],
+              "ordinal": 52,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": [
+                53,
+                57
+              ],
+              "ordinal": 51,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 52,
+              "operand": [
+                53,
+                57
+              ],
+              "ordinal": 52,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 58,
+              "operand": null,
+              "ordinal": 58,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 51,
+              "operand": [
+                53,
+                57
+              ],
+              "ordinal": 51,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 52,
+              "operand": [
+                53,
+                57
+              ],
+              "ordinal": 52,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 58,
+              "operand": null,
+              "ordinal": 58,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                53,
+                57
+              ],
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 694,
+      "source_sha256": "3794d988ec9c664f754c391ab2922321359f7a0e047e0d1aaf6bf96a2566428f",
+      "changed": [
+        {
+          "primary": [
+            154,
+            159
+          ],
+          "main_relation": [
+            143,
+            147
+          ],
+          "candidate_relation": [
+            82,
+            89
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 3,
+                  "operand": null,
+                  "ordinal": 3,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 3,
+                  "operand": null,
+                  "ordinal": 3,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 10,
+                  "operand": null,
+                  "ordinal": 10,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 11,
+                  "operand": null,
+                  "ordinal": 11,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 12,
+                  "operand": null,
+                  "ordinal": 12,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                }
+              ],
+              "chosen": [
+                82,
+                89
+              ],
+              "component": 6,
+              "current_concrete": null,
+              "epoch": 15,
+              "event": "select",
+              "first_operand": [
+                82,
+                89
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 12,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 3,
+                  "operand": null,
+                  "ordinal": 3,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 3,
+                  "operand": null,
+                  "ordinal": 3,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 10,
+                  "operand": null,
+                  "ordinal": 10,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 11,
+                  "operand": null,
+                  "ordinal": 11,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 12,
+                  "operand": null,
+                  "ordinal": 12,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                }
+              ],
+              "chosen": [
+                82,
+                89
+              ],
+              "component": 6,
+              "current_concrete": null,
+              "epoch": null,
+              "event": "select",
+              "first_operand": [
+                82,
+                89
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 12,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 2,
+                  "operand": null,
+                  "ordinal": 2,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 2,
+                  "operand": null,
+                  "ordinal": 2,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 10,
+                  "operand": null,
+                  "ordinal": 10,
+                  "path": [],
+                  "source": [
+                    104,
+                    112
+                  ]
+                },
+                {
+                  "equality_id": 11,
+                  "operand": null,
+                  "ordinal": 11,
+                  "path": [],
+                  "source": [
+                    104,
+                    112
+                  ]
+                },
+                {
+                  "equality_id": 12,
+                  "operand": null,
+                  "ordinal": 12,
+                  "path": [],
+                  "source": [
+                    91,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 14,
+                  "operand": null,
+                  "ordinal": 14,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 14,
+                  "operand": null,
+                  "ordinal": 14,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    154,
+                    159
+                  ]
+                }
+              ],
+              "chosen": [
+                82,
+                89
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": 16,
+              "event": "select",
+              "first_operand": [
+                82,
+                89
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 2,
+                  "operand": null,
+                  "ordinal": 2,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 2,
+                  "operand": null,
+                  "ordinal": 2,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    40,
+                    42
+                  ]
+                },
+                {
+                  "equality_id": 10,
+                  "operand": null,
+                  "ordinal": 10,
+                  "path": [],
+                  "source": [
+                    104,
+                    112
+                  ]
+                },
+                {
+                  "equality_id": 11,
+                  "operand": null,
+                  "ordinal": 11,
+                  "path": [],
+                  "source": [
+                    104,
+                    112
+                  ]
+                },
+                {
+                  "equality_id": 12,
+                  "operand": null,
+                  "ordinal": 12,
+                  "path": [],
+                  "source": [
+                    91,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 14,
+                  "operand": null,
+                  "ordinal": 14,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 14,
+                  "operand": null,
+                  "ordinal": 14,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    154,
+                    159
+                  ]
+                }
+              ],
+              "chosen": [
+                82,
+                89
+              ],
+              "component": 3,
+              "current_concrete": null,
+              "epoch": null,
+              "event": "select",
+              "first_operand": [
+                82,
+                89
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": null,
+              "witness_provenance": "literal_fallback"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 20,
+                  "operand": null,
+                  "ordinal": 20,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 20,
+                  "operand": null,
+                  "ordinal": 20,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 26,
+                  "operand": null,
+                  "ordinal": 26,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                },
+                {
+                  "equality_id": 28,
+                  "operand": null,
+                  "ordinal": 28,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                },
+                {
+                  "equality_id": 28,
+                  "operand": null,
+                  "ordinal": 28,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 29,
+                  "operand": null,
+                  "ordinal": 29,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                }
+              ],
+              "chosen": [
+                82,
+                89
+              ],
+              "component": 7,
+              "current_concrete": null,
+              "epoch": 32,
+              "event": "select",
+              "first_operand": [
+                82,
+                89
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 26,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 36,
+                  "operand": null,
+                  "ordinal": 36,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 36,
+                  "operand": null,
+                  "ordinal": 36,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                },
+                {
+                  "equality_id": 44,
+                  "operand": null,
+                  "ordinal": 44,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                },
+                {
+                  "equality_id": 44,
+                  "operand": null,
+                  "ordinal": 44,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 45,
+                  "operand": null,
+                  "ordinal": 45,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                }
+              ],
+              "chosen": [
+                82,
+                89
+              ],
+              "component": 8,
+              "current_concrete": null,
+              "epoch": 48,
+              "event": "select",
+              "first_operand": [
+                82,
+                89
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 42,
+              "witness_provenance": "published_origin_fact"
+            },
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 52,
+                  "operand": null,
+                  "ordinal": 52,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 52,
+                  "operand": null,
+                  "ordinal": 52,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    52,
+                    54
+                  ]
+                },
+                {
+                  "equality_id": 56,
+                  "operand": [
+                    82,
+                    89
+                  ],
+                  "ordinal": 56,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 57,
+                  "operand": [
+                    82,
+                    89
+                  ],
+                  "ordinal": 57,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 60,
+                  "operand": null,
+                  "ordinal": 60,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                },
+                {
+                  "equality_id": 62,
+                  "operand": null,
+                  "ordinal": 62,
+                  "path": [],
+                  "source": [
+                    82,
+                    89
+                  ]
+                },
+                {
+                  "equality_id": 62,
+                  "operand": null,
+                  "ordinal": 62,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                },
+                {
+                  "equality_id": 63,
+                  "operand": null,
+                  "ordinal": 63,
+                  "path": [],
+                  "source": [
+                    118,
+                    125
+                  ]
+                }
+              ],
+              "chosen": [
+                82,
+                89
+              ],
+              "component": 8,
+              "current_concrete": null,
+              "epoch": 66,
+              "event": "select",
+              "first_operand": [
+                82,
+                89
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 56,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": [
+                143,
+                147
+              ],
+              "equality_id": 31,
+              "operand": null,
+              "ordinal": 31,
+              "owner_if": [
+                0,
+                34
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                143,
+                147
+              ],
+              "equality_id": 47,
+              "operand": null,
+              "ordinal": 47,
+              "owner_if": [
+                0,
+                34
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                143,
+                147
+              ],
+              "equality_id": 65,
+              "operand": null,
+              "ordinal": 65,
+              "owner_if": [
+                0,
+                34
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 904,
+      "source_sha256": "7881ed06779944cd08642b7af7991ab04acfb0bed48169c6ef80aead3cd43ff0",
+      "changed": [
+        {
+          "primary": [
+            108,
+            113
+          ],
+          "main_relation": [
+            80,
+            82
+          ],
+          "candidate_relation": [
+            74,
+            79
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    25,
+                    27
+                  ]
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    25,
+                    27
+                  ]
+                },
+                {
+                  "equality_id": 46,
+                  "operand": [
+                    56,
+                    61
+                  ],
+                  "ordinal": 46,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 47,
+                  "operand": [
+                    56,
+                    61
+                  ],
+                  "ordinal": 47,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [],
+                  "source": [
+                    56,
+                    61
+                  ]
+                },
+                {
+                  "equality_id": 48,
+                  "operand": null,
+                  "ordinal": 48,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    62,
+                    64
+                  ]
+                },
+                {
+                  "equality_id": 50,
+                  "operand": [
+                    74,
+                    79
+                  ],
+                  "ordinal": 50,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 51,
+                  "operand": [
+                    74,
+                    79
+                  ],
+                  "ordinal": 51,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 52,
+                  "operand": null,
+                  "ordinal": 52,
+                  "path": [],
+                  "source": [
+                    74,
+                    79
+                  ]
+                },
+                {
+                  "equality_id": 55,
+                  "operand": null,
+                  "ordinal": 55,
+                  "path": [],
+                  "source": [
+                    74,
+                    79
+                  ]
+                }
+              ],
+              "chosen": [
+                74,
+                79
+              ],
+              "component": 0,
+              "current_concrete": null,
+              "epoch": 57,
+              "event": "select",
+              "first_operand": [
+                74,
+                79
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 50,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 8,
+              "operand": null,
+              "ordinal": 8,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [
+                0
+              ],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": null,
+              "path": [],
+              "source": [
+                80,
+                82
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                80,
+                82
+              ],
+              "equality_id": 52,
+              "operand": null,
+              "ordinal": 52,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                80,
+                82
+              ],
+              "equality_id": 52,
+              "operand": null,
+              "ordinal": 52,
+              "owner_if": null,
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 927,
+      "source_sha256": "fd719d7c58f923690e0ccb62d36341f6d8b1208295b95667a02bf7f723ea7e3d",
+      "changed": [
+        {
+          "primary": [
+            195,
+            200
+          ],
+          "main_relation": [
+            134,
+            139
+          ],
+          "candidate_relation": [
+            109,
+            117
+          ],
+          "selects": [
+            {
+              "candidate_facts": [
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    53,
+                    55
+                  ]
+                },
+                {
+                  "equality_id": 42,
+                  "operand": null,
+                  "ordinal": 42,
+                  "path": [
+                    0
+                  ],
+                  "source": [
+                    53,
+                    55
+                  ]
+                },
+                {
+                  "equality_id": 47,
+                  "operand": [
+                    109,
+                    117
+                  ],
+                  "ordinal": 47,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 48,
+                  "operand": [
+                    109,
+                    117
+                  ],
+                  "ordinal": 48,
+                  "path": [],
+                  "source": null
+                },
+                {
+                  "equality_id": 51,
+                  "operand": null,
+                  "ordinal": 51,
+                  "path": [],
+                  "source": [
+                    109,
+                    117
+                  ]
+                },
+                {
+                  "equality_id": 56,
+                  "operand": null,
+                  "ordinal": 56,
+                  "path": [],
+                  "source": [
+                    109,
+                    117
+                  ]
+                }
+              ],
+              "chosen": [
+                109,
+                117
+              ],
+              "component": 6,
+              "current_concrete": null,
+              "epoch": 57,
+              "event": "select",
+              "first_operand": [
+                109,
+                117
+              ],
+              "path": [],
+              "schema": "c2-origin-jsonl-v2",
+              "witness_equality_id": 47,
+              "witness_provenance": "published_origin_fact"
+            }
+          ],
+          "main_site_facts": [
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                134,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                134,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                134,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                134,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                134,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [
+                0
+              ],
+              "source": [
+                134,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": null,
+              "equality_id": 28,
+              "operand": null,
+              "ordinal": 28,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": [
+                134,
+                139
+              ],
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                134,
+                139
+              ],
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                134,
+                139
+              ],
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                134,
+                139
+              ],
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                134,
+                139
+              ],
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            },
+            {
+              "array": null,
+              "concrete": [
+                134,
+                139
+              ],
+              "equality_id": 50,
+              "operand": null,
+              "ordinal": 50,
+              "owner_if": [
+                0,
+                28
+              ],
+              "path": [],
+              "source": null,
+              "variant": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
