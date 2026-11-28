@@ -23358,6 +23358,51 @@ mod quota_tests {
     }
 
     #[test]
+    fn c2_flattened_union_resolves_array_element_after_rejected_leaf() {
+        let prefix = "fn Main(){var q=[];var r=[];var s=[];let a0=[(if true then q[0] else (if true then [q,r] else s[0])),r];r=[[1]];";
+        for (tail, expected) in [
+            ("}", vec![("NX-E1303", (83, 88))]),
+            ("s=[r[0]];}", vec![("NX-E1303", (83, 88))]),
+            (
+                "s=[true];}",
+                vec![("NX-E1303", (83, 88)), ("NX-E0102", (115, 119))],
+            ),
+        ] {
+            let source = format!("{prefix}{tail}");
+            let ast = parse::parse_new_profile("union.n", &source).unwrap();
+            let resolved = names::resolve_with_option("union.n", &source, &ast, true).unwrap();
+            let report = check_with_partial_limit("union.n", &source, &ast, &resolved, 1_000_000);
+            let observed: Vec<_> = report
+                .errors
+                .iter()
+                .map(|error| {
+                    (
+                        error.code.as_str(),
+                        error.primary_span.as_ref().map(span_key),
+                    )
+                })
+                .collect();
+            let expected: Vec<_> = expected
+                .into_iter()
+                .map(|(code, primary)| (code, Some(primary)))
+                .collect();
+            assert_eq!(observed, expected, "{source}");
+            if tail == "s=[true];}" {
+                let mismatch = &report.errors[1];
+                assert_eq!(mismatch.subcause.as_deref(), Some("type_mismatch"));
+                assert_eq!(
+                    mismatch.data.get("expected_type"),
+                    Some(&DataValue::String("Array<I64>".into()))
+                );
+                assert_eq!(
+                    mismatch.data.get("found_type"),
+                    Some(&DataValue::String("Bool".into()))
+                );
+            }
+        }
+    }
+
+    #[test]
     fn c2_unresolved_array_binding_keeps_concrete_leaf_witness() {
         let cases = [
             (
