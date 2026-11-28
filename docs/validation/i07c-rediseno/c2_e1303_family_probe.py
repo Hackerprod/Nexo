@@ -18,6 +18,14 @@ def read(path):
         return json.load(data)
 
 
+def published_sha(path):
+    payload = path.read_bytes()
+    if path.suffix != ".gz":
+        # Git stores the text JSON as LF even on Windows with autocrlf.
+        payload = payload.replace(b"\r\n", b"\n")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def contains(outer, inner):
     return outer[0] <= inner[0] and inner[1] <= outer[1]
 
@@ -92,8 +100,8 @@ def main():
             members[row_id] = witness
     ids = sorted(members)
     report = {"schema": "i07c-c2-e1303-family-probe-v1",
-              "iteration_sha256": hashlib.sha256(args.iteration.read_bytes()).hexdigest(),
-              "trace_sha256": hashlib.sha256(args.trace.read_bytes()).hexdigest(),
+              "iteration_sha256": published_sha(args.iteration),
+              "trace_sha256": published_sha(args.trace),
               "members_sha256": hashlib.sha256("\n".join(ids).encode()).hexdigest(),
               "members": members, "unresolved": sorted(unresolved)}
     args.output.write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
