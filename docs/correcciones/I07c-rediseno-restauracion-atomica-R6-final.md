@@ -56,8 +56,14 @@ cuatro workers de cargo y perfil nextest `default`, pasó fmt, Clippy
 `-D warnings`, selección, 2.227/2.227 pruebas debug, 2.229/2.229 release,
 y `option_match126`/`result_match126` 5/5 a 65 KiB. El script coincide por
 SHA con el blob de `main`; `c2-min-validate-v15f.json` y su log comprimido
-versionado fijan la evidencia. La medición `/MAP` y el diferencial completo
-son puertas separadas aún en ejecución.
+versionado fijan la evidencia. El diferencial completo C1→C2 mínimo sobre
+20 corpus y 151.188 filas terminó con cero fallos en ambos commits y mapas de
+clases idénticos por fila: 62.755 OK, 71.753 U, 16.678 C y dos H históricos.
+`c2-min-cross-c1-v15f.json` y `c2-min-cross-c2-v15f.json` fijan los 151.188
+resultados y sus hashes en R9. El runner de cuatro trabajadores usa el
+clasificador congelado; su prueba de equivalencia de 200 filas con el runner
+secuencial está en `c2-min-parallel-equivalence-v15f.json` y no sustituye la
+ejecución íntegra. La medición `/MAP` y los fuzz grandes siguen pendientes.
 
 La lista de verificación para C3 conserva las cinco familias de los 62 defectos
 D12 de la rama anterior. `c2-min-d12-reductions-v15f.json` guarda un testigo

@@ -574,6 +574,21 @@ assert iteration_min["complete"] and len(iteration_min["rows"]) == 120
 assert iteration_min["members"] == members_min["members"] == []
 assert minimum["historical_members"] == 0
 assert members_min["iteration_sha256"] == minimum["report_sha256"]["c2-min-iteration-v15f.json"]
+cross_c1 = data("c2-min-cross-c1-v15f.json")
+cross_c2 = data("c2-min-cross-c2-v15f.json")
+for name, cross, commit in (("C1", cross_c1, "C1"), ("C2", cross_c2, "C2")):
+    assert cross["complete"] and cross["commit"] == commit and not cross["failures"], name
+    assert len(cross["corpora"]) == minimum["cross_corpora"] == 20
+    assert len(cross["class_by_row"]) == minimum["cross_rows"] == 151188
+    assert sum(item["rows"] for item in cross["corpora"].values()) == 151188
+    assert dict(Counter(cross["class_by_row"].values())) == minimum["cross_classes"]
+    assert cross["main_sha256"] == minimum["main_release_sha256"]
+    assert cross["classifier_sha256"] == gates["frozen_v11_sha256"][
+        "docs/validation/i07c-rediseno/candidate_gate.py"]
+    assert cross["runner_sha256"] == hashlib.sha256((HERE / "candidate_gate_parallel.py").read_bytes()).hexdigest()
+assert cross_c2["candidate_sha256"] == minimum["candidate_release_sha256"]
+assert cross_c1["class_by_row"] == cross_c2["class_by_row"]
+assert minimum["cross_class_by_row_equal_C1_C2"]
 validate_min = data("c2-min-validate-v15f.json")
 assert validate_min["code_commit"] == minimum_commit and validate_min["clean_clone"]
 assert validate_min["tree"] == minimum["tree"] and validate_min["types_blob"] == minimum["types_blob"]
