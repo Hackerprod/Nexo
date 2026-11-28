@@ -1,0 +1,2018 @@
+{
+  "schema": "i07c-c2-commit-bisect-v1",
+  "base": "af19a34",
+  "head": "d47a46f",
+  "source_commit_count": 61,
+  "frozen_fuzz_sha256": "68ad03f4a84a5752199af8013df471ffdb51dcf6a10b33df92f878431cef7842",
+  "frozen_census_sha256": "6cdf7aa4017b13a75b1be3fba68d34267c846e8ad2900f80b418906afb2ef4e8",
+  "rows": {
+    "fuzz:158": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:177": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": null,
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "improvement"
+    },
+    "fuzz:212": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": null,
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "improvement"
+    },
+    "fuzz:283": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:306": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "complete_defect"
+    },
+    "fuzz:319": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:374": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "improvement"
+    },
+    "fuzz:375": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:443": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:485": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "improvement"
+    },
+    "fuzz:514": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:520": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:539": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": null,
+      "first_final_output": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "final_status": "improvement"
+    },
+    "fuzz:561": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:578": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:598": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": null,
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "improvement"
+    },
+    "fuzz:709": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": null,
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "improvement"
+    },
+    "fuzz:830": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:842": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "complete_defect"
+    },
+    "fuzz:950": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "final_status": "improvement"
+    },
+    "fuzz:1031": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": null,
+      "first_final_output": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "final_status": "improvement"
+    },
+    "fuzz:1046": {
+      "first_difference": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
+      "first_defect": null,
+      "first_final_output": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
+      "final_status": "improvement"
+    },
+    "fuzz:1088": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:1124": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:1365": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:1705": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:1767": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:1798": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "conserve_main"
+    },
+    "fuzz:1990": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2017": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2144": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2156": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:2432": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2472": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2474": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "final_status": "conserve_main"
+    },
+    "fuzz:2487": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:2488": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2674": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2742": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2850": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "final_status": "conserve_main"
+    },
+    "fuzz:2910": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:2920": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:2921": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3012": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "da8451c5c6bddb3af11a560438c5476fd6e0a221",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3200": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3269": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3338": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3368": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "first_final_output": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3442": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3467": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3489": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3535": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "first_final_output": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3680": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3709": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3731": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3740": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3743": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3767": {
+      "first_difference": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "first_defect": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "first_final_output": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3794": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3800": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:3838": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:3943": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4080": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "conserve_main"
+    },
+    "fuzz:4117": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "conserve_main"
+    },
+    "fuzz:4124": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4149": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4234": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4316": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4378": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4749": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4969": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_final_output": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "final_status": "complete_defect"
+    },
+    "fuzz:4992": {
+      "first_difference": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_defect": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "first_final_output": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "final_status": "complete_defect"
+    },
+    "historical:b-projections-2026112401:233": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:280": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:550": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:560": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:1036": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:1124": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:1183": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:1196": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:1390": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:1657": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:1995": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2095": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2098": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2420": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2475": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2616": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2883": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2919": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112401:2977": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:241": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:439": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:468": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:472": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:477": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:620": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:677": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:738": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:757": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:761": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:820": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:838": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:953": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:1266": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:1584": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:1622": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:1763": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:1871": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2072": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2138": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2150": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2201": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2249": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2257": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2271": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2329": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2340": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2343": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2398": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2551": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2644": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2675": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-t5-2026112402:2757": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:72": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:94": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:153": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:239": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:273": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:548": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:678": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:868": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:988": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:1286": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:1451": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:1916": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:1952": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:1963": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:2034": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:2092": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:2532": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:2770": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:2811": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b-projections-2026112403:2918": {
+      "first_difference": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:921": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:8216": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:11189": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:11474": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:13247": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:13626": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:15115": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:15304": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:18686": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1:21363": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2:176": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2:2858": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2:8742": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2:9591": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2:15473": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2@f0-0003-b-v1:176": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2@f0-0003-b-v1:2858": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2@f0-0003-b-v1:7609": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2@f0-0003-b-v1:8742": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2@f0-0003-b-v1:9591": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2@f0-0003-b-v1:15473": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b:2709": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b:3042": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:b:3122": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s7021993:278": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s7021993:2391": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s7021993:3267": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s7021993:4268": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s4417061:397": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s4417061:2070": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s4417061:2565": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s9908255:483": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s9908255:1013": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:s9908255:1955": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1-nueva:631": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1-nueva:1530": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1-nueva:4486": {
+      "first_difference": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1-nueva:7624": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1-nueva2:3259": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1-nueva2:4479": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c1-nueva2:5438": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2-nueva2:1737": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2-nueva2:3112": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2-nueva2@f0-0003-b-v1:469": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2-nueva2@f0-0003-b-v1:1737": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2-nueva2@f0-0003-b-v1:1954": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2-nueva2@f0-0003-b-v1:2536": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    },
+    "historical:c2-nueva2@f0-0003-b-v1:3112": {
+      "first_difference": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "first_defect": null,
+      "first_final_output": null,
+      "final_status": null
+    }
+  },
+  "commits": [
+    {
+      "commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
+      "ordinal": 1,
+      "elapsed_seconds": 2.63,
+      "counts": {
+        "first_difference": 1,
+        "first_defect": 0,
+        "first_final_output": 1,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "    Finished `release` profile [optimized] target(s) in 0.01s\n"
+    },
+    {
+      "commit": "4e63e33ae9e32f90474bf96a4797a2856e25380e",
+      "ordinal": 2,
+      "elapsed_seconds": 35.71,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.88s\n"
+    },
+    {
+      "commit": "70bae62be37b93da538f566c04aedac809a66826",
+      "ordinal": 3,
+      "elapsed_seconds": 31.53,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 28.60s\n"
+    },
+    {
+      "commit": "74b788f9bfbc54737e0db683b55ad5df537c7e52",
+      "ordinal": 4,
+      "elapsed_seconds": 40.46,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 37.58s\n"
+    },
+    {
+      "commit": "859a4a92b81b1259addeefb8c020ced08e7e74c4",
+      "ordinal": 5,
+      "elapsed_seconds": 34.48,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.66s\n"
+    },
+    {
+      "commit": "c0337f7b0c69559e31aa11019d29d78486a7d750",
+      "ordinal": 6,
+      "elapsed_seconds": 35.45,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.74s\n"
+    },
+    {
+      "commit": "a64cd874ae7852e4075825ee16c26392764d0285",
+      "ordinal": 7,
+      "elapsed_seconds": 40.14,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 37.48s\n"
+    },
+    {
+      "commit": "e1a97575d37a2e2d1bde9a1db4a718ca5a50d715",
+      "ordinal": 8,
+      "elapsed_seconds": 39.9,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 37.22s\n"
+    },
+    {
+      "commit": "d15f3c51c6dbb380942c8b99f7436e82926028ef",
+      "ordinal": 9,
+      "elapsed_seconds": 35.76,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.86s\n"
+    },
+    {
+      "commit": "e401a9eb60ad388d2bf052fb9af7663c453e8995",
+      "ordinal": 10,
+      "elapsed_seconds": 35.24,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 0,
+        "d12_improvements": 1,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.22s\n"
+    },
+    {
+      "commit": "2841cc68a15ef7eead08958a7ac84fcec9dbabbb",
+      "ordinal": 11,
+      "elapsed_seconds": 47.47,
+      "counts": {
+        "first_difference": 51,
+        "first_defect": 41,
+        "first_final_output": 22,
+        "d12_defects": 41,
+        "d12_improvements": 11,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 41.00s\n"
+    },
+    {
+      "commit": "04d260f80535daee3adda2f8997d90ddf6ff7bd3",
+      "ordinal": 12,
+      "elapsed_seconds": 39.47,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 41,
+        "d12_improvements": 11,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 36.68s\n"
+    },
+    {
+      "commit": "5b3ba9efbb1cdf299943beae0f1136e05a0f34a1",
+      "ordinal": 13,
+      "elapsed_seconds": 31.13,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 41,
+        "d12_improvements": 11,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 28.37s\n"
+    },
+    {
+      "commit": "e2d638fed141282b99e09a8e35596b360ababa9f",
+      "ordinal": 14,
+      "elapsed_seconds": 31.61,
+      "counts": {
+        "first_difference": 1,
+        "first_defect": 3,
+        "first_final_output": 7,
+        "d12_defects": 43,
+        "d12_improvements": 9,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 29.06s\n"
+    },
+    {
+      "commit": "3cc4c516e077c1772cf4a8a6fb0ee03f282b2763",
+      "ordinal": 15,
+      "elapsed_seconds": 37.14,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 16,
+        "d12_defects": 41,
+        "d12_improvements": 11,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 34.41s\n"
+    },
+    {
+      "commit": "50043b4fe5b37df8b441dd1feb337092dc5f0a40",
+      "ordinal": 16,
+      "elapsed_seconds": 25.79,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 41,
+        "d12_improvements": 11,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 22.90s\n"
+    },
+    {
+      "commit": "dd4f76ebb0bb771930489ae76c9310c35d3f5bf7",
+      "ordinal": 17,
+      "elapsed_seconds": 32.62,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 41,
+        "d12_improvements": 11,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 29.66s\n"
+    },
+    {
+      "commit": "184f2d5568fe52badbec20f8a9a2841566999931",
+      "ordinal": 18,
+      "elapsed_seconds": 34.34,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 41,
+        "d12_improvements": 11,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.16s\n"
+    },
+    {
+      "commit": "000fdedabb6a1f0f0fe5f671f3ae6fa4a66ca58a",
+      "ordinal": 19,
+      "elapsed_seconds": 37.75,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 40,
+        "d12_improvements": 12,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.65s\n"
+    },
+    {
+      "commit": "be96e08f1a18fa92e296fe89d1dc78dfd805a55f",
+      "ordinal": 20,
+      "elapsed_seconds": 30.42,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 40,
+        "d12_improvements": 12,
+        "historical_differences": 0
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 27.60s\n"
+    },
+    {
+      "commit": "b0358fa42f1a9b41d9d0670b3524d791d4d89b54",
+      "ordinal": 21,
+      "elapsed_seconds": 34.3,
+      "counts": {
+        "first_difference": 53,
+        "first_defect": 1,
+        "first_final_output": 4,
+        "d12_defects": 41,
+        "d12_improvements": 12,
+        "historical_differences": 52
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.40s\n"
+    },
+    {
+      "commit": "f5b12b13b9f634fb7423b63e6eed980cc31e9932",
+      "ordinal": 22,
+      "elapsed_seconds": 25.82,
+      "counts": {
+        "first_difference": 40,
+        "first_defect": 20,
+        "first_final_output": 21,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 74
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 23.00s\n"
+    },
+    {
+      "commit": "bd6170e5e5b84bfdf0034659a5a526efe120add7",
+      "ordinal": 23,
+      "elapsed_seconds": 34.06,
+      "counts": {
+        "first_difference": 46,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.28s\n"
+    },
+    {
+      "commit": "e3302201061a0372e43b2dc253b63fde7b231676",
+      "ordinal": 24,
+      "elapsed_seconds": 35.72,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.73s\n"
+    },
+    {
+      "commit": "2457504029d1be1ba593d0a43b27c80b387a075b",
+      "ordinal": 25,
+      "elapsed_seconds": 34.63,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.01s\n"
+    },
+    {
+      "commit": "65176560cdbfad56a52796d0b44b4436dbb28718",
+      "ordinal": 26,
+      "elapsed_seconds": 32.08,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 29.37s\n"
+    },
+    {
+      "commit": "3946a0e372e95899483b721155c8f9cd9e52e811",
+      "ordinal": 27,
+      "elapsed_seconds": 34.51,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.68s\n"
+    },
+    {
+      "commit": "55dd8084dcdc3d25ef17885669645c9368d551d0",
+      "ordinal": 28,
+      "elapsed_seconds": 32.21,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 29.60s\n"
+    },
+    {
+      "commit": "29e60275f9a862a435150426c35b3aaed1e3b347",
+      "ordinal": 29,
+      "elapsed_seconds": 41.86,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 39.03s\n"
+    },
+    {
+      "commit": "11c681da93fb586bba5f6a12315fc801841c3490",
+      "ordinal": 30,
+      "elapsed_seconds": 35.09,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.17s\n"
+    },
+    {
+      "commit": "fa4348005a45155e6ad09a5008a049dbd0ab6201",
+      "ordinal": 31,
+      "elapsed_seconds": 33.9,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.02s\n"
+    },
+    {
+      "commit": "6e15d1a23d724a12db042156475ba77ba42462c8",
+      "ordinal": 32,
+      "elapsed_seconds": 34.4,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.46s\n"
+    },
+    {
+      "commit": "0403b318e24b7c34f468ea6277714bb3dc000186",
+      "ordinal": 33,
+      "elapsed_seconds": 34.52,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 120
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 31.27s\n"
+    },
+    {
+      "commit": "960df52ee36a0d6f30fcf36a72b15d40a2dec9be",
+      "ordinal": 34,
+      "elapsed_seconds": 32.94,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 68
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 27.84s\n"
+    },
+    {
+      "commit": "e3e1c0a9581eae7209a94571cb39ba64913b2054",
+      "ordinal": 35,
+      "elapsed_seconds": 26.42,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 68
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 23.72s\n"
+    },
+    {
+      "commit": "9d39ef4f35ffb1df5f4eff2604549db59c60f93f",
+      "ordinal": 36,
+      "elapsed_seconds": 30.91,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 68
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 28.12s\n"
+    },
+    {
+      "commit": "7d0ebd523679c8788ca341a88d7c09a2f8c627c0",
+      "ordinal": 37,
+      "elapsed_seconds": 31.17,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 68
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 28.36s\n"
+    },
+    {
+      "commit": "c7b849c3c23fcef5fc676c01bb727946d8418f36",
+      "ordinal": 38,
+      "elapsed_seconds": 36.12,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 68
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 33.18s\n"
+    },
+    {
+      "commit": "0c6c34574f973a9415e39dfdfb1c0d64c01d7ba7",
+      "ordinal": 39,
+      "elapsed_seconds": 35.34,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 66
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.58s\n"
+    },
+    {
+      "commit": "c0de534159b2fc1b2c69376fddcb39ee449342a5",
+      "ordinal": 40,
+      "elapsed_seconds": 35.27,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.44s\n"
+    },
+    {
+      "commit": "008aaf6565789befacb481483622c0377e15d14a",
+      "ordinal": 41,
+      "elapsed_seconds": 41.2,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 37.86s\n"
+    },
+    {
+      "commit": "bec0664ee543af367deb19d662b151e0b92d8978",
+      "ordinal": 42,
+      "elapsed_seconds": 26.86,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 24.17s\n"
+    },
+    {
+      "commit": "2b2455fdf1c3362620100506682c6eea3825aa12",
+      "ordinal": 43,
+      "elapsed_seconds": 6.36,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 3.57s\n"
+    },
+    {
+      "commit": "9f07edea05e7c8308d946a6eca45077298cd59da",
+      "ordinal": 44,
+      "elapsed_seconds": 6.4,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 3.58s\n"
+    },
+    {
+      "commit": "c809254cbf996ccced91f442205a608b0faaed04",
+      "ordinal": 45,
+      "elapsed_seconds": 6.13,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 3.41s\n"
+    },
+    {
+      "commit": "c3665f0b19ca978f7165fc5fe947f7cc1115f14d",
+      "ordinal": 46,
+      "elapsed_seconds": 6.29,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 3.53s\n"
+    },
+    {
+      "commit": "8f9380a56f5ec330acf15ecbb829a2dc96e43291",
+      "ordinal": 47,
+      "elapsed_seconds": 6.35,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 3.55s\n"
+    },
+    {
+      "commit": "99ec5f53617c5ad89f649136bb569408eadaaaa5",
+      "ordinal": 48,
+      "elapsed_seconds": 6.52,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 3.65s\n"
+    },
+    {
+      "commit": "494aabd4e07c62d8494db146723fc63f9815f9cd",
+      "ordinal": 49,
+      "elapsed_seconds": 26.55,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 23.67s\n"
+    },
+    {
+      "commit": "bb024048934efe549eed13b34b8c034a6e4d1344",
+      "ordinal": 50,
+      "elapsed_seconds": 33.35,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 61,
+        "d12_improvements": 11,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 30.28s\n"
+    },
+    {
+      "commit": "69d09c52572ba698c26cac4ffd79f6278bbe39b7",
+      "ordinal": 51,
+      "elapsed_seconds": 27.18,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 24.03s\n"
+    },
+    {
+      "commit": "4c6b389b28d9655037210b9ba2178d6cad14eabb",
+      "ordinal": 52,
+      "elapsed_seconds": 33.08,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 30.38s\n"
+    },
+    {
+      "commit": "33685c6d407944b1589f0dd7e284167a45615cdb",
+      "ordinal": 53,
+      "elapsed_seconds": 30.45,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 27.72s\n"
+    },
+    {
+      "commit": "a7a4d7a92cbe89a6e9706dfeb6984d9dd5c3e379",
+      "ordinal": 54,
+      "elapsed_seconds": 30.38,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 27.70s\n"
+    },
+    {
+      "commit": "229de15786845390b89ff1631dc238c8c06a3b26",
+      "ordinal": 55,
+      "elapsed_seconds": 30.87,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 28.14s\n"
+    },
+    {
+      "commit": "19c69644bfd6573965dcc9fe558eb30bb1a1b0fe",
+      "ordinal": 56,
+      "elapsed_seconds": 30.77,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 27.86s\n"
+    },
+    {
+      "commit": "4952cb4f4d70a6400a46a319fa8830f176934e9b",
+      "ordinal": 57,
+      "elapsed_seconds": 35.05,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 32.27s\n"
+    },
+    {
+      "commit": "da8451c5c6bddb3af11a560438c5476fd6e0a221",
+      "ordinal": 58,
+      "elapsed_seconds": 37.34,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 1,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 34.31s\n"
+    },
+    {
+      "commit": "907fe96127d17f92ad8382c9164a391d04579665",
+      "ordinal": 59,
+      "elapsed_seconds": 34.14,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 30.78s\n"
+    },
+    {
+      "commit": "457111402ab4e66c1474a10bc2afb70b047fb106",
+      "ordinal": 60,
+      "elapsed_seconds": 28.71,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 24.28s\n"
+    },
+    {
+      "commit": "d47a46f146c9368222f0a1547f62cd308b8ddedc",
+      "ordinal": 61,
+      "elapsed_seconds": 33.57,
+      "counts": {
+        "first_difference": 0,
+        "first_defect": 0,
+        "first_final_output": 0,
+        "d12_defects": 62,
+        "d12_improvements": 10,
+        "historical_differences": 64
+      },
+      "build_stderr_tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\a57-bisect)\n    Finished `release` profile [optimized] target(s) in 30.74s\n"
+    }
+  ]
+}
