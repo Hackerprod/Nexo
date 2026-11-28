@@ -1,5 +1,21 @@
 # I07c R6 final v15f — contrato causal y cierre de tipos
 
+## Continuación 54 — D11, censo previo a cualquier nueva mutación
+
+D11 sustituye para las diferencias nuevas el requisito de predicado causal de la continuación 53. Para una fuente con oráculo **completo**, se compara el resultado y la secuencia íntegra de diagnósticos (código, subcausa, primario, tipos y relaciones): solo `candidato == oráculo` con `main != oráculo` es familia `oráculo`. Si `candidato != oráculo`, hay defecto por corregir, aunque un delta local mejore un diagnóstico. Para una fuente sin oráculo completo, D9 exige igualdad con `main`, salvo pertenencia demostrada a una de las familias previamente congeladas. Los miembros congelados son una auditoría de la iteración histórica, no un filtro por corpus, fila, span o nombre para fuentes nuevas. Una discrepancia nueva sin oráculo no se declara familia por semejanza. Los defectos compartidos conocidos y las tres relaciones ambiguas conservan el tratamiento expreso de B r26b; cualquier incompatibilidad entre ese tratamiento y la comparación íntegra se eleva al coordinador antes de cambiarlo.
+
+`c2_d11_census.py` reprodujo el informe inmutable `c2-fuzz-5000-pd6.json` (SHA-256 `68ad03f4a84a5752199af8013df471ffdb51dcf6a10b33df92f878431cef7842`): 5.000 fuentes únicas, 105 diferencias nuevas y únicas. La clasificación usa `i07c_rd_oracle.py` SHA-256 `afc2459da8f539b5958223f6f972e46c4aeef8b6fd266803b7079fbbeb137967`; `d_optional`, `no_fijado`, `unmodeled` o error de derivación impiden llamarlo completo. El resultado por fuente está en `c2-d11-census-5000.json`:
+
+| Partición D11 | Filas | Decisión |
+|---|---:|---|
+| (i) `candidato == oráculo completo`, `main != oráculo` | 0 | Ninguna aceptada; no existe muestra de diez aceptadas que rederivar. |
+| (i) `candidato != oráculo completo` | 81 | Defectos según D11. En 40 el delta local mejora, pero la salida completa sigue discrepando. |
+| (ii) sin oráculo completo y fuera de los 64 miembros congelados | 24 | Deben volver a `main` o recibir una derivación completa antes de declararse. |
+
+En 80/81 fuentes modelables hay al menos un diagnóstico erróneo **compartido** por `main` y candidato, además de la discrepancia candidata con el oráculo; la única excepción es la semilla 3709. Por ejemplo, en la semilla 177 el candidato sustituye correctamente la primera E0102 `[122,124)` por E1303, pero conserva una E0102 posterior `[220,221)` cuya relación es `[153,158)` frente a `[97,102)` en el oráculo. La mejora local no satisface D11. La semilla 561, sin oráculo completo por D opcional, tampoco es aceptable: cambia E0102 a E1303 en `[246,251)` y no coincide con `main`; su obligación no opcional sitúa la E0102 en el `if` completo `[218,251)`. La comprobación de diez derivaciones de la familia `oráculo` queda **NO EVALUADA por cardinalidad cero**, no se sustituye por diez mejoras parciales.
+
+Este censo abre un conflicto de alcance: D11 exige igualdad completa con el oráculo para 81 fuentes, mientras B r26b dejó CE-A y otros defectos compartidos explícitamente fuera de C2. Antes de congelar v15f se debe decidir de forma escrita qué regla prevalece para un defecto compartido en una fuente nueva. Hasta entonces no se reclasifica ninguna de las 105 como aceptada y no se atribuye PASS al solver.
+
 ## Continuación 53 — límite de la sonda variada de 5.000 (sin referencia final)
 
 El binario P-D6 restaurado (`da8451c`, documentado en `40c7d88`) se comparó con `main` en 5.000 fuentes ASCII únicas con el perfil `f0-0003-b-v1`; las salidas debug y release coincidieron. El sondeo report-only dio 4.678 iguales, 217 B, 81 D y 24 A-unmodeled, A=0. Hubo 105 diferencias sin predicado causal: ninguna es exclusivamente de relación, de modo que los doce repros D10 del sondeo de 1.000 permanecen resueltos, pero este barrido amplía el trabajo P-D. `c2-fuzz-5000-pd6.json` guarda fuente, salidas, clase, SHA de binarios y SHA del script; `c2-fuzz-5000-delta-audit.json` guarda los 105 deltas y el SHA del informe de entrada. El auditador es de lectura y no aprueba una familia.
