@@ -1,0 +1,1065 @@
+{
+  "schema": "c2-r25-probes-v1",
+  "rows": {
+    "assignment_concrete": {
+      "source": "fn Main(){let ar=[1];var r=[];let a=[r,[1]];r=[true];}",
+      "sha256": "1eae355354b391cc71ee607f2c6f6caa9ee31f0b34db1ebfff7bfdf93df070fc",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              47,
+              51
+            ],
+            "token": "true",
+            "expected": "I64",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                40,
+                41
+              ],
+              [
+                "found_type",
+                47,
+                51
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              47,
+              51
+            ],
+            "token": "true",
+            "expected": "I64",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                40,
+                41
+              ],
+              [
+                "found_type",
+                47,
+                51
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "literal_first": {
+      "source": "fn Main(){var q=[];let a=[q,[1]];q=[true];}",
+      "sha256": "afa95d57940db6d8d5b4e0b63e7b9b27f2b40e8a3a88c7df685eb26d75122baf",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              36,
+              40
+            ],
+            "token": "true",
+            "expected": "I64",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                29,
+                30
+              ],
+              [
+                "found_type",
+                36,
+                40
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              36,
+              40
+            ],
+            "token": "true",
+            "expected": "I64",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                29,
+                30
+              ],
+              [
+                "found_type",
+                36,
+                40
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "scalar_shape": {
+      "source": "fn Main(){var q=[];let a=[q,1];}",
+      "sha256": "2ee21f6ad09677a701b274ff262dbb07b0b11c02326567d7d5266fb36ce1b155",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              16,
+              18
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              16,
+              18
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          }
+        ]
+      }
+    },
+    "two_ctors_shape": {
+      "source": "fn Main(){var q=[];var r=[];let a=[q,r,1];}",
+      "sha256": "f594d6c9e8100b0c5c993ecd8d8378321fe65e2d88c072fa60611dd896bea118",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              16,
+              18
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              25,
+              27
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              16,
+              18
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              25,
+              27
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          }
+        ]
+      }
+    },
+    "block_if_join": {
+      "source": "fn Main(){let a=(if true then {value: [1];} else {value: [true];});}",
+      "sha256": "36c49b9ca3a9102c2bca7451bf72926926f4b2945e0cad4a9979da63230ea30c",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              57,
+              63
+            ],
+            "token": "[true]",
+            "expected": "Array<I64>",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                38,
+                41
+              ],
+              [
+                "found_type",
+                57,
+                63
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              57,
+              63
+            ],
+            "token": "[true]",
+            "expected": "Array<I64>",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                38,
+                41
+              ],
+              [
+                "found_type",
+                57,
+                63
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "block_if_first": {
+      "source": "fn Main(){var q=[];let a=[(if true then {value: q;} else {value: [1];})];q=[true];}",
+      "sha256": "523236d41cf26a8a55d493ec8a10e2a9383834b6aeedbd4873126255e4b88124",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              76,
+              80
+            ],
+            "token": "true",
+            "expected": "I64",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                65,
+                68
+              ],
+              [
+                "found_type",
+                76,
+                80
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              76,
+              80
+            ],
+            "token": "true",
+            "expected": "I64",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                65,
+                68
+              ],
+              [
+                "found_type",
+                76,
+                80
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "forward_type": {
+      "source": "fn Main(){var r=[true];r=[1];}",
+      "sha256": "9470ecd822c386572b94d9dfcf1a74e30c23d63cba6bdc2c836439b2fb5a489f",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              26,
+              27
+            ],
+            "token": "1",
+            "expected": "Bool",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                16,
+                22
+              ],
+              [
+                "found_type",
+                26,
+                27
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              26,
+              27
+            ],
+            "token": "1",
+            "expected": "Bool",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                16,
+                22
+              ],
+              [
+                "found_type",
+                26,
+                27
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "late_type": {
+      "source": "fn Main(){var r=[];r=[(r==r)==true];r=[1];}",
+      "sha256": "848539d0e4e73791a8f81281bb4f94623dc4992590e94d12590ac1cbc3de3bac",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              39,
+              40
+            ],
+            "token": "1",
+            "expected": "Bool",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                21,
+                35
+              ],
+              [
+                "found_type",
+                39,
+                40
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              39,
+              40
+            ],
+            "token": "1",
+            "expected": "Bool",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                21,
+                35
+              ],
+              [
+                "found_type",
+                39,
+                40
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_assignment_233": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else (if p then r[0] else s)) else (if p then r else s))];r=q;}",
+      "sha256": "8a6a28742d1acd4d1858936ec0cb11ee378c00ee911c49dcf7d7e367c7a91cb0",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              154,
+              155
+            ],
+            "token": "r",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                105,
+                107
+              ],
+              [
+                "found_type",
+                154,
+                155
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              168,
+              169
+            ],
+            "token": "q",
+            "expected": "Array<Array<I64>>",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                105,
+                107
+              ],
+              [
+                "found_type",
+                168,
+                169
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              154,
+              155
+            ],
+            "token": "r",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                81,
+                82
+              ],
+              [
+                "found_type",
+                154,
+                155
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              168,
+              169
+            ],
+            "token": "q",
+            "expected": "Array<Array<I64>>",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                105,
+                107
+              ],
+              [
+                "found_type",
+                168,
+                169
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_origin_1995": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then s[0] else (if p then (if p then q else s) else r[0]));let a1=aar;r=[3];q=ar;}",
+      "sha256": "8bdef64242d09807074f04862393679d0f165cb975f9fda8cb55d1bf0994b4eb",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              130,
+              131
+            ],
+            "token": "s",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                91,
+                95
+              ],
+              [
+                "found_type",
+                130,
+                131
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              159,
+              160
+            ],
+            "token": "3",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                113,
+                131
+              ],
+              [
+                "found_type",
+                159,
+                160
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              130,
+              131
+            ],
+            "token": "s",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                91,
+                95
+              ],
+              [
+                "found_type",
+                130,
+                131
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              159,
+              160
+            ],
+            "token": "3",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                123,
+                124
+              ],
+              [
+                "found_type",
+                159,
+                160
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_prefix_761": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let b1=(s[0]);let a0=[(if p then q[0] else (if p then (if p then s else ar) else (if ar then s[0] else r[0])))];r=[3];q=r;s=[[true]];}",
+      "sha256": "6f9c59d0f367d30977de3bdabd6109933552129b241e464e4150a2203c2763b6",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              170,
+              172
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                170,
+                172
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              178,
+              182
+            ],
+            "token": "s[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                118,
+                122
+              ],
+              [
+                "found_type",
+                178,
+                182
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              205,
+              206
+            ],
+            "token": "r",
+            "expected": "Array<Array<I64>>",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                159
+              ],
+              [
+                "found_type",
+                205,
+                206
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              210,
+              216
+            ],
+            "token": "[true]",
+            "expected": "I64",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                159
+              ],
+              [
+                "found_type",
+                210,
+                216
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              170,
+              172
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                170,
+                172
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              178,
+              182
+            ],
+            "token": "s[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                118,
+                122
+              ],
+              [
+                "found_type",
+                178,
+                182
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              200,
+              201
+            ],
+            "token": "3",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                159
+              ],
+              [
+                "found_type",
+                200,
+                201
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              210,
+              216
+            ],
+            "token": "[true]",
+            "expected": "I64",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                159
+              ],
+              [
+                "found_type",
+                210,
+                216
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_literal_1390": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then r else (if p then ar else aar)) else (if p then (if p then q else ar) else (if p then [q] else true)))];}",
+      "sha256": "07380647804975516f1b2d9eccd8bf481cd259ae994addfc1af1610262c86f82",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              70,
+              72
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              131,
+              134
+            ],
+            "token": "aar",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                123,
+                125
+              ],
+              [
+                "found_type",
+                131,
+                134
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              192,
+              193
+            ],
+            "token": "q",
+            "expected": "I64",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                123,
+                125
+              ],
+              [
+                "found_type",
+                192,
+                193
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              200,
+              204
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                81,
+                82
+              ],
+              [
+                "found_type",
+                200,
+                204
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              70,
+              72
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              131,
+              134
+            ],
+            "token": "aar",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                81,
+                82
+              ],
+              [
+                "found_type",
+                131,
+                134
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              192,
+              193
+            ],
+            "token": "q",
+            "expected": "I64",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                123,
+                125
+              ],
+              [
+                "found_type",
+                192,
+                193
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              200,
+              204
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                81,
+                82
+              ],
+              [
+                "found_type",
+                200,
+                204
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
