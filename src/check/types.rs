@@ -8360,10 +8360,21 @@ impl Checker<'_> {
                                     .projection_sites
                                     .contains(&span_key(&request.left_origin))
                             {
+                                // A deferred read keeps the entry facts of its
+                                // source equality, even if completion has since
+                                // published more origins for this component.
+                                let read_context = self.graph.active_equality.and_then(|active| {
+                                    self.graph
+                                        .equality_records
+                                        .borrow()
+                                        .iter()
+                                        .find(|record| record.id == active)
+                                        .map(|record| record.read_context.clone())
+                                });
                                 let source_origin = self.graph.source_component_origin(
                                     id,
                                     &request.left_origin,
-                                    None,
+                                    read_context.as_deref(),
                                 );
                                 for related in &mut error.related_spans {
                                     if related.role == RelatedRole::ExpectedType {
