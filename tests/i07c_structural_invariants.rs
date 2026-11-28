@@ -165,7 +165,7 @@ fn grouped_operands_keep_one_causal_primary() {
     );
     let text = String::from_utf8_lossy(&status.stdout);
     assert!(
-        text.contains("G3 span_key audit passed: 246 sites"),
+        text.contains("G3 span_key audit passed: 258 sites"),
         "{text}"
     );
     let legacy = Command::new("python")

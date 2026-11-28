@@ -2922,6 +2922,19 @@ impl InferenceGraph {
             .is_some_and(|facts| facts.iter().any(|fact| fact.operand.is_some()))
     }
 
+    fn has_operand_origin_in(&self, component: u64, operand: &Span) -> bool {
+        self.origin_facts
+            .borrow()
+            .get(&component)
+            .is_some_and(|facts| {
+                facts.iter().any(|fact| {
+                    fact.operand.as_ref().is_some_and(|origin| {
+                        operand.start <= origin.start && origin.end <= operand.end
+                    })
+                })
+            })
+    }
+
     fn concrete_from_failed_if(&self, component: u64, origin: &Span) -> bool {
         self.origin_facts
             .borrow()
@@ -8031,6 +8044,11 @@ impl Checker<'_> {
                                     &request.left_origin,
                                     &request.found,
                                 )
+                                && (self.graph.has_operand_origin_in(id, &request.left_origin)
+                                    || self
+                                        .graph
+                                        .projection_sites
+                                        .contains(&span_key(&request.left_origin)))
                             {
                                 let source_origin = self.graph.source_component_origin(
                                     id,
@@ -14294,6 +14312,23 @@ impl Checker<'_> {
         } else {
             got
         };
+        if *next == 0
+            && !self.planning
+            && let Type::Deferred(id) = &got
+        {
+            let root = self.root(*id);
+            let node = &self.graph.type_nodes[&root];
+            if (node.array_child.is_some()
+                || node.variant_children.is_some()
+                || node.concrete.is_some())
+                && !self
+                    .graph
+                    .has_operand_origin_in(*id, &Self::primary_span(item))
+            {
+                self.graph
+                    .record_operand_origin(*id, Self::primary_span(item));
+            }
+        }
         if self
             .graph
             .has(&span_key(item.span()), OccurrenceFlag::PendingDomain)

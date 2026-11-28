@@ -16,6 +16,8 @@ INVENTORY = ROOT / "docs/validation/i07c-rediseno/c0-span-key-usos.json"
 INVENTORY_SHA256 = "01929eeaec2d9d25278b6d408f52dda72dc4f51559ee5faa9186935e17f4c32d"
 C2_INVENTORY = ROOT / "docs/validation/i07c-rediseno/c2-span-key-usos.json"
 C2_INVENTORY_SHA256 = "7c2081374adf2e1a318bb9694dbb70f2a09f2a2499007e354c6b83277ef140c4"
+V15F_INVENTORY = ROOT / "docs/validation/i07c-rediseno/c2-v15f-span-key-usos.json"
+V15F_INVENTORY_SHA256 = "1e86d999de2e3e1993efc7053087db4b8ea1b901a9ed84355b6a2f77606431a5"
 FUNCTION = re.compile(r"^\s*(?:(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?)?fn\s+([A-Za-z_][A-Za-z_0-9]*)")
 DOMAINS = {
     "Completion",
@@ -114,6 +116,35 @@ def audit(root=ROOT):
         expected.extend(additions.get(index, []))
         if index < len(frozen):
             expected.append(frozen[index])
+    v15f_bytes = (root / "docs/validation/i07c-rediseno/c2-v15f-span-key-usos.json").read_bytes()
+    v15f_canonical = v15f_bytes.replace(b"\r\n", b"\n")
+    if hashlib.sha256(v15f_canonical).hexdigest() != V15F_INVENTORY_SHA256:
+        raise SystemExit("v15f span_key classification SHA-256 mismatch")
+    v15f = json.loads(v15f_canonical)
+    if (v15f["base"] != "02de85f" or v15f["archivo"] != inventory["archivo"]
+            or v15f["total"] != len(v15f["usos"])):
+        raise SystemExit("unexpected v15f span_key inventory provenance or total")
+    v15f_counts = {}
+    v15f_additions = {}
+    for row in v15f["usos"]:
+        domain = row["dominio_destino"]
+        v15f_counts[domain] = v15f_counts.get(domain, 0) + 1
+        index = row["after_c2_index"]
+        if (not 0 <= index <= len(expected) or domain not in DOMAINS
+                or not row.get("uso") or not row.get("regla_decision") or not row.get("motivo")):
+            raise SystemExit("invalid v15f span_key classification")
+        v15f_additions.setdefault(index, []).append((
+            v15f["archivo"], row["funcion"], normalized(row["expresion"]),
+            row["ordinal_misma_expresion_en_funcion"]
+        ))
+    if v15f_counts != v15f["por_dominio"]:
+        raise SystemExit(f"v15f span_key domain totals mismatch: {v15f_counts}")
+    prior = expected
+    expected = []
+    for index in range(len(prior) + 1):
+        expected.extend(v15f_additions.get(index, []))
+        if index < len(prior):
+            expected.append(prior[index])
     actual = [("src/check/types.rs", function, expression, ordinal) for function, expression, ordinal, _ in sites(root / "src/check/types.rs")]
     if actual != expected:
         for index, pair in enumerate(zip(expected, actual)):
@@ -122,8 +153,8 @@ def audit(root=ROOT):
         if len(actual) > len(expected):
             raise SystemExit(f"unreviewed or changed span_key at site {len(expected) + 1}: got {actual[len(expected)]!r}")
         raise SystemExit(f"span_key site count changed: expected {len(expected)}, got {len(actual)}")
-    if len(actual) != inventory["total"] + len(c2["usos"]):
-        raise SystemExit("C0+C2 span_key inventory total mismatch")
+    if len(actual) != inventory["total"] + len(c2["usos"]) + len(v15f["usos"]):
+        raise SystemExit("C0+C2+v15f span_key inventory total mismatch")
     return len(actual)
 
 
@@ -136,12 +167,13 @@ def self_test():
         shutil.copy2(Path(__file__), root / "scripts/i07c_c0_span_audit.py")
         shutil.copy2(INVENTORY, root / "docs/validation/i07c-rediseno/c0-span-key-usos.json")
         shutil.copy2(C2_INVENTORY, root / "docs/validation/i07c-rediseno/c2-span-key-usos.json")
+        shutil.copy2(V15F_INVENTORY, root / "docs/validation/i07c-rediseno/c2-v15f-span-key-usos.json")
         inventory_path = root / "docs/validation/i07c-rediseno/c0-span-key-usos.json"
         frozen_inventory = inventory_path.read_bytes()
         source = SOURCE.read_text(encoding="utf-8")
         target = root / "src/check/types.rs"
         target.write_text("\n\n" + source, encoding="utf-8")
-        assert audit(root) == 246, "moving all source lines must preserve the audit"
+        assert audit(root) == 258, "moving all source lines must preserve the audit"
         target.write_text(source + "\nfn planted_unreviewed_span() { let _ = span_key(&Span::default()); }\n", encoding="utf-8")
         try:
             audit(root)
