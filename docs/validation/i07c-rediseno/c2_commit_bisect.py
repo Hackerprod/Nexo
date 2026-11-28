@@ -74,7 +74,7 @@ def main():
         }
     assert len(rows) == 192, len(rows)
     commits = command("git", "log", "--reverse", "--format=%H", args.base + ".." + args.head,
-                      "--", "src", cwd=HERE).stdout.splitlines()
+                      "--", ":/src", cwd=HERE).stdout.splitlines()
     commits.insert(0, command("git", "rev-parse", args.base, cwd=HERE).stdout.strip())
     if args.limit_commits:
         commits = commits[:args.limit_commits]
