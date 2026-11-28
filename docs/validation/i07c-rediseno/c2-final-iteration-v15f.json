@@ -1828,7 +1828,7 @@
   },
   "complete": true,
   "main_sha256": "e05f70f3f2281ea51ed40a40850e1b64636573e419e631066c777dc578ccd3d3",
-  "candidate_sha256": "3687e00a2eb234b56521903056534763acb47dbd33af79824d3207c19287483f",
+  "candidate_sha256": "275343221bb515844bb3d53e1123ad04f510f7590234951f28729c56ffa63f6e",
   "results": {
     "b-projections-2026112401:233": {
       "class": "C",
@@ -40286,7 +40286,7 @@
       "oracle_modeling": []
     }
   },
-  "elapsed_seconds": 3.94,
+  "elapsed_seconds": 3.75,
   "extra_failures": [],
   "failure_counts": {
     "A": 0,

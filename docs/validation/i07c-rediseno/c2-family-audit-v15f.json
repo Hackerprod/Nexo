@@ -1,7 +1,7 @@
 {
   "schema": "i07c-c2-family-check-v1",
-  "iteration_sha256": "b928e5ffa8c87b8dd8d9566b53ec67668636dde1249f88e94c369fdfd3e86290",
-  "trace_sha256": "466e306ca81e0517c521e97ce0a3f764cbf8b6f328d766963af0e736d282740c",
+  "iteration_sha256": "ab55ad52ae08df0c166c70bd389954b3216b8abff38023d762566f28bcc53cfa",
+  "trace_sha256": "6f49e9ac5cd4ed6ca60731d7b7c51adc91eba2ca620863f6216ef4b07f41df63",
   "members": {
     "b-projections-2026112401:280": {
       "family": "outer_first_witness",
