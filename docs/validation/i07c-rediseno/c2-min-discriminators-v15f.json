@@ -3,7 +3,7 @@
   "complete": true,
   "commit": "C2",
   "candidate_sha256": "76c692e53fde9878fe6da5744c60919ae3ec736eac0ed7d9f00ec1d68797e497",
-  "script_sha256": "498e224d0e2d7f6837f5f42a05611720f7319e8bffd0b4b98b996ee2b81fdf7d",
+  "script_sha256": "42f6ecce99f752dd1184019888264c485f5021987a95f80bb70b41b530683b88",
   "cases": {
     "f0-0002-b-v2:resource_without_later_shape": {
       "source_sha256": "731eaf6dcbe7eeb5a8eaca12298b46bfa2a3b681ce6cef51bf01772d71e7225e",

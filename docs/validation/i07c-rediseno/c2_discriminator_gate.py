@@ -148,7 +148,7 @@ def main():
     parser.add_argument("--candidate-exe", type=Path, required=True)
     parser.add_argument("--case", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--commit", choices=("C2", "C3"), default="C3")
+    parser.add_argument("--commit", choices=("C2", "C3"), default="C2")
     args = parser.parse_args()
     report = {"schema": "i07c-c2-discriminators-v2", "complete": True,
               "commit": args.commit,

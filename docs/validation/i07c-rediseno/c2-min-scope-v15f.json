@@ -2,7 +2,7 @@
   "schema": "i07c-c2-min-scope-v1",
   "complete": true,
   "candidate_sha256": "76c692e53fde9878fe6da5744c60919ae3ec736eac0ed7d9f00ec1d68797e497",
-  "discriminator_gate_sha256": "498e224d0e2d7f6837f5f42a05611720f7319e8bffd0b4b98b996ee2b81fdf7d",
+  "discriminator_gate_sha256": "42f6ecce99f752dd1184019888264c485f5021987a95f80bb70b41b530683b88",
   "owned": {
     "RC1_read_context_variable": {
       "source": "fn Main(){var s=[];let a=[s[0],(if true then 1 else true)];s=[1];}",

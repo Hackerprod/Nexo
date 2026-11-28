@@ -29,7 +29,9 @@ no son la puerta ni la referencia activas de C2.
 `c2_discriminator_gate.py --commit C2` ejecuta 34 pares perfil/caso sin fallos
 en la referencia mínima. Los dos casos `deferred_operand_origin_before_assignment`
 y `failed_nested_if_no_retroactive_index` pasan a C3; en dos perfiles y ambos
-verbos son ocho invocaciones. C3 ejecuta los 38 pares completos. Los SHA-256
+verbos son ocho invocaciones. C3 ejecuta los 38 pares completos;
+`c2-min-c3-discriminators-v15f.json` registra las ocho fallas esperadas sobre
+el binario C2 mínimo. Los SHA-256
 del gate y del runner de filas propias están en `r9-commit-gates.json` y los
 comprueba `verify_r9_contract.py`.
 `c2-min-scope-v15f.json` reproduce en `check` y `run` las tres filas cedidas,
