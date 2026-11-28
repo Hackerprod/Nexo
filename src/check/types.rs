@@ -3098,16 +3098,19 @@ impl InferenceGraph {
     ) -> Span {
         // The entry epoch is authoritative for a deferred read. A later
         // completion may supply the type but cannot replace this witness.
-        let facts = read_context
-            .and_then(|context| context.components.get(&component))
-            .map(|entry| entry.origin_facts.clone())
-            .unwrap_or_else(|| {
-                self.origin_facts
-                    .borrow()
-                    .get(&component)
-                    .cloned()
-                    .unwrap_or_default()
-            });
+        let facts = if let Some(context) = read_context {
+            context
+                .components
+                .get(&component)
+                .map(|entry| entry.origin_facts.clone())
+                .unwrap_or_default()
+        } else {
+            self.origin_facts
+                .borrow()
+                .get(&component)
+                .cloned()
+                .unwrap_or_default()
+        };
         let witness = facts
             .iter()
             .filter(|fact| fact.path.is_empty())
@@ -23145,6 +23148,44 @@ mod quota_tests {
             .read_context
             .clone();
         checker.graph.finish_equality(equality, true);
+        checker.graph.record_operand_origin(root, site(11));
+        let operand = Span {
+            file: site(1).file,
+            start: 10,
+            end: 12,
+        };
+        assert_eq!(
+            checker
+                .graph
+                .source_component_origin(root, &operand, Some(&entry)),
+            operand
+        );
+        assert_eq!(
+            checker.graph.source_component_origin(root, &operand, None),
+            site(11)
+        );
+    }
+
+    #[test]
+    fn c2_entry_origin_read_cannot_discover_a_component_added_later() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let equality = checker.graph.begin_equality(Type::I64, Type::Bool, site(3));
+        let entry = checker
+            .graph
+            .equality_records
+            .borrow()
+            .last()
+            .unwrap()
+            .read_context
+            .clone();
+        checker.graph.finish_equality(equality, false);
         checker.graph.record_operand_origin(root, site(11));
         let operand = Span {
             file: site(1).file,
