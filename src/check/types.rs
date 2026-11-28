@@ -23447,6 +23447,38 @@ mod quota_tests {
     }
 
     #[test]
+    fn c2_compatible_later_leaf_resolves_a_second_union() {
+        let prefix = "fn Main(){let aar=[[1]];var q=[];var r=[];var s=[];(if true then q[0] else (if true then (if true then s else aar) else (if true then 1 else r[0])));";
+        for (second_first, expected) in [
+            (
+                "1",
+                vec![("NX-E1303", (134, 135)), ("NX-E1303", (177, 181))],
+            ),
+            ("aar", vec![("NX-E1303", (134, 135))]),
+        ] {
+            let source = format!("{prefix}let a1=(if true then {second_first} else r[0]);}}");
+            let ast = parse::parse_new_profile("union.n", &source).unwrap();
+            let resolved = names::resolve_with_option("union.n", &source, &ast, true).unwrap();
+            let report = check_with_partial_limit("union.n", &source, &ast, &resolved, 1_000_000);
+            let observed: Vec<_> = report
+                .errors
+                .iter()
+                .map(|error| {
+                    (
+                        error.code.as_str(),
+                        error.primary_span.as_ref().map(span_key),
+                    )
+                })
+                .collect();
+            let expected: Vec<_> = expected
+                .into_iter()
+                .map(|(code, primary)| (code, Some(primary)))
+                .collect();
+            assert_eq!(observed, expected, "{source}");
+        }
+    }
+
+    #[test]
     fn c2_nested_later_union_uses_outer_first_continuation_as_witness() {
         let cases = [
             (
