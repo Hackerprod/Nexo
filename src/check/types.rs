@@ -9550,6 +9550,17 @@ impl Checker<'_> {
                 } else {
                     written_origin
                 };
+                #[cfg(feature = "c2-origin-trace")]
+                trace_origin!(serde_json::json!({
+                    "schema":"c2-origin-jsonl-v2", "event":"join_decision",
+                    "equality_id":join.equality.map(|id|id.0),
+                    "left":format!("{left:?}"), "right":format!("{right:?}"),
+                    "origin":span_key(&origin), "found":span_key(&join.found),
+                    "entry_epoch":entry_record.as_ref().map(|record|record.read_context.epoch.0),
+                    "left_paths":self.graph.source_paths(&join.left).into_iter()
+                        .map(|(component, path)| serde_json::json!([component, path]))
+                        .collect::<Vec<_>>(),
+                }));
                 let policy = UnifyPolicy {
                     branch: join.branch,
                     related_expected: join.related_expected,
