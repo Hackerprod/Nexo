@@ -9441,18 +9441,23 @@ impl Checker<'_> {
                 // ADR §4.1.2.1,6: resolving a component later completes the
                 // type at this source occurrence; it never relocates the
                 // expected witness to the later assignment or initializer.
-                let origin = if join.left_origin.start > join.found.start
+                let written_origin = entry_record
+                    .as_ref()
+                    .and_then(|record| record.source.as_ref())
+                    .map(|source| source.left.clone())
+                    .unwrap_or_else(|| join.left_origin.clone());
+                let origin = if written_origin.start > join.found.start
                     && let Type::Deferred(id) = join.left
                 {
                     self.graph.source_component_origin(
                         id,
-                        &join.left_origin,
+                        &written_origin,
                         entry_record
                             .as_ref()
                             .map(|record| record.read_context.as_ref()),
                     )
                 } else {
-                    join.left_origin
+                    written_origin
                 };
                 let policy = UnifyPolicy {
                     branch: join.branch,
