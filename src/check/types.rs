@@ -2906,36 +2906,35 @@ impl InferenceGraph {
             Vec::new()
         };
         if publish {
-            if self.node_journals.is_empty() {
-                if let Some(equality) = self.active_equality {
-                    for key in &journal.order {
-                        let before = journal.before[key].as_ref();
-                        let Some(after) = self.type_nodes.get(key) else {
-                            continue;
-                        };
-                        let concrete = (after.concrete.as_ref().map(|(_, span)| span)
-                            != before
-                                .and_then(|node| node.concrete.as_ref().map(|(_, span)| span)))
-                        .then(|| after.concrete.as_ref().map(|(_, span)| span.clone()))
-                        .flatten();
-                        let array = (after.array_origin
-                            != before.and_then(|node| node.array_origin.clone()))
-                        .then(|| after.array_origin.clone())
-                        .flatten();
-                        let variant = (after.variant_origin
-                            != before.and_then(|node| node.variant_origin.clone()))
-                        .then(|| after.variant_origin.clone())
-                        .flatten();
-                        if concrete.is_some() || array.is_some() || variant.is_some() {
-                            self.origin_facts.entry(*key).or_default().push(OriginFact {
-                                component: *key,
-                                equality,
-                                ordinal: equality.0,
-                                concrete,
-                                array,
-                                variant,
-                            });
-                        }
+            if self.node_journals.is_empty()
+                && let Some(equality) = self.active_equality
+            {
+                for key in &journal.order {
+                    let before = journal.before[key].as_ref();
+                    let Some(after) = self.type_nodes.get(key) else {
+                        continue;
+                    };
+                    let concrete = (after.concrete.as_ref().map(|(_, span)| span)
+                        != before.and_then(|node| node.concrete.as_ref().map(|(_, span)| span)))
+                    .then(|| after.concrete.as_ref().map(|(_, span)| span.clone()))
+                    .flatten();
+                    let array = (after.array_origin
+                        != before.and_then(|node| node.array_origin.clone()))
+                    .then(|| after.array_origin.clone())
+                    .flatten();
+                    let variant = (after.variant_origin
+                        != before.and_then(|node| node.variant_origin.clone()))
+                    .then(|| after.variant_origin.clone())
+                    .flatten();
+                    if concrete.is_some() || array.is_some() || variant.is_some() {
+                        self.origin_facts.entry(*key).or_default().push(OriginFact {
+                            component: *key,
+                            equality,
+                            ordinal: equality.0,
+                            concrete,
+                            array,
+                            variant,
+                        });
                     }
                 }
             }
@@ -3097,10 +3096,10 @@ impl InferenceGraph {
             }
             if let Some(watchers) = self.dependency_watchers.get(&component) {
                 for equality in watchers {
-                    if equalities.insert(*equality) {
-                        if let Some(dependencies) = self.published_dependencies.get(equality) {
-                            pending.extend(dependencies.iter().copied());
-                        }
+                    if equalities.insert(*equality)
+                        && let Some(dependencies) = self.published_dependencies.get(equality)
+                    {
+                        pending.extend(dependencies.iter().copied());
                     }
                 }
             }
@@ -21876,7 +21875,7 @@ mod quota_tests {
             .begin_equality(Type::Deferred(left), Type::I64, site(3));
         checker.graph.type_node_mut(&left).unwrap().concrete = Some((Type::I64, site(3)));
         checker.graph.finish_equality(rejected, false);
-        assert!(checker.graph.origin_facts.get(&left).is_none());
+        assert!(!checker.graph.origin_facts.contains_key(&left));
         let accepted = checker
             .graph
             .begin_equality(Type::Deferred(right), Type::I64, site(4));
@@ -21890,7 +21889,7 @@ mod quota_tests {
         assert_eq!(fact.ordinal, accepted.0);
         assert!(accepted.0 > rejected.0);
         assert_eq!(fact.concrete, Some(site(4)));
-        assert!(checker.graph.origin_facts.get(&left).is_none());
+        assert!(!checker.graph.origin_facts.contains_key(&left));
     }
 
     #[test]
