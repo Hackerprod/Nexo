@@ -23479,6 +23479,50 @@ mod quota_tests {
     }
 
     #[test]
+    fn c2_nested_union_keeps_compatible_leaf_and_independent_errors() {
+        let source = "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then r[0] else (if p then (if p then q else q[0]) else (if p then true else s[0]))),r];let a1=(if q then (if p then s[0] else [q,r]) else (if p then aar else s[0]));}";
+        let ast = parse::parse_new_profile("union.n", source).unwrap();
+        let resolved = names::resolve_with_option("union.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("union.n", source, &ast, &resolved, 1_000_000);
+        let observed: Vec<_> = report
+            .errors
+            .iter()
+            .map(|error| {
+                (
+                    error.code.as_str(),
+                    error.primary_span.as_ref().map(span_key),
+                    error.subcause.as_deref(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            observed,
+            [
+                ("NX-E1303", Some((131, 135)), None),
+                ("NX-E1303", Some((153, 157)), None),
+                ("NX-E0102", Some((185, 186)), Some("type_mismatch")),
+                ("NX-E0102", Some((216, 217)), Some("type_mismatch")),
+            ]
+        );
+        assert!(report.errors.iter().all(|error| error.code != "NX-E0103"));
+        for (error, (expected, found)) in report.errors.iter().zip([
+            ("Array<Array<I64>>", "Array<I64>"),
+            ("Array<Array<I64>>", "Bool"),
+            ("Bool", "Array<Array<I64>>"),
+            ("Array<Array<I64>>", "Array<Array<Array<I64>>>"),
+        ]) {
+            assert_eq!(
+                error.data.get("expected_type"),
+                Some(&DataValue::String(expected.into()))
+            );
+            assert_eq!(
+                error.data.get("found_type"),
+                Some(&DataValue::String(found.into()))
+            );
+        }
+    }
+
+    #[test]
     fn c2_nested_later_union_uses_outer_first_continuation_as_witness() {
         let cases = [
             (
