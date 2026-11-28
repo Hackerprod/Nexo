@@ -1,0 +1,21 @@
+{
+  "schema": "i07c-c2-min-validate-v1",
+  "code_commit": "4116b2ad475c4b86ed7c43f6d90209f5975790b8",
+  "tree": "33fa227598b5d3614b1b268c760b3f5879652f83",
+  "types_blob": "9d7eacd0afd64bdcac2e009d06152828963e8878",
+  "clean_clone": true,
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "cargo_build_jobs": 4,
+  "nextest_test_threads_env": 4,
+  "nextest_profile": "default",
+  "validate_script_sha256": "7a1c7a199e4bcb09356bc6d56df8bb80556a5403f59a57cf502343deded130df",
+  "main_validate_script_sha256": "7a1c7a199e4bcb09356bc6d56df8bb80556a5403f59a57cf502343deded130df",
+  "fmt": "passed",
+  "clippy_deny_warnings": "passed",
+  "nextest_selection": "passed",
+  "debug": {"run": 2227, "passed": 2227, "skipped": 73},
+  "release": {"run": 2229, "passed": 2229, "skipped": 74},
+  "stack65": {"option_match126": "5/5", "result_match126": "5/5"},
+  "log_sha256": "622ff82d083767bf5c864b3690b41420f711a12c7839fd7c1d6630f7ac3b890d",
+  "log_gz_sha256": "15ad0e2446a0483c2e4d92eaa0d8fa8a18305ee000079036674088f710dfbbf7"
+}

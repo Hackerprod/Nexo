@@ -49,6 +49,13 @@ una mejora (`c2-min-d12-short-v15f.json`); no sustituye el sondeo completo.
 El generador de la tanda reproduce 105/105 fuentes con diferencias del sondeo
 congelado D12 a partir de sus semillas, de modo que el nuevo censo usa la misma
 enumeración inicial de 5.000.
+`sh scripts/validate.sh` en clon Git limpio de `4116b2a`, con rustc 1.99.1,
+cuatro workers de cargo y perfil nextest `default`, pasó fmt, Clippy
+`-D warnings`, selección, 2.227/2.227 pruebas debug, 2.229/2.229 release,
+y `option_match126`/`result_match126` 5/5 a 65 KiB. El script coincide por
+SHA con el blob de `main`; `c2-min-validate-v15f.json` y su log comprimido
+versionado fijan la evidencia. La medición `/MAP` y el diferencial completo
+son puertas separadas aún en ejecución.
 
 La lista de verificación para C3 conserva las cinco familias de los 62 defectos
 D12 de la rama anterior. `c2-min-d12-reductions-v15f.json` guarda un testigo
