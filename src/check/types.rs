@@ -9479,6 +9479,25 @@ impl Checker<'_> {
                     .find(|record| record.id == id)
                     .cloned()
             });
+            #[cfg(feature = "c2-origin-trace")]
+            trace_origin!(serde_json::json!({
+                "schema":"c2-origin-jsonl-v2", "event":"join_resolve",
+                "equality_id":join.equality.map(|id|id.0),
+                "record_present":entry_record.is_some(),
+                "left":format!("{:?}",join.left), "right":format!("{:?}",join.right),
+                "left_origin":span_key(&join.left_origin), "found":span_key(&join.found),
+                "constructor":join.constructor,
+                "completion_edges":entry_record.as_ref().map(|record| {
+                    let mut edges:Vec<_>=record.completion.compatible_later_edges.iter().map(|id|id.0).collect();
+                    edges.sort_unstable(); edges
+                }),
+                "entry_components":entry_record.as_ref().map(|record| {
+                    let mut components:Vec<_>=record.read_context.components.iter().map(|(id, entry)| {
+                        serde_json::json!({"id":id,"root":entry.root,"concrete":format!("{:?}",entry.concrete),"array_element":entry.array_element})
+                    }).collect();
+                    components.sort_by_key(|item|item["id"].as_u64()); components
+                }),
+            }));
             // A constructor with no determined element has one causal
             // NX-E0103. Once its element is concrete, independent source
             // operands keep their own NX-E0102/NX-E1303 (§13.9).
