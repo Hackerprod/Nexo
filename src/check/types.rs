@@ -3107,7 +3107,11 @@ impl InferenceGraph {
                     .map(|span| (fact, span))
             })
             .filter(|(_, span)| first_operand.start <= span.start && span.end <= first_operand.end)
-            .min_by_key(|(fact, _)| fact.ordinal);
+            // A literal operand owns its own witness even when a compatible
+            // equality inside an `if` was published earlier. The interior
+            // fact determines a component's type, not the source site of the
+            // enclosing operand (§4.1.2.4, D9).
+            .min_by_key(|(fact, _)| (fact.operand.as_ref() != Some(first_operand), fact.ordinal));
         let chosen = witness
             .map(|(_, span)| span.clone())
             .unwrap_or_else(|| first_operand.clone());
@@ -23691,6 +23695,40 @@ mod quota_tests {
                 "{source}"
             );
         }
+    }
+
+    #[test]
+    fn c2_literal_if_operand_keeps_its_own_witness() {
+        let source = "fn Main(){var s=[];var t=[];var u=[];let a0=[(if true then t[0] else u[1]),(if false then [s] else t)];s=[true];}";
+        let ast = parse::parse_new_profile("origin.n", source).unwrap();
+        let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+        assert_eq!(report.errors.len(), 1, "{:?}", report.errors);
+        let error = &report.errors[0];
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+        assert_eq!(error.primary_span.as_ref().map(span_key), Some((76, 100)));
+        assert_eq!(
+            error.data.get("expected_type"),
+            Some(&DataValue::String("Array<Bool>".into()))
+        );
+        assert_eq!(
+            error.data.get("found_type"),
+            Some(&DataValue::String("Array<Array<Bool>>".into()))
+        );
+        assert_eq!(
+            error
+                .related_spans
+                .iter()
+                .find(|span| span.role == RelatedRole::ExpectedType)
+                .map(|span| span_key(&span.span)),
+            Some((46, 73)),
+        );
+        let positive = "fn Main(){let s=[true];let t=[[true]];let u=[[true],[true]];let a0=[(if true then t[0] else u[1]),(if false then s else t[0])];}";
+        let ast = parse::parse_new_profile("origin.n", positive).unwrap();
+        let resolved = names::resolve_with_option("origin.n", positive, &ast, true).unwrap();
+        let report = check_with_partial_limit("origin.n", positive, &ast, &resolved, 1_000_000);
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
     }
 
     #[test]
