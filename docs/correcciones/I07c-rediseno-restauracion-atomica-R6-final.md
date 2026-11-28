@@ -1,5 +1,19 @@
 # I07c R6 final v15f — contrato causal y cierre de tipos
 
+## Continuación 55 — D12 sustituye D11 para diferencias nuevas
+
+La decisión D12 del coordinador conserva fuera de C2 los defectos compartidos con `main`. Para cada fuente con oráculo completo se comparan multiconjuntos de diagnósticos identificados por `(código, primario, subcausa, relaciones)`; `d(X)=|X Δ oráculo|`, contando multiplicidades. Una diferencia nueva se acepta como familia **mejora respecto del oráculo** solo si `d(candidato)<d(main)` y el candidato no introduce ningún diagnóstico ausente del oráculo que `main` no tuviera ya. El resultado de ejecución debe conservar su clase. Un diagnóstico compartido erróneo puede permanecer y se registra como deuda del producto. Si la distancia no baja estrictamente o aparece un falso positivo nuevo, se corrige el candidato o se conserva `main` mediante una condición estructural de procedencia. Para fuentes sin oráculo completo, toda diferencia nueva fuera de los 64 miembros históricos enumerados debe volver a `main`. Los 64 siguen aceptados por la adjudicación previa; la fila 761 prevalece sobre el oráculo actual por derivación manual de B r26b y exige un `oracle_override` congelado. No se usan identificadores de fila, corpus, spans ni nombres de fuente como predicados para fuentes nuevas.
+
+`c2_d12_census.py` aplica esa regla al informe inmutable `c2-fuzz-5000-pd6.json` de 5.000 fuentes únicas, con el mismo SHA de oráculo de D11. El censo completo, distancias y falsos positivos nuevos por semilla están en `c2-d12-census-5000.json`:
+
+| Partición D12 de las 105 diferencias nuevas | Filas | Decisión |
+|---|---:|---|
+| Oráculo completo, mejora estricta y ningún falso positivo nuevo | 43 | Familia aceptada por D12; D11 las había contado entre las 81 distintas del oráculo completo. |
+| Oráculo completo, falso positivo nuevo | 38 | Defecto del candidato: 30 reducen la distancia pero introducen falso positivo; ocho tampoco la reducen. |
+| Sin oráculo completo, fuera de los 64 miembros históricos | 24 | Conservación de `main` por D9/D12. |
+
+Esta clasificación precede a cualquier nueva mutación del solver. Las 43 aceptaciones no absuelven errores compartidos de otros diagnósticos de esas fuentes. El censo no congela todavía el clasificador final ni constituye una puerta de cierre. La sección D11 siguiente queda como registro histórico de la decisión sustituida.
+
 ## Continuación 54 — D11, censo previo a cualquier nueva mutación
 
 D11 sustituye para las diferencias nuevas el requisito de predicado causal de la continuación 53. Para una fuente con oráculo **completo**, se compara el resultado y la secuencia íntegra de diagnósticos (código, subcausa, primario, tipos y relaciones): solo `candidato == oráculo` con `main != oráculo` es familia `oráculo`. Si `candidato != oráculo`, hay defecto por corregir, aunque un delta local mejore un diagnóstico. Para una fuente sin oráculo completo, D9 exige igualdad con `main`, salvo pertenencia demostrada a una de las familias previamente congeladas. Los miembros congelados son una auditoría de la iteración histórica, no un filtro por corpus, fila, span o nombre para fuentes nuevas. Una discrepancia nueva sin oráculo no se declara familia por semejanza. Los defectos compartidos conocidos y las tres relaciones ambiguas conservan el tratamiento expreso de B r26b; cualquier incompatibilidad entre ese tratamiento y la comparación íntegra se eleva al coordinador antes de cambiarlo.
