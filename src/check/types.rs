@@ -1411,7 +1411,9 @@ struct ArrayFrameState<'a> {
     current_origin: Option<Span>,
     item_type: Option<Type>,
     item_origin: Option<Span>,
-    pending: Vec<(u64, Span)>,
+    // The child index identifies the source operand within this literal.
+    // Reconstructing its site from `items` avoids a second stored origin.
+    pending: Vec<(u64, usize)>,
     diverges: bool,
     invalid: bool,
 }
@@ -14672,7 +14674,7 @@ impl Checker<'_> {
                         false,
                     )?;
                 } else {
-                    if let Some((first, first_origin)) = pending.first() {
+                    if let Some((first, first_index)) = pending.first() {
                         // Deferred siblings are constrained at
                         // the second occurrence, in source order.
                         // Waiting until the array closes would
@@ -14683,7 +14685,7 @@ impl Checker<'_> {
                             visit,
                             Type::Deferred(*first),
                             Type::Deferred(id),
-                            first_origin.clone(),
+                            Self::primary_span(&items[*first_index]),
                             Self::primary_span(item),
                             Self::primary_span(item),
                             false,
@@ -14714,7 +14716,7 @@ impl Checker<'_> {
                         self.graph
                             .record_operand_origin(id, Self::primary_span(item));
                     }
-                    pending.push((id, Self::primary_span(item)));
+                    pending.push((id, *next));
                 }
             }
             return Ok(());
@@ -14722,7 +14724,8 @@ impl Checker<'_> {
         if item_type.is_none() {
             let concrete_origin = Self::primary_span(item);
             let mut first_conflict = false;
-            for (id, source_origin) in pending.iter() {
+            for (id, source_index) in pending.iter() {
+                let source_origin = Self::primary_span(&items[*source_index]);
                 let before_conflict = self.pending_join_count();
                 let projected_reference =
                     self.graph.projection_items.contains(id) || self.graph.has_operand_origin(*id);
@@ -14734,7 +14737,7 @@ impl Checker<'_> {
                     Type::Deferred(*id),
                     got.clone(),
                     if projected_reference {
-                        item_origin.as_ref().unwrap_or(source_origin).clone()
+                        item_origin.as_ref().unwrap_or(&source_origin).clone()
                     } else {
                         source_origin.clone()
                     },
@@ -14754,7 +14757,7 @@ impl Checker<'_> {
                         let operand_origin = if projected_reference {
                             self.graph.source_component_origin(
                                 *id,
-                                item_origin.as_ref().unwrap_or(source_origin),
+                                item_origin.as_ref().unwrap_or(&source_origin),
                                 None,
                             )
                         } else {
@@ -14795,7 +14798,9 @@ impl Checker<'_> {
                 *invalid = true;
                 return Ok(());
             }
-            let first_operand_origin = pending.first().map(|(_, origin)| origin.clone());
+            let first_operand_origin = pending
+                .first()
+                .map(|(_, index)| Self::primary_span(&items[*index]));
             pending.clear();
             *item_type = Some(got);
             // ADR §4.1.2.4,6: the first valid array element is
