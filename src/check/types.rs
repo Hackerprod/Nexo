@@ -1798,6 +1798,9 @@ struct OccurrenceKey(OccurrenceRole, usize);
 #[derive(Clone, Default)]
 struct OccurrenceIndex {
     by_node: HashMap<OccurrenceKey, OccurrenceId>,
+    // Explicit value blocks can retain distinct leaf diagnostics where D9
+    // leaves the boundary of a nested union unspecified.
+    explicit_value_block_unions: HashSet<OccurrenceId>,
     #[cfg(feature = "c2-origin-trace")]
     by_span: HashMap<(u64, u64), Vec<OccurrenceId>>,
 }
@@ -1863,6 +1866,22 @@ impl OccurrenceIndex {
         let mut pending = vec![Node::Block(body)];
         let mut preorder = 0u32;
         while let Some(node) = pending.pop() {
+            let explicit_value_blocks = match &node {
+                Node::Expression(Expr::If {
+                    then_block,
+                    otherwise: Some(otherwise),
+                    ..
+                }) => {
+                    let first = branch_value_expr(then_block);
+                    let second = match otherwise.as_ref() {
+                        Else::Block(block) => branch_value_expr(block).map(|value| (block, value)),
+                        Else::If(_) => None,
+                    };
+                    first.is_some_and(|value| then_block.span != *value.span())
+                        && second.is_some_and(|(block, value)| block.span != *value.span())
+                }
+                _ => false,
+            };
             let (role, address, site) = match node {
                 Node::Statement(value) => {
                     push_statement(value, &mut pending);
@@ -1959,6 +1978,9 @@ impl OccurrenceIndex {
                 .checked_add(1)
                 .expect("function occurrence index exhausted");
             result.by_node.insert(OccurrenceKey(role, address), id);
+            if explicit_value_blocks {
+                result.explicit_value_block_unions.insert(id);
+            }
             #[cfg(feature = "c2-origin-trace")]
             if let Some(site) = site {
                 result.by_span.entry(site).or_default().push(id);
@@ -9538,7 +9560,13 @@ impl Checker<'_> {
                 && entry_record
                     .as_ref()
                     .and_then(|record| record.owner_if)
-                    .is_some_and(|owner| !failed_union_owners.insert((owner, constructor)))
+                    .is_some_and(|owner| {
+                        !self
+                            .occurrences
+                            .explicit_value_block_unions
+                            .contains(&owner)
+                            && !failed_union_owners.insert((owner, constructor))
+                    })
             {
                 continue;
             }
@@ -23216,6 +23244,21 @@ mod quota_tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn c2_explicit_value_blocks_keep_distinct_ambiguous_leaf_sites() {
+        let source = "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then { value: (if p then { value: true; } else { value: true; }); } else { value: (if p then { value: ar; } else aar); }));}";
+        let ast = parse::parse_new_profile("origin.n", source).unwrap();
+        let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+        let primary = report
+            .errors
+            .iter()
+            .filter(|error| error.code == "NX-E1303")
+            .map(|error| error.primary_span.as_ref().map(span_key).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(primary, [(144, 148), (166, 170), (223, 226)]);
     }
 
     #[test]
