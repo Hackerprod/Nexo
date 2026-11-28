@@ -8337,11 +8337,13 @@ impl Checker<'_> {
                             )));
                             outcome = Ok(SolverValue::Type(Type::Deferred(root)));
                         } else {
-                            // Bind can discover a concrete type fixed by an
-                            // earlier equality. Its stored TypeNode origin is
-                            // provenance of that type, not the left operand
-                            // of this source equality. The source caller
-                            // already selected that operand by its own AST.
+                            // A literal operand replaces a witness published
+                            // before the operand. A fixer published after it
+                            // belongs to the completed component instead;
+                            // replacing that fixer would choose an ambiguous
+                            // leaf against D9. The source equality's entry
+                            // view supplies the operand when replacement is
+                            // justified by this causal order.
                             if error.code == "NX-E0102"
                                 && error.subcause.as_deref() == Some("type_mismatch")
                                 && request.policy.related_expected
@@ -8350,19 +8352,15 @@ impl Checker<'_> {
                                     &request.left_origin,
                                     &request.found,
                                 )
-                                // A whole unresolved binding may later acquire a
-                                // concrete fixer. Its first literal occurrence is
-                                // not an unambiguous witness for that concrete
-                                // leaf (§13.15, D9); a projection is an actual
-                                // operand of the disputed component.
                                 && self
                                     .graph
                                     .projection_sites
                                     .contains(&span_key(&request.left_origin))
+                                && error.related_spans.iter().any(|related| {
+                                    related.role == RelatedRole::ExpectedType
+                                        && related.span.start < request.left_origin.start
+                                })
                             {
-                                // A deferred read keeps the entry facts of its
-                                // source equality, even if completion has since
-                                // published more origins for this component.
                                 let read_context = self.graph.active_equality.and_then(|active| {
                                     self.graph
                                         .equality_records
@@ -23838,6 +23836,43 @@ mod quota_tests {
         let resolved = names::resolve_with_option("origin.n", positive, &ast, true).unwrap();
         let report = check_with_partial_limit("origin.n", positive, &ast, &resolved, 1_000_000);
         assert!(report.errors.is_empty(), "{:?}", report.errors);
+    }
+
+    #[test]
+    fn c2_later_component_fixer_keeps_its_relation_after_literal_read() {
+        let cases = [
+            (
+                "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[(if false then [left] else right),1];let a1=[tail[0],(if false then [left] else right),tail];let a2=[right[x],left[x]];left=[1];tail=[true];}",
+                (150, 154),
+                (132, 136),
+            ),
+            (
+                "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[tail[0],true];let a1=[right[x],(if false then left[0] else tail),(if false then [left] else right)];tail=[true];}",
+                (144, 148),
+                (122, 126),
+            ),
+        ];
+        for (source, primary, expected) in cases {
+            let ast = parse::parse_new_profile("origin.n", source).unwrap();
+            let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+            let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+            let error = report
+                .errors
+                .iter()
+                .find(|error| error.primary_span.as_ref().map(span_key) == Some(primary))
+                .unwrap_or_else(|| panic!("missing mismatch at {primary:?}: {:?}", report.errors));
+            assert_eq!(error.code, "NX-E0102", "{source}");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .find(|span| span.role == RelatedRole::ExpectedType)
+                    .map(|span| span_key(&span.span)),
+                Some(expected),
+                "{source}"
+            );
+        }
     }
 
     #[test]
