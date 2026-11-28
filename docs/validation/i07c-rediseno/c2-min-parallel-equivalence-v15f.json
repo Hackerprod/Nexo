@@ -1,0 +1,16 @@
+{
+  "schema": "i07c-c2-min-parallel-equivalence-v1",
+  "complete": false,
+  "reason": "200-row smoke comparison only; complete gates run separately",
+  "rows": 200,
+  "corpora": 20,
+  "main_sha256": "585880cdec018073f72a93b32945b64c2daee6d759e789d0d04c8890aa6ea680",
+  "candidate_sha256": "c8fb1047f8449bd687866e340bc5f71fef59c226037493e4822e728c30638bf6",
+  "classifier_sha256": "48df7fb62c839a165fd99b40af2e626385e70476b2def09d7422cda600f1281c",
+  "parallel_runner_sha256": "fd9f6c3b774dc0a067384402b221eed39fcfe15a99525dd6b581ec67f006ae74",
+  "same_classes": true,
+  "same_corpora": true,
+  "same_failures": true,
+  "sequential_report_sha256": "d695d32c28e6e1a6f9936abeaa60ba65be5d1990986066d8e958b4892808b57a",
+  "parallel_report_sha256": "19564d38ef97733d09fe2b64175388a971a4fcaee20a338154fd7e1bec6858af"
+}

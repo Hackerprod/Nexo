@@ -35,7 +35,7 @@ for row in data("r8-matrix45.json")["rows"]:
 print("matrix oracle", 45)
 
 gates = data("r9-commit-gates.json")
-assert gates["schema"] == "i07c-r19-commit-gates-v9"
+assert gates["schema"] == "i07c-r19-commit-gates-v10"
 assert gates["frozen_v11_commit"] == "fcf62d5e43c6a29981abe478dd039db51b3cb524"
 for relative, expected_sha in gates["frozen_v11_sha256"].items():
     blob = subprocess.run(
@@ -426,8 +426,8 @@ assert [sum(row["kind"] == kind for row in named["rows"])
         for kind in ("duplicate_owned_row", "aggregate", "source")] == [3, 1, 7]
 
 # v15e is retained as auditable history; the D13 minimum is the active C2 reference.
-c2e = gates["c2_reference_evidence"]
-c2e_commit = gates["c2_reference_commit"]
+c2e = gates["c2_reference_evidence_v15e"]
+c2e_commit = gates["c2_reference_commit_v15e"]
 assert c2e_commit == c2e["code_commit"] == "be96e08f1a18fa92e296fe89d1dc78dfd805a55f"
 assert subprocess.run(
     ["git", "rev-parse", c2e_commit + "^{tree}"], cwd=HERE.parents[2],
@@ -528,4 +528,58 @@ assert validate_e["stack65"] == {"option_match126": "5/5", "result_match126": "5
 assert validate_e["g3_auditor"] == {"sites": 246, "self_test": "passed"}
 assert validate_e["log_sha256"] == c2e["validate_log_sha256"]
 assert c2e["validate_sh"].startswith("GREEN: debug 2230/2230, release 2232/2232")
+
+# D13/v15f is the active C2 reference. The long v15e evidence above is history.
+minimum = gates["c2_reference_evidence"]
+minimum_commit = gates["c2_reference_commit"]
+assert minimum_commit == "4116b2ad475c4b86ed7c43f6d90209f5975790b8"
+for revision, expected in ((minimum_commit + "^{tree}", minimum["tree"]),
+                           (minimum_commit + ":src/check/types.rs", minimum["types_blob"])):
+    assert subprocess.run(["git", "rev-parse", revision], cwd=HERE.parents[2],
+                          check=True, capture_output=True, text=True).stdout.strip() == expected
+assert minimum["base_commit"] == "af19a34eb295fdd4834bdbc4594e442fbc2b42ec"
+for name, expected in minimum["report_sha256"].items():
+    assert hashlib.sha256((HERE / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() == expected, name
+minimum_owned = data("c2-min-owned-c2-v15f.json")
+assert minimum_owned["complete"] and not minimum_owned["failures"]
+assert minimum_owned["commit"] == "C2" and minimum_owned["f06_class"] == "main"
+assert minimum_owned["candidate_sha256"] == minimum["candidate_release_sha256"]
+assert minimum_owned["main_sha256"] == minimum["main_release_sha256"]
+assert [minimum_owned["counts"][family] for family, _ in owned.FAMILIES] == minimum[
+    "owned_C2_directed_matrix_frozen"] == [8, 0, 2]
+minimum_disc = data("c2-min-discriminators-v15f.json")
+assert minimum_disc["complete"] and minimum_disc["commit"] == "C2"
+assert not minimum_disc["failures"] and len(minimum_disc["cases"]) == minimum[
+    "discriminator_C2_profile_cases"] == 34
+assert minimum_disc["script_sha256"] == gates["c2_discriminator_gate_sha256"]
+c3_disc = data("c2-min-c3-discriminators-v15f.json")
+assert c3_disc["complete"] and c3_disc["commit"] == "C3"
+assert len(c3_disc["cases"]) == 38 and len(c3_disc["failures"]) == minimum[
+    "discriminator_C3_deferred_invocations"] == 8
+assert c3_disc["candidate_sha256"] == minimum["candidate_release_sha256"]
+scope_min = data("c2-min-scope-v15f.json")
+assert scope_min["complete"] and not scope_min["failures"]
+assert set(scope_min["owned"]) == {"RC1_read_context_variable",
+                                   "ST1_equivalent", "RC1_read_context_variable:frozen"}
+assert len(scope_min["discriminators"]) == 4
+survey_min = data("c2-min-survey-5000-v15f.json")
+assert survey_min["complete"] and survey_min["survey"]
+assert survey_min["unique_sources"] == 5000 and survey_min["counts"] == {
+    "same": 4993, "improvement": 7}
+assert not survey_min["hard_failures"] and minimum["survey_5000_d12_defects"] == 0
+assert survey_min["candidate_sha256"] == minimum["candidate_release_sha256"]
+iteration_min = data("c2-min-iteration-v15f.json")
+members_min = data("c2-min-family-members-v15f.json")
+assert iteration_min["complete"] and len(iteration_min["rows"]) == 120
+assert iteration_min["members"] == members_min["members"] == []
+assert minimum["historical_members"] == 0
+assert members_min["iteration_sha256"] == minimum["report_sha256"]["c2-min-iteration-v15f.json"]
+validate_min = data("c2-min-validate-v15f.json")
+assert validate_min["code_commit"] == minimum_commit and validate_min["clean_clone"]
+assert validate_min["tree"] == minimum["tree"] and validate_min["types_blob"] == minimum["types_blob"]
+assert validate_min["cargo_build_jobs"] == 4 and validate_min["nextest_profile"] == "default"
+assert validate_min["debug"] == {"run": 2227, "passed": 2227, "skipped": 73}
+assert validate_min["release"] == {"run": 2229, "passed": 2229, "skipped": 74}
+assert validate_min["stack65"] == {"option_match126": "5/5", "result_match126": "5/5"}
+assert validate_min["log_sha256"] == minimum["validate_log_sha256"]
 print("R6 contract structure OK")

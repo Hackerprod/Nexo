@@ -1,5 +1,5 @@
 {
-  "schema": "i07c-r19-commit-gates-v9",
+  "schema": "i07c-r19-commit-gates-v10",
   "base_commit": "31d91dbebd31c35b3cd09095c2d8e65b96c80548",
   "directed74_unique_sources": 48,
   "directed74_duplicate_rows": 26,
@@ -2728,8 +2728,8 @@
     "docs/validation/i07c-rediseno/r14-main-baseline.json": "bc641bcd991844dddc9368e9a2f8230cc13259a8b8a4d815a7183ed9090f6f05"
   },
   "frozen_v11_commit": "fcf62d5e43c6a29981abe478dd039db51b3cb524",
-  "c2_reference_commit": "be96e08f1a18fa92e296fe89d1dc78dfd805a55f",
-  "c2_reference_evidence": {
+  "c2_reference_commit_v15e": "be96e08f1a18fa92e296fe89d1dc78dfd805a55f",
+  "c2_reference_evidence_v15e": {
     "base_commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
     "tree": "dfe29b71093969c9abca8614933b7a823ff4a5a2",
     "types_blob": "00a7d8a8b065069a901877390ed2362a9382879c",
@@ -3106,5 +3106,34 @@
       }
     ],
     "candidate_debug_sha256": "6ddbdea5ebf2124bd55642c6b243d38ee00f9f1a482c483aaf426850e2044ad7"
+  },
+  "c2_reference_commit": "4116b2ad475c4b86ed7c43f6d90209f5975790b8",
+  "c2_reference_evidence": {
+    "base_commit": "af19a34eb295fdd4834bdbc4594e442fbc2b42ec",
+    "tree": "33fa227598b5d3614b1b268c760b3f5879652f83",
+    "types_blob": "9d7eacd0afd64bdcac2e009d06152828963e8878",
+    "main_release_sha256": "585880cdec018073f72a93b32945b64c2daee6d759e789d0d04c8890aa6ea680",
+    "candidate_release_sha256": "76c692e53fde9878fe6da5744c60919ae3ec736eac0ed7d9f00ec1d68797e497",
+    "candidate_debug_sha256": "39676e3daa9f2ff64573d3148bf37555f07ddf569e16f1b3a400aae850e70513",
+    "owned_C2_directed_matrix_frozen": [8, 0, 2],
+    "discriminator_C2_profile_cases": 34,
+    "discriminator_C3_deferred_invocations": 8,
+    "survey_5000_d12_defects": 0,
+    "historical_members": 0,
+    "validate_log_sha256": "622ff82d083767bf5c864b3690b41420f711a12c7839fd7c1d6630f7ac3b890d",
+    "report_sha256": {
+      "c2-min-owned-c1-v15f.json": "43b7006122a47215715da02d91e9fde2f4a4c9f0bc0a80fc937798c6fe823501",
+      "c2-min-owned-c2-v15f.json": "fd3301deb94fee06c896ca7657ce50294c6724c43063ec5fc4db959c459c8a5e",
+      "c2-min-discriminators-v15f.json": "cfefa5fa7b23c3b423022d81d822082cd60098a633f8da704233983d5056faab",
+      "c2-min-c3-discriminators-v15f.json": "c484f4c3d677fa302bafe0ff88e1a9d4ff1afd5e4879bf948393cf0e7f99d59f",
+      "c2-min-scope-v15f.json": "bae517aa0e6197a07620b1e1414a4e4825859b5a5c4782e241b0c7e30ffbd38e",
+      "c2-min-survey-5000-v15f.json": "1f4c31f2e1307da62dcd91c6e55bbf55e086a0de05f629c6eb1a43b35533e8c4",
+      "c2-min-d12-short-v15f.json": "96b783d75ea0066af53e87f3d2c59a6e44d19c70eb0352f44eb63c8e932d9ab7",
+      "c2-min-iteration-v15f.json": "1060e22ec8d66a6047e40ceb9ef1699bc46653150ff3a582737d8ac3ee52fc78",
+      "c2-min-family-members-v15f.json": "e45d187515cae5ef3bb6738b3593667b8c5b1edd0d22c2bdd3c4dbc6f457b0f9",
+      "c2-min-d12-reductions-v15f.json": "521b73bef008bff32952132aeacd65255eba1f1de6b59a0e13d55464c3f26cec",
+      "c2-min-validate-v15f.json": "8bd9c38e951ffe099c622b086bb9d90874cdeabf1bd7e7a6a535efb3367d1a22",
+      "c2-min-parallel-equivalence-v15f.json": "60e2d8139c63847cd9733baafb14dfc0381714d19243065281215fee95bca9b4"
+    }
   }
 }
