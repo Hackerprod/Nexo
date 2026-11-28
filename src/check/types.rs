@@ -1054,18 +1054,71 @@ struct TypeNode {
 struct NodeJournal {
     before: HashMap<u64, Option<TypeNode>>,
     order: Vec<u64>,
+    preseeded_before: HashMap<u64, bool>,
+    failed_on_rejection: HashSet<u64>,
+    obligations_len: usize,
+}
+
+// A source fact belongs to the component that received it, even when a later
+// union chooses another representative. The equality clock reserves its
+// source ordinal before any solver write.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OriginFact {
+    component: u64,
+    equality: EqualityId,
+    ordinal: u64,
+    concrete: Option<Span>,
+    array: Option<Span>,
+    variant: Option<Span>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 struct EqualityId(u64);
 
 #[derive(Clone)]
+#[allow(dead_code)] // P1: the deferred consumer will read this entry context next.
 struct EqualityRecord {
     id: EqualityId,
     operands: (Type, Type),
+    read_context: std::sync::Arc<ReadContext>,
     found: Span,
     join_start: usize,
     state: EqualityState,
+    completion: Completion,
+}
+
+// Later compatible equalities may fill an unknown entry component. Published
+// entry facts remain immutable; only previously empty solution slots change.
+#[derive(Clone, Default)]
+struct Completion {
+    compatible_later_edges: HashSet<EqualityId>,
+    solutions: HashMap<u64, Type>,
+}
+
+// The entry view records facts for the components named by an equality, not
+// copies of TypeNodes. A later completion may fill an unknown component, but
+// cannot change what this equality could read at its source ordinal.
+#[derive(Clone, Debug)]
+#[allow(dead_code)] // P1: entry facts are captured before deferred replay is wired.
+struct ReadComponent {
+    root: u64,
+    concrete: Option<Type>,
+    array_child: bool,
+    variant_children: bool,
+    array_element: Option<u64>,
+    union: Option<UnionDescriptor<u64>>,
+    array_origin: Option<Span>,
+    variant_origin: Option<Span>,
+    concrete_origin: Option<Span>,
+    copyable_origin: Option<Span>,
+    origin_fact: Option<OriginFact>,
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)] // P1: retained by the equality until its consumer can replay.
+struct ReadContext {
+    epoch: EqualityId,
+    components: HashMap<u64, ReadComponent>,
 }
 
 #[derive(Clone, Copy)]
@@ -2656,10 +2709,18 @@ thread_local! {
 
 #[derive(Clone)]
 struct InferenceGraph {
-    equality_clock: u64,
+    equality_clock: std::rc::Rc<std::cell::Cell<u64>>,
     equality_records: Vec<EqualityRecord>,
+    origin_facts: HashMap<u64, Vec<OriginFact>>,
+    // Published equalities connect the components they read and wrote. Keep
+    // both directions: a later write must find watchers through an old alias.
+    published_dependencies: HashMap<EqualityId, HashSet<u64>>,
+    dependency_watchers: HashMap<u64, HashSet<EqualityId>>,
+    invalidated_read_contexts: HashSet<OccurrenceId>,
+    // First planning visit owns the immutable prefix read by this occurrence.
+    read_contexts: HashMap<OccurrenceId, std::sync::Arc<ReadContext>>,
     active_equality: Option<EqualityId>,
-    node_journal: Option<NodeJournal>,
+    node_journals: Vec<NodeJournal>,
     active_facts: HashMap<FactId, VisitFact>,
     visit_generations: Vec<u64>,
     // Clones used by AtomicEnd share the clocks: rollback must not reuse an
@@ -2701,23 +2762,98 @@ struct InferenceGraph {
 }
 
 impl InferenceGraph {
+    fn capture_read_context(&self, epoch: EqualityId, left: &Type, right: &Type) -> ReadContext {
+        let mut pending_types = vec![left, right];
+        let mut pending_nodes = Vec::new();
+        while let Some(ty) = pending_types.pop() {
+            match ty {
+                Type::Deferred(id) => pending_nodes.push(*id),
+                Type::Array(item) | Type::Generator { item, .. } => pending_types.push(item),
+                Type::Union(_, first, second) => {
+                    pending_types.push(first);
+                    if let Some(second) = second {
+                        pending_types.push(second);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut components = HashMap::new();
+        while let Some(id) = pending_nodes.pop() {
+            if components.contains_key(&id) {
+                continue;
+            }
+            let mut root = id;
+            while let Some(node) = self.type_nodes.get(&root) {
+                if node.parent == root {
+                    break;
+                }
+                root = node.parent;
+            }
+            let Some(node) = self.type_nodes.get(&root) else {
+                continue;
+            };
+            components.insert(
+                id,
+                ReadComponent {
+                    root,
+                    concrete: node.concrete.as_ref().map(|(ty, _)| ty.clone()),
+                    array_child: node.array_child.is_some(),
+                    variant_children: node.variant_children.is_some(),
+                    array_element: node.array_child,
+                    union: node.variant_children,
+                    array_origin: node.array_origin.clone(),
+                    variant_origin: node.variant_origin.clone(),
+                    concrete_origin: node.concrete.as_ref().map(|(_, span)| span.clone()),
+                    copyable_origin: node.copyable_origin.clone(),
+                    origin_fact: self
+                        .origin_facts
+                        .get(&id)
+                        .and_then(|facts| facts.first())
+                        .cloned(),
+                },
+            );
+            if let Some(child) = node.array_child {
+                pending_nodes.push(child);
+            }
+            if let Some(children) = node.variant_children {
+                pending_nodes.extend(
+                    children
+                        .variants
+                        .iter()
+                        .filter_map(|variant| variant.payload),
+                );
+            }
+        }
+        ReadContext { epoch, components }
+    }
+
     fn begin_equality(&mut self, left: Type, right: Type, found: Span) -> EqualityId {
-        self.equality_clock += 1;
-        let id = EqualityId(self.equality_clock);
+        let id = EqualityId(Self::next(&self.equality_clock));
+        let read_context = std::sync::Arc::new(self.capture_read_context(id, &left, &right));
         self.equality_records.push(EqualityRecord {
             id,
             operands: (left, right),
+            read_context,
             found,
             join_start: self.obligations.len(),
             state: EqualityState::Attempting,
+            completion: Completion::default(),
         });
         self.active_equality = Some(id);
-        self.node_journal = Some(NodeJournal::default());
+        self.begin_node_journal();
         id
     }
 
+    fn begin_node_journal(&mut self) {
+        self.node_journals.push(NodeJournal {
+            obligations_len: self.obligations.len(),
+            ..NodeJournal::default()
+        });
+    }
+
     fn touch_type_node(&mut self, id: u64) {
-        if let Some(journal) = &mut self.node_journal
+        if let Some(journal) = self.node_journals.last_mut()
             && !journal.before.contains_key(&id)
         {
             journal.before.insert(id, self.type_nodes.get(&id).cloned());
@@ -2733,6 +2869,120 @@ impl InferenceGraph {
     fn insert_type_node(&mut self, id: u64, node: TypeNode) -> Option<TypeNode> {
         self.touch_type_node(id);
         self.type_nodes.insert(id, node)
+    }
+
+    fn remove_preseeded_child(&mut self, id: u64) -> bool {
+        if let Some(journal) = self.node_journals.last_mut() {
+            journal
+                .preseeded_before
+                .entry(id)
+                .or_insert_with(|| self.preseeded_children.contains(&id));
+        }
+        self.preseeded_children.remove(&id)
+    }
+
+    fn insert_preseeded_child(&mut self, id: u64) -> bool {
+        if let Some(journal) = self.node_journals.last_mut() {
+            journal
+                .preseeded_before
+                .entry(id)
+                .or_insert_with(|| self.preseeded_children.contains(&id));
+        }
+        self.preseeded_children.insert(id)
+    }
+
+    fn mark_constructor_conflict(&mut self, id: u64) {
+        if let Some(journal) = self.node_journals.last_mut() {
+            journal.failed_on_rejection.insert(id);
+        }
+        self.mark_failed_constructor(id);
+    }
+
+    fn finish_node_journal(&mut self, publish: bool) -> Vec<u64> {
+        let journal = self.node_journals.pop().expect("node journal");
+        let changed = if publish && self.node_journals.is_empty() {
+            journal.order.clone()
+        } else {
+            Vec::new()
+        };
+        if publish {
+            if self.node_journals.is_empty() {
+                if let Some(equality) = self.active_equality {
+                    for key in &journal.order {
+                        let before = journal.before[key].as_ref();
+                        let Some(after) = self.type_nodes.get(key) else {
+                            continue;
+                        };
+                        let concrete = (after.concrete.as_ref().map(|(_, span)| span)
+                            != before
+                                .and_then(|node| node.concrete.as_ref().map(|(_, span)| span)))
+                        .then(|| after.concrete.as_ref().map(|(_, span)| span.clone()))
+                        .flatten();
+                        let array = (after.array_origin
+                            != before.and_then(|node| node.array_origin.clone()))
+                        .then(|| after.array_origin.clone())
+                        .flatten();
+                        let variant = (after.variant_origin
+                            != before.and_then(|node| node.variant_origin.clone()))
+                        .then(|| after.variant_origin.clone())
+                        .flatten();
+                        if concrete.is_some() || array.is_some() || variant.is_some() {
+                            self.origin_facts.entry(*key).or_default().push(OriginFact {
+                                component: *key,
+                                equality,
+                                ordinal: equality.0,
+                                concrete,
+                                array,
+                                variant,
+                            });
+                        }
+                    }
+                }
+            }
+            if let Some(parent) = self.node_journals.last_mut() {
+                for key in journal.order {
+                    if let std::collections::hash_map::Entry::Vacant(entry) =
+                        parent.before.entry(key)
+                    {
+                        entry.insert(journal.before[&key].clone());
+                        parent.order.push(key);
+                    }
+                }
+                for (key, was_present) in journal.preseeded_before {
+                    parent.preseeded_before.entry(key).or_insert(was_present);
+                }
+                parent
+                    .failed_on_rejection
+                    .extend(journal.failed_on_rejection);
+            }
+        } else {
+            for key in journal.order.into_iter().rev() {
+                match journal.before[&key].clone() {
+                    Some(node) => {
+                        self.type_nodes.insert(key, node);
+                    }
+                    None => {
+                        self.type_nodes.remove(&key);
+                    }
+                }
+            }
+            for (key, was_present) in journal.preseeded_before {
+                if was_present {
+                    self.preseeded_children.insert(key);
+                } else {
+                    self.preseeded_children.remove(&key);
+                }
+            }
+            self.obligations.truncate(journal.obligations_len);
+            if self.node_journals.is_empty() {
+                for id in journal.failed_on_rejection {
+                    if self.type_nodes.contains_key(&id) {
+                        self.mark_failed_constructor(id);
+                    }
+                }
+            }
+        }
+        changed
     }
 
     fn finish_equality(&mut self, id: EqualityId, publish: bool) {
@@ -2753,21 +3003,109 @@ impl InferenceGraph {
         } else {
             EqualityState::Rejected
         };
-        let journal = self.node_journal.take().expect("equality journal");
-        if !publish {
-            for key in journal.order.into_iter().rev() {
-                match journal.before[&key].clone() {
-                    Some(node) => {
-                        self.type_nodes.insert(key, node);
+        let keep_record = matches!(record.state, EqualityState::Waiting);
+        let changed = self.finish_node_journal(publish);
+        if publish {
+            // The outer journal alone publishes edges. Rejected/nested writes
+            // must never become a dependency or wake an earlier reader.
+            let mut components: HashSet<u64> = self
+                .equality_records
+                .last()
+                .unwrap()
+                .read_context
+                .components
+                .keys()
+                .copied()
+                .collect();
+            components.extend(changed.iter().copied());
+            if !components.is_empty() {
+                for component in &components {
+                    self.dependency_watchers
+                        .entry(*component)
+                        .or_default()
+                        .insert(id);
+                }
+                self.published_dependencies.insert(id, components);
+            }
+        }
+        if publish && !changed.is_empty() {
+            let connected = self.published_component_closure(&changed);
+            // A commit can wake each earlier Waiting equality at most once.
+            // A rejected or nested write has no published changed components.
+            for earlier in &mut self.equality_records {
+                if earlier.id == id || !matches!(earlier.state, EqualityState::Waiting) {
+                    continue;
+                }
+                let mut filled = false;
+                for (component, entry) in &earlier.read_context.components {
+                    if !connected.contains(component) {
+                        continue;
                     }
-                    None => {
-                        self.type_nodes.remove(&key);
+                    if entry.concrete.is_some()
+                        || earlier.completion.solutions.contains_key(component)
+                    {
+                        continue;
+                    }
+                    let mut root = *component;
+                    while let Some(node) = self.type_nodes.get(&root) {
+                        if node.parent == root {
+                            break;
+                        }
+                        root = node.parent;
+                    }
+                    if let Some((ty, _)) = self
+                        .type_nodes
+                        .get(&root)
+                        .and_then(|node| node.concrete.as_ref())
+                    {
+                        earlier.completion.solutions.insert(*component, ty.clone());
+                        filled = true;
+                    }
+                }
+                if filled {
+                    earlier.completion.compatible_later_edges.insert(id);
+                }
+            }
+            // A future replay may replace only provisional suffix decisions;
+            // retain the published graph and the immutable entry snapshots.
+            for (occurrence, context) in &self.read_contexts {
+                if context.epoch.0 < id.0
+                    && context
+                        .components
+                        .keys()
+                        .any(|component| connected.contains(component))
+                {
+                    self.invalidated_read_contexts.insert(*occurrence);
+                }
+            }
+        }
+        // Only suspended equalities need a durable record. Rejected joins
+        // were truncated above; committed equalities have no queued join.
+        if !keep_record {
+            self.equality_records.pop();
+        }
+        self.active_equality = None;
+    }
+
+    fn published_component_closure(&self, changed: &[u64]) -> HashSet<u64> {
+        let mut components = HashSet::new();
+        let mut equalities = HashSet::new();
+        let mut pending = changed.to_vec();
+        while let Some(component) = pending.pop() {
+            if !components.insert(component) {
+                continue;
+            }
+            if let Some(watchers) = self.dependency_watchers.get(&component) {
+                for equality in watchers {
+                    if equalities.insert(*equality) {
+                        if let Some(dependencies) = self.published_dependencies.get(equality) {
+                            pending.extend(dependencies.iter().copied());
+                        }
                     }
                 }
             }
-            self.obligations.truncate(record.join_start);
         }
-        self.active_equality = None;
+        components
     }
     fn next(clock: &std::cell::Cell<u64>) -> u64 {
         let id = clock.get().checked_add(1).expect("fact clock exhausted");
@@ -3048,14 +3386,14 @@ impl InferenceGraph {
     }
 
     fn mark_failed_constructor(&mut self, id: u64) -> bool {
-        let node = self.type_nodes.get_mut(&id).expect("known inference node");
+        let node = self.type_node_mut(&id).expect("known inference node");
         let was_new = !node.failed_constructor;
         node.failed_constructor = true;
         was_new
     }
 
     fn take_failed_constructor(&mut self, id: u64) -> bool {
-        let node = self.type_nodes.get_mut(&id).expect("known inference node");
+        let node = self.type_node_mut(&id).expect("known inference node");
         std::mem::take(&mut node.failed_constructor)
     }
 
@@ -3066,8 +3404,15 @@ impl InferenceGraph {
     }
 
     fn clear_failed_constructors(&mut self) {
-        for node in self.type_nodes.values_mut() {
-            node.failed_constructor = false;
+        let failed: Vec<_> = self
+            .type_nodes
+            .iter()
+            .filter_map(|(id, node)| node.failed_constructor.then_some(*id))
+            .collect();
+        for id in failed {
+            self.type_node_mut(&id)
+                .expect("known inference node")
+                .failed_constructor = false;
         }
     }
 
@@ -3978,7 +4323,7 @@ impl Checker<'_> {
             );
             self.graph.type_node_mut(&current).unwrap().array_child = Some(child);
             self.graph.type_node_mut(&current).unwrap().array_origin = Some(origin);
-            self.graph.preseeded_children.insert(child);
+            self.graph.insert_preseeded_child(child);
             current = child;
         }
         if !self.planning
@@ -4953,11 +5298,27 @@ impl Checker<'_> {
         Ok(id)
     }
 
+    // A source read retains the published graph. If a concrete fact changed
+    // after entry, use only the immutable fact captured for this occurrence;
+    // no new node or parent edge is fabricated for the earlier epoch.
+    fn concrete_read_at_entry(&self, occurrence: OccurrenceId, source: u64) -> Option<Type> {
+        let context = self.graph.read_contexts.get(&occurrence)?;
+        let component = context.components.get(&source)?;
+        let captured = component.concrete.as_ref()?;
+        let current = self
+            .graph
+            .type_nodes
+            .get(&component.root)?
+            .concrete
+            .as_ref()?;
+        (current.0 != *captured).then(|| captured.clone())
+    }
+
     fn require_array(&mut self, id: u64, origin: &Span) -> Result<u64, Box<Diagnostic>> {
         self.charge_solver(origin)?;
         let root = self.root(id);
         if let Some(child) = self.graph.type_nodes[&root].array_child {
-            if self.graph.preseeded_children.remove(&child) {
+            if self.graph.remove_preseeded_child(child) {
                 self.charge_solver(origin)?;
             }
             return Ok(child);
@@ -4977,11 +5338,7 @@ impl Checker<'_> {
         // domain. Explicit array constructors call require_copyable on their
         // element instead (§4.1.1); removing only the stored origin cannot
         // matter once that child already has a copyability origin.
-        self.graph
-            .type_nodes
-            .get_mut(&child)
-            .unwrap()
-            .copyable_origin = Some(origin.clone());
+        self.graph.type_node_mut(&child).unwrap().copyable_origin = Some(origin.clone());
         self.check_one_inferred_depth(root, origin)?;
         Ok(child)
     }
@@ -5048,11 +5405,7 @@ impl Checker<'_> {
                 .as_ref()
                 .is_none_or(|span| origin.start < span.start)
             {
-                self.graph
-                    .type_nodes
-                    .get_mut(&root)
-                    .unwrap()
-                    .copyable_origin = Some(origin.clone());
+                self.graph.type_node_mut(&root).unwrap().copyable_origin = Some(origin.clone());
             }
             // require_array and explicit constructors already gave this child
             // the copyable domain. Requiring it again preserves that invariant
@@ -5210,8 +5563,7 @@ impl Checker<'_> {
             if let Some((ty, _)) = self.graph.type_nodes[&current].concrete.clone() {
                 self.graph.type_node_mut(&current).unwrap().concrete = Some((ty, origin.clone()));
                 self.graph
-                    .type_nodes
-                    .get_mut(&current)
+                    .type_node_mut(&current)
                     .unwrap()
                     .concrete_intrinsic = false;
                 return;
@@ -5431,7 +5783,7 @@ impl Checker<'_> {
             let child_root = self.root(child);
             if child_root == element && self.graph.type_nodes[&child_root].bottom_only {
                 let array_root = self.root(array);
-                self.graph.mark_failed_constructor(array_root);
+                self.graph.mark_constructor_conflict(array_root);
             }
         }
     }
@@ -5736,7 +6088,7 @@ impl Checker<'_> {
         // (§4.1.2.5). Other shape failures can suppress a consequent
         // unresolved-constructor diagnostic at finalization.
         if !policy.branch {
-            self.graph.mark_failed_constructor(constructor);
+            self.graph.mark_constructor_conflict(constructor);
         }
         if policy.branch {
             self.graph
@@ -5931,10 +6283,14 @@ impl Checker<'_> {
     }
 
     fn solve(&mut self, request: SolverRequest) -> Result<SolverValue, Box<Diagnostic>> {
+        enum AtomicSnapshot<'a> {
+            Checker(Box<Checker<'a>>),
+            Journal,
+        }
         enum Frame<'a> {
             Enter(SolverRequest),
             EndFact(FactId),
-            AtomicEnd(Box<Checker<'a>>),
+            AtomicEnd(AtomicSnapshot<'a>),
             UnionInner(SolverUnion),
             BindUnionAfterRequire {
                 request: SolverBind,
@@ -6053,7 +6409,13 @@ impl Checker<'_> {
                                     || self.graph.type_nodes[&root].variant_children.is_some()
                                 {
                                     let kind = wanted.kind;
-                                    frames.push(Frame::AtomicEnd(Box::new(self.clone())));
+                                    let snapshot = if self.graph.active_equality.is_some() {
+                                        self.graph.begin_node_journal();
+                                        AtomicSnapshot::Journal
+                                    } else {
+                                        AtomicSnapshot::Checker(Box::new(self.clone()))
+                                    };
+                                    frames.push(Frame::AtomicEnd(snapshot));
                                     let was_concrete = self.concrete(root).is_some();
                                     if let Some((previous, previous_origin)) =
                                         self.graph.type_nodes[&root].concrete.clone()
@@ -6203,7 +6565,7 @@ impl Checker<'_> {
                                     );
                                     outcome = Ok(SolverValue::Unit);
                                 } else {
-                                    self.graph.mark_failed_constructor(root);
+                                    self.graph.mark_constructor_conflict(root);
                                     outcome = Err(self.array_domain_conflict(root, &ty, found));
                                 }
                                 continue;
@@ -6227,11 +6589,8 @@ impl Checker<'_> {
                             } else {
                                 self.graph.type_node_mut(&root).unwrap().concrete =
                                     Some((ty, origin));
-                                self.graph
-                                    .type_nodes
-                                    .get_mut(&root)
-                                    .unwrap()
-                                    .concrete_intrinsic = intrinsic;
+                                self.graph.type_node_mut(&root).unwrap().concrete_intrinsic =
+                                    intrinsic;
                                 outcome = Ok(SolverValue::Unit);
                             }
                         }
@@ -6328,11 +6687,8 @@ impl Checker<'_> {
                                     )));
                                 }
                             } else {
-                                self.graph
-                                    .type_nodes
-                                    .get_mut(&root)
-                                    .unwrap()
-                                    .variant_children = Some(children);
+                                self.graph.type_node_mut(&root).unwrap().variant_children =
+                                    Some(children);
                                 self.graph.type_node_mut(&root).unwrap().variant_origin =
                                     Some(origin);
                                 outcome = Ok(SolverValue::Union(children));
@@ -6352,7 +6708,13 @@ impl Checker<'_> {
                             if self.graph.type_nodes[&l].variant_children.is_some()
                                 || self.graph.type_nodes[&r].variant_children.is_some()
                             {
-                                frames.push(Frame::AtomicEnd(Box::new(self.clone())));
+                                let snapshot = if self.graph.active_equality.is_some() {
+                                    self.graph.begin_node_journal();
+                                    AtomicSnapshot::Journal
+                                } else {
+                                    AtomicSnapshot::Checker(Box::new(self.clone()))
+                                };
+                                frames.push(Frame::AtomicEnd(snapshot));
                             }
                             frames.push(Frame::UnionInner(request));
                         }
@@ -6714,7 +7076,13 @@ impl Checker<'_> {
                                     if internal_state(&expected).is_some()
                                         || internal_state(&found_type).is_some()
                                     {
-                                        frames.push(Frame::AtomicEnd(Box::new(self.clone())));
+                                        let snapshot = if self.graph.active_equality.is_some() {
+                                            self.graph.begin_node_journal();
+                                            AtomicSnapshot::Journal
+                                        } else {
+                                            AtomicSnapshot::Checker(Box::new(self.clone()))
+                                        };
+                                        frames.push(Frame::AtomicEnd(snapshot));
                                     }
                                     frames.push(Frame::UnifyUnionNext {
                                         request,
@@ -6947,17 +7315,24 @@ impl Checker<'_> {
                     }
                 }
                 Frame::EndFact(id) => self.graph.retire_fact(id),
-                Frame::AtomicEnd(snapshot) => {
-                    if outcome.is_err() {
-                        let steps = self.solver_steps;
-                        let quota = self.quota_error.clone();
-                        *self = *snapshot;
-                        self.solver_steps = steps;
-                        if quota.is_some() {
-                            self.quota_error = quota;
+                Frame::AtomicEnd(snapshot) => match snapshot {
+                    AtomicSnapshot::Journal => {
+                        self.graph.finish_node_journal(outcome.is_ok());
+                    }
+                    AtomicSnapshot::Checker(snapshot) => {
+                        if outcome.is_err() {
+                            let steps = self.solver_steps;
+                            let quota = self.quota_error.clone();
+                            let next_variable = self.graph.next_variable;
+                            *self = *snapshot;
+                            self.solver_steps = steps;
+                            self.graph.next_variable = next_variable;
+                            if quota.is_some() {
+                                self.quota_error = quota;
+                            }
                         }
                     }
-                }
+                },
                 Frame::BindUnionAfterRequire {
                     request,
                     root,
@@ -8472,6 +8847,9 @@ impl Checker<'_> {
             }
             self.record_error(error);
         }
+        // The queued joins have consumed their EqualityIds. Keeping their
+        // records would make each later AtomicEnd clone the entire history.
+        self.graph.equality_records.clear();
         // §13.9: an outer constructor whose unresolved element is itself
         // an unresolved constructor has only a consequent obligation. The
         // inner constructor owns the causal NX-E0103. This is decided from
@@ -12691,6 +13069,26 @@ impl Checker<'_> {
                     }
                     if let Some(known) = self.graph.locals.get(&local.name_span.start).cloned() {
                         if let Some(id) = known.variable {
+                            if self.planning {
+                                let occurrence = self.frame_occurrence_id(e);
+                                if !self.graph.read_contexts.contains_key(&occurrence) {
+                                    let epoch = EqualityId(self.graph.equality_clock.get());
+                                    let context = self.graph.capture_read_context(
+                                        epoch,
+                                        &Type::Deferred(id),
+                                        &Type::Unit,
+                                    );
+                                    self.graph
+                                        .read_contexts
+                                        .insert(occurrence, std::sync::Arc::new(context));
+                                }
+                            }
+                            if !self.planning
+                                && let Some(ty) =
+                                    self.concrete_read_at_entry(self.frame_occurrence_id(e), id)
+                            {
+                                return Ok(ty);
+                            }
                             if let Some((ty, _)) = self.concrete(id) {
                                 return Ok(ty);
                             }
@@ -16110,10 +16508,15 @@ pub(crate) fn check_with_partial_limit(
         loop_depth: 0,
         errors: Vec::new(),
         graph: InferenceGraph {
-            equality_clock: 0,
+            equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
             equality_records: Vec::new(),
+            origin_facts: HashMap::new(),
+            published_dependencies: HashMap::new(),
+            dependency_watchers: HashMap::new(),
+            invalidated_read_contexts: HashSet::new(),
+            read_contexts: HashMap::new(),
             active_equality: None,
-            node_journal: None,
+            node_journals: Vec::new(),
             active_facts: HashMap::new(),
             visit_generations: Vec::new(),
             fact_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
@@ -16159,6 +16562,7 @@ pub(crate) fn check_with_partial_limit(
             OccurrenceIndex::for_function(checker.function_ordinal, &function.body);
         checker.current_passes = 0;
         checker.current_planning_calls = 0;
+        checker.graph.read_contexts.clear();
         checker.planning = true;
         for _ in 0..=128 {
             checker.analysis_exhausted = false;
@@ -17716,10 +18120,15 @@ mod quota_tests {
             defer_depth: false,
             depth_memo_ready: false,
             graph: InferenceGraph {
-                equality_clock: 0,
+                equality_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
                 equality_records: Vec::new(),
+                origin_facts: HashMap::new(),
+                published_dependencies: HashMap::new(),
+                dependency_watchers: HashMap::new(),
+                invalidated_read_contexts: HashSet::new(),
+                read_contexts: HashMap::new(),
                 active_equality: None,
-                node_journal: None,
+                node_journals: Vec::new(),
                 active_facts: HashMap::new(),
                 visit_generations: Vec::new(),
                 fact_clock: std::rc::Rc::new(std::cell::Cell::new(0)),
@@ -21207,6 +21616,44 @@ mod quota_tests {
     }
 
     #[test]
+    fn nested_node_journal_restores_constructor_metadata_and_preseeded_child() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let parent = checker.new_variable(&site(1)).unwrap();
+        let child = checker.new_variable(&site(2)).unwrap();
+        checker.graph.begin_node_journal();
+        checker
+            .graph
+            .type_node_mut(&parent)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(child));
+        checker.graph.begin_node_journal();
+        checker
+            .graph
+            .type_node_mut(&parent)
+            .unwrap()
+            .copyable_origin = Some(site(3));
+        checker.graph.mark_failed_constructor(parent);
+        checker.graph.insert_preseeded_child(child);
+        checker.graph.finish_node_journal(true);
+        assert!(checker.graph.type_nodes[&parent].variant_children.is_some());
+        assert!(checker.graph.type_nodes[&parent].copyable_origin.is_some());
+        assert!(checker.graph.type_nodes[&parent].failed_constructor);
+        assert!(checker.graph.preseeded_children.contains(&child));
+        checker.graph.finish_node_journal(false);
+        let node = &checker.graph.type_nodes[&parent];
+        assert!(node.variant_children.is_none());
+        assert!(node.copyable_origin.is_none());
+        assert!(!node.failed_constructor);
+        assert!(!checker.graph.preseeded_children.contains(&child));
+    }
+
+    #[test]
     fn i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion() {
         let resolved = Resolved {
             signatures: HashMap::new(),
@@ -21301,7 +21748,11 @@ mod quota_tests {
             )
             .unwrap_err();
         assert_eq!(error.operation, Operation::AnalysisLimit);
-        assert_eq!(checker.graph.next_variable, before_nodes);
+        assert!(checker.graph.next_variable >= before_nodes);
+        assert!(
+            (before_nodes..checker.graph.next_variable)
+                .all(|id| !checker.graph.type_nodes.contains_key(&id))
+        );
         assert!(checker.graph.type_nodes[&root].variant_children.is_none());
         assert!(checker.quota_error.is_some());
     }
@@ -21366,6 +21817,273 @@ mod quota_tests {
             Some((concrete, site(3)))
         );
         assert!(checker.graph.type_nodes[&root].variant_children.is_none());
+    }
+
+    #[test]
+    fn c2_read_context_preserves_entry_components_across_later_writes() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        let first = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::I64, site(3));
+        let entry = checker
+            .graph
+            .equality_records
+            .last()
+            .unwrap()
+            .read_context
+            .clone();
+        assert_eq!(entry.epoch, first);
+        assert_eq!(entry.components[&root].root, root);
+        assert!(entry.components[&root].array_child);
+        assert!(!entry.components[&root].variant_children);
+        assert_eq!(entry.components[&child].concrete, None);
+        checker.graph.type_node_mut(&child).unwrap().concrete = Some((Type::I64, site(4)));
+        assert_eq!(entry.components[&child].concrete, None);
+        assert_eq!(
+            checker.graph.type_nodes[&child].concrete,
+            Some((Type::I64, site(4)))
+        );
+        checker.graph.finish_equality(first, false);
+        assert_eq!(checker.graph.type_nodes[&child].concrete, None);
+        let second = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::I64, site(5));
+        assert!(second.0 > first.0);
+        checker.graph.finish_equality(second, false);
+    }
+
+    #[test]
+    fn c2_origin_fact_keeps_component_and_reserved_ordinal_on_commit() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = checker.new_variable(&site(1)).unwrap();
+        let right = checker.new_variable(&site(2)).unwrap();
+        let rejected = checker
+            .graph
+            .begin_equality(Type::Deferred(left), Type::I64, site(3));
+        checker.graph.type_node_mut(&left).unwrap().concrete = Some((Type::I64, site(3)));
+        checker.graph.finish_equality(rejected, false);
+        assert!(checker.graph.origin_facts.get(&left).is_none());
+        let accepted = checker
+            .graph
+            .begin_equality(Type::Deferred(right), Type::I64, site(4));
+        checker.graph.begin_node_journal();
+        checker.graph.type_node_mut(&right).unwrap().concrete = Some((Type::I64, site(4)));
+        checker.graph.finish_node_journal(true);
+        checker.graph.finish_equality(accepted, true);
+        let fact = &checker.graph.origin_facts[&right][0];
+        assert_eq!(fact.component, right);
+        assert_eq!(fact.equality, accepted);
+        assert_eq!(fact.ordinal, accepted.0);
+        assert!(accepted.0 > rejected.0);
+        assert_eq!(fact.concrete, Some(site(4)));
+        assert!(checker.graph.origin_facts.get(&left).is_none());
+    }
+
+    #[test]
+    fn c2_completion_fills_waiting_hole_once_without_rewriting_entry() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let waiting =
+            checker
+                .graph
+                .begin_equality(Type::Deferred(root), Type::Deferred(root), site(2));
+        let entry = checker.graph.equality_records[0].read_context.clone();
+        checker.graph.equality_records[0].state = EqualityState::Waiting;
+        checker.graph.finish_node_journal(true);
+        checker.graph.active_equality = None;
+
+        let first = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::I64, site(3));
+        checker.graph.type_node_mut(&root).unwrap().concrete = Some((Type::I64, site(3)));
+        checker.graph.finish_equality(first, true);
+        let completion = &checker.graph.equality_records[0].completion;
+        assert_eq!(checker.graph.equality_records[0].id, waiting);
+        assert_eq!(completion.solutions.get(&root), Some(&Type::I64));
+        assert_eq!(completion.compatible_later_edges.len(), 1);
+        assert!(completion.compatible_later_edges.contains(&first));
+        assert_eq!(entry.components[&root].concrete, None);
+
+        let rejected = checker
+            .graph
+            .begin_equality(Type::Deferred(root), Type::Bool, site(4));
+        checker.graph.type_node_mut(&root).unwrap().concrete = Some((Type::Bool, site(4)));
+        checker.graph.finish_equality(rejected, false);
+        let completion = &checker.graph.equality_records[0].completion;
+        assert_eq!(completion.solutions.get(&root), Some(&Type::I64));
+        assert!(!completion.compatible_later_edges.contains(&rejected));
+        assert_eq!(entry.components[&root].concrete, None);
+    }
+
+    #[test]
+    fn c2_published_alias_wakes_waiting_reader_without_detaching_nodes() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = checker.new_variable(&site(1)).unwrap();
+        let right = checker.new_variable(&site(2)).unwrap();
+        let waiting =
+            checker
+                .graph
+                .begin_equality(Type::Deferred(left), Type::Deferred(left), site(3));
+        let entry = checker.graph.equality_records[0].read_context.clone();
+        checker.graph.equality_records[0].state = EqualityState::Waiting;
+        checker.graph.finish_node_journal(true);
+        checker.graph.active_equality = None;
+
+        let alias =
+            checker
+                .graph
+                .begin_equality(Type::Deferred(left), Type::Deferred(right), site(4));
+        checker.graph.type_node_mut(&left).unwrap().parent = right;
+        checker.graph.finish_equality(alias, true);
+        assert!(checker.graph.published_dependencies[&alias].contains(&left));
+        assert!(checker.graph.published_dependencies[&alias].contains(&right));
+
+        let rejected = checker
+            .graph
+            .begin_equality(Type::Deferred(right), Type::Bool, site(5));
+        checker.graph.type_node_mut(&right).unwrap().concrete = Some((Type::Bool, site(5)));
+        checker.graph.finish_equality(rejected, false);
+        assert!(!checker.graph.published_dependencies.contains_key(&rejected));
+        assert!(
+            checker.graph.equality_records[0]
+                .completion
+                .solutions
+                .is_empty()
+        );
+
+        let accepted = checker
+            .graph
+            .begin_equality(Type::Deferred(right), Type::I64, site(6));
+        checker.graph.type_node_mut(&right).unwrap().concrete = Some((Type::I64, site(6)));
+        checker.graph.finish_equality(accepted, true);
+        assert_eq!(checker.graph.type_nodes[&left].parent, right);
+        assert_eq!(checker.graph.equality_records[0].id, waiting);
+        assert_eq!(
+            checker.graph.equality_records[0].completion.solutions[&left],
+            Type::I64
+        );
+        assert_eq!(entry.components[&left].concrete, None);
+    }
+
+    #[test]
+    fn c2_read_occurrence_keeps_first_planning_prefix() {
+        let source = "fn Main(){var s=[];let a=[s,(if true then 1 else true)];s=[1];}";
+        let ast = parse::parse_new_profile("read_context.n", source).unwrap();
+        let resolved = names::resolve_with_option("read_context.n", source, &ast, true).unwrap();
+        let mut checker = empty_checker(&resolved);
+        checker.tokens = lex::lex("read_context.n", source).unwrap();
+        checker.planning = true;
+        checker.occurrences = OccurrenceIndex::for_function(0, &ast.functions[0].body);
+        let Statement::Let {
+            value: Expr::Array(items, _),
+            ..
+        } = &ast.functions[0].body.statements[1]
+        else {
+            panic!("array binding fixture");
+        };
+        let occurrence = checker.frame_occurrence_id(&items[0]);
+        let result = checker.function(&ast.functions[0]);
+        assert!(result.is_ok(), "{result:?}");
+        let prefix = &checker.graph.read_contexts[&occurrence];
+        assert!(prefix.epoch.0 < checker.graph.equality_clock.get());
+        assert!(
+            prefix
+                .components
+                .values()
+                .any(|component| { component.array_child && component.concrete.is_none() })
+        );
+        let first = std::sync::Arc::clone(prefix);
+        assert!(checker.function(&ast.functions[0]).is_ok());
+        assert!(std::sync::Arc::ptr_eq(
+            &first,
+            &checker.graph.read_contexts[&occurrence]
+        ));
+    }
+
+    #[test]
+    fn c2_read_replay_keeps_published_edges_and_entry_concrete_fact() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        let occurrence = OccurrenceId {
+            function_ordinal: 0,
+            preorder: 1,
+            role: OccurrenceRole::Expression,
+            local_index: 0,
+        };
+        let context =
+            checker
+                .graph
+                .capture_read_context(EqualityId(1), &Type::Deferred(root), &Type::Unit);
+        checker
+            .graph
+            .read_contexts
+            .insert(occurrence, std::sync::Arc::new(context));
+        checker.graph.type_node_mut(&child).unwrap().concrete = Some((Type::I64, site(3)));
+        assert_eq!(checker.concrete_read_at_entry(occurrence, root), None);
+        assert_eq!(
+            checker.concrete(root).map(|(ty, _)| ty),
+            Some(Type::Array(Arc::new(Type::I64)))
+        );
+        assert_eq!(checker.graph.type_nodes[&root].array_child, Some(child));
+
+        let committed = checker.new_variable(&site(4)).unwrap();
+        checker.graph.type_node_mut(&committed).unwrap().concrete = Some((Type::I64, site(4)));
+        let committed_occurrence = OccurrenceId {
+            preorder: 2,
+            ..occurrence
+        };
+        let context = checker.graph.capture_read_context(
+            EqualityId(2),
+            &Type::Deferred(committed),
+            &Type::Unit,
+        );
+        checker
+            .graph
+            .read_contexts
+            .insert(committed_occurrence, std::sync::Arc::new(context));
+        checker.graph.type_node_mut(&committed).unwrap().concrete = Some((Type::Bool, site(5)));
+        assert_eq!(
+            checker.concrete_read_at_entry(committed_occurrence, committed),
+            Some(Type::I64)
+        );
+        assert_eq!(
+            checker.concrete(committed).map(|(ty, _)| ty),
+            Some(Type::Bool)
+        );
+        assert_eq!(checker.graph.type_nodes[&committed].parent, committed);
     }
 
     #[test]
