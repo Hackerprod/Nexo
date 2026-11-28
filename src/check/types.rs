@@ -1414,6 +1414,7 @@ struct ArrayFrameState<'a> {
     // The child index identifies the source operand within this literal.
     // Reconstructing its site from `items` avoids a second stored origin.
     pending: Vec<(u64, usize)>,
+    first_pending_grounded_at_entry: bool,
     diverges: bool,
     invalid: bool,
 }
@@ -12932,6 +12933,7 @@ impl Checker<'_> {
                                 current_expected: None,
                                 current_origin: None,
                                 pending: Vec::new(),
+                                first_pending_grounded_at_entry: false,
                                 diverges: false,
                                 invalid: false,
                             };
@@ -14693,6 +14695,7 @@ impl Checker<'_> {
             item_type,
             item_origin,
             pending,
+            first_pending_grounded_at_entry,
             diverges,
             invalid,
             ..
@@ -14866,6 +14869,7 @@ impl Checker<'_> {
                     }
                     if pending.is_empty() {
                         *item_origin = Some(Self::primary_span(item));
+                        *first_pending_grounded_at_entry = self.concrete(id).is_some();
                     }
                     let mut operand = item;
                     while let Expr::Group(inner, _) = operand {
@@ -14887,9 +14891,7 @@ impl Checker<'_> {
         }
         if item_type.is_none() {
             let concrete_origin = Self::primary_span(item);
-            let first_grounded = pending
-                .first()
-                .is_some_and(|(id, _)| self.concrete(*id).is_some());
+            let first_grounded = *first_pending_grounded_at_entry;
             let first_operand_origin = pending
                 .first()
                 .map(|(_, index)| Self::primary_span(&items[*index]));
@@ -23871,6 +23873,31 @@ mod quota_tests {
                     .map(|span| span_key(&span.span)),
                 Some(expected),
                 "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn c2_pending_literal_records_grounding_at_first_operand_entry() {
+        let source = "fn Main(){let x=1;var left=[];var right=[];var tail=[];let a0=[right[x],left[x]];let a1=[right[1],(if true then right[x] else tail[1]),(if false then [left] else right)];let a2=[left[0],true];tail=[true];}";
+        let ast = parse::parse_new_profile("origin.n", source).unwrap();
+        let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+        for primary in [(150, 156), (162, 167)] {
+            let error = report
+                .errors
+                .iter()
+                .find(|error| error.primary_span.as_ref().map(span_key) == Some(primary))
+                .unwrap_or_else(|| panic!("missing mismatch at {primary:?}: {:?}", report.errors));
+            assert_eq!(error.code, "NX-E0102");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .find(|span| span.role == RelatedRole::ExpectedType)
+                    .map(|span| span_key(&span.span)),
+                Some((99, 133)),
             );
         }
     }
