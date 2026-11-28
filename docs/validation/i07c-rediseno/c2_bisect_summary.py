@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    raw = args.input.read_bytes()
+    raw = args.input.read_bytes().replace(b"\r\n", b"\n")
     report = json.loads(raw)
     groups = {}
     for name, body in re.findall(r"Miembros (M\d):\s*(.*?)(?=\n\n|\Z)",
@@ -71,7 +71,7 @@ def main():
         cell = entry["counts"]
         lines.append(f"| `{entry['commit'][:8]}` | {cell['d12_defects']} | "
                      f"{cell['d12_improvements']} | {cell['historical_differences']} |")
-    args.output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    args.output.write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
     print("defects", dict(counts), "improvements", len(improvements),
           "historical", sum(historical.values()))
 

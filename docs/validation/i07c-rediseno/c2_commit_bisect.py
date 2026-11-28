@@ -128,7 +128,7 @@ def main():
                                   "elapsed_seconds": round(time.monotonic() - started, 2),
                                   "counts": commit_counts,
                                   "build_stderr_tail": build.stderr[-200:]})
-        args.output.write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        args.output.write_bytes((json.dumps(report, ensure_ascii=True, indent=2) + "\n").encode("utf-8"))
         print(f"{ordinal}/{len(commits)} {commit[:8]} {commit_counts} "
               f"{time.monotonic() - started:.1f}s", flush=True)
 

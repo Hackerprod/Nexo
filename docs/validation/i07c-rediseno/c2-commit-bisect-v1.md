@@ -1,7 +1,7 @@
 # Bisección C2 de defectos D12 — en validación, sin PASS
 
 Base `af19a34`; extremo `d47a46f`; 61/61 compilaciones de código fuente.
-SHA-256 del registro JSON: `62a1d077b0e5f7a4919ffef76d626615932f3bd0690e558c56ae05fecd051e45`.
+SHA-256 del registro JSON: `531fc4f4e1f681428e7d3e3a9afeb0461d06bf034ba7176274b890380f816f32`.
 
 ## Primer introductor de los 62 defectos finales
 
