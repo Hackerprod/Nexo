@@ -1084,6 +1084,7 @@ struct OriginFact {
     array: Option<Span>,
     variant: Option<Span>,
     source: Option<Span>,
+    fixer: Option<Span>,
     path: Vec<u8>,
     literal: Option<(OccurrenceId, u32)>,
 }
@@ -2977,6 +2978,7 @@ impl InferenceGraph {
                 array: None,
                 variant: None,
                 source: None,
+                fixer: None,
                 path: Vec::new(),
                 literal: None,
             });
@@ -3046,9 +3048,15 @@ impl InferenceGraph {
         let Some(record) = record else { return };
         let Some(source) = record.source else { return };
         let mut published = Vec::new();
-        for (ty, origin) in [
-            (&record.operands.0, source.left),
-            (&record.operands.1, source.right),
+        let concrete_right = internal_state(&record.operands.1).is_none()
+            && self.source_paths(&record.operands.1).is_empty();
+        for (ty, origin, fixer) in [
+            (
+                &record.operands.0,
+                source.left,
+                concrete_right.then_some(source.right.clone()),
+            ),
+            (&record.operands.1, source.right, None),
         ] {
             for (component, path) in self.source_paths(ty) {
                 published.push(OriginFact {
@@ -3061,6 +3069,7 @@ impl InferenceGraph {
                     array: None,
                     variant: None,
                     source: Some(origin.clone()),
+                    fixer: fixer.clone(),
                     path,
                     literal: source.literal,
                 });
@@ -3073,6 +3082,7 @@ impl InferenceGraph {
                 "schema":"c2-origin-jsonl-v2", "event":"publish", "equality_id":equality.0,
                 "component":fact.component, "path":fact.path, "publication_ordinal":fact.ordinal,
                 "source":fact.source.as_ref().map(span_key),
+                "fixer":fact.fixer.as_ref().map(span_key),
                 "literal":fact.literal.map(|(id, index)| [id.function_ordinal, id.preorder, index]),
                 "provenance":"compatible_equality"
             }));
@@ -3282,6 +3292,7 @@ impl InferenceGraph {
                                 array,
                                 variant,
                                 source: None,
+                                fixer: None,
                                 path: Vec::new(),
                                 literal: None,
                             });
@@ -6899,6 +6910,7 @@ impl Checker<'_> {
                             "path":fact.path, "source":fact.source.as_ref().map(span_key),
                             "operand":fact.operand.as_ref().map(span_key),
                             "concrete":fact.concrete.as_ref().map(span_key),
+                            "fixer":fact.fixer.as_ref().map(span_key),
                             "array":fact.array.as_ref().map(span_key),
                             "variant":fact.variant.as_ref().map(span_key),
                             "owner_if":fact.owner_if.map(|id| [id.function_ordinal,id.preorder])
@@ -10295,22 +10307,58 @@ impl Checker<'_> {
         let Some((declaration, place_path)) = self.binding_path(place) else {
             return origin.clone();
         };
-        self.graph
-            .source_paths(&Type::Deferred(local))
-            .into_iter()
-            .find_map(|(_, component_path)| {
-                let mut path = place_path.clone();
-                path.extend(component_path);
-                self.occurrences
-                    .partial_if_witnesses
-                    .get(&PartialIfWitnessKey {
-                        declaration,
-                        path,
-                        leaf: span_key(origin),
+        let paths = self.graph.source_paths(&Type::Deferred(local));
+        if let Some(witness) = paths.iter().find_map(|(_, component_path)| {
+            let mut path = place_path.clone();
+            path.extend(component_path.iter().copied());
+            self.occurrences
+                .partial_if_witnesses
+                .get(&PartialIfWitnessKey {
+                    declaration,
+                    path,
+                    leaf: span_key(origin),
+                })
+                .cloned()
+        }) {
+            return witness;
+        }
+        let representative = |mut id: u64| {
+            while let Some(node) = self.graph.type_nodes.get(&id) {
+                if node.parent == id {
+                    break;
+                }
+                id = node.parent;
+            }
+            id
+        };
+        let facts = self.graph.origin_facts.borrow();
+        paths
+            .iter()
+            .filter(|(_, path)| !path.is_empty())
+            .filter_map(|(component, path)| {
+                let root = representative(*component);
+                facts
+                    .iter()
+                    .filter(|(id, _)| representative(**id) == root)
+                    .filter_map(|(_, same_component)| {
+                        let fixer = same_component.iter().find(|fact| {
+                            fact.owner_if.is_none()
+                                && fact.path == *path
+                                && fact.fixer.as_ref() == Some(origin)
+                        })?;
+                        same_component
+                            .iter()
+                            .filter(|fact| fact.path.is_empty() && fact.ordinal < fixer.ordinal)
+                            .filter_map(|fact| {
+                                fact.operand.as_ref().map(|site| (fact.ordinal, site))
+                            })
+                            .min_by_key(|(ordinal, site)| (*ordinal, site.start))
+                            .map(|(ordinal, site)| (ordinal, site.clone()))
                     })
-                    .cloned()
+                    .min_by_key(|(ordinal, site)| (*ordinal, site.start))
             })
-            .unwrap_or_else(|| origin.clone())
+            .min_by_key(|(ordinal, site)| (*ordinal, site.start))
+            .map_or_else(|| origin.clone(), |(_, site)| site)
     }
 
     fn prepare_assignment_rhs<'a>(
@@ -23900,6 +23948,29 @@ mod quota_tests {
                 Some((99, 133)),
             );
         }
+    }
+
+    #[test]
+    fn c2_assignment_fixer_follows_published_element_component() {
+        let source = "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[0],(if true then t[x] else u[1])];let a1=[s[x],s[0],t[1]];let a2=[u[1],(if false then s[0] else u)];s=[1];u=[true];}";
+        let ast = parse::parse_new_profile("origin.n", source).unwrap();
+        let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+        let error = report
+            .errors
+            .iter()
+            .find(|error| error.primary_span.as_ref().map(span_key) == Some((164, 168)))
+            .unwrap_or_else(|| panic!("missing mismatch: {:?}", report.errors));
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+        assert_eq!(
+            error
+                .related_spans
+                .iter()
+                .find(|span| span.role == RelatedRole::ExpectedType)
+                .map(|span| span_key(&span.span)),
+            Some((53, 57)),
+        );
     }
 
     #[test]
