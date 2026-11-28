@@ -1,0 +1,1830 @@
+{
+  "schema": "i07c-c2-origin-iteration-v1",
+  "baseline_sha256": "37c9858b92eabf1db6050ac626643973dd94f2619777df1686dec967bf3fe024",
+  "baseline_counts": {
+    "A-unmodeled": 74,
+    "D": 46
+  },
+  "rows": {
+    "b-projections-2026112401:233": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else (if p then r[0] else s)) else (if p then r else s))];r=q;}",
+      "source_sha256": "8a6a28742d1acd4d1858936ec0cb11ee378c00ee911c49dcf7d7e367c7a91cb0",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 234,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:280": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let b1=(r[0]);let a0=[(if p then s[0] else (if p then (if p then [q] else q) else (if p then r else r[0])))];let a1=(if p then (if p then ar else r) else q);q=[true];q=[1];}",
+      "source_sha256": "0a288a3eed29a94ab2a48199d3093a10f894fa58696e33de07936da367e1e079",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 281,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:550": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then s[0] else s[0]);let b1=r[0];let a0=[q,(if p then (if p then (if p then ar else r[0]) else r[0]) else (if p then (if p then s[0] else s) else s))];r=s;r=[true];}",
+      "source_sha256": "489a2eb4baa8fa5bf1cc8e83d247ffd92c983d88bbdc59bef083080e77d47898",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 551,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:560": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then (if p then q[0] else ar) else (if p then q else aar)) else (if p then (if p then q[0] else [r]) else (if p then r[0] else true)))];}",
+      "source_sha256": "cb89f1e2b915969a04b930ca874696c066f42a527a4141109fcc938eb5618de7",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 561,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:1036": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then q[0] else (if p then (if p then ar else 1) else (if p then ar else aar)))];r=[3];}",
+      "source_sha256": "391ceb0835073bc77f2960be93212ad58ff6068331eae2c9ac1a99b64ad3139c",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 1037,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:1124": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then s[0] else s[0]);let a0=[q,(if p then ar else (if p then q[0] else aar))];let a1=(if p then (if p then [r] else 1) else [q]);}",
+      "source_sha256": "1b1d93974d71f075d4fb3dd371ff3c7bb8c08d5ec094e3fc5aa8cbf9d7b74d11",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 1125,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:1183": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(r[0]);let b1=(r[0]);(if p then s[0] else (if p then (if p then r else r[0]) else (if p then q[0] else [r])));s=r;q=[[1<2]];}",
+      "source_sha256": "6044eee5a1e92e41767fe481578f56d2e6fcec9cd97836e666e9d7a2a98a38da",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 1184,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:1196": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then r[0] else r[0]);let a0=[(if p then s else (if p then (if p then q[0] else s[0]) else (if p then s[0] else true))),r];let a1=(if p then (if p then aar else q[0]) else [q,r]);}",
+      "source_sha256": "a18ddd06a42488a344897218c4177e594a46edf983432a33af4d0b3552029bd1",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 1197,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:1390": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then r else (if p then ar else aar)) else (if p then (if p then q else ar) else (if p then [q] else true)))];}",
+      "source_sha256": "07380647804975516f1b2d9eccd8bf481cd259ae994addfc1af1610262c86f82",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 1391,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:1657": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let b1=(if p then r[0] else r[0]);let a0=[q,(if p then (if p then ar else (if p then q[0] else aar)) else (if p then r[0] else s[0]))];s=[[true]];}",
+      "source_sha256": "bc488dc574fa71998079d3699c23d0c6a146b1042604882db104aa4583854724",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 1658,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:1995": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then s[0] else (if p then (if p then q else s) else r[0]));let a1=aar;r=[3];q=ar;}",
+      "source_sha256": "8bdef64242d09807074f04862393679d0f165cb975f9fda8cb55d1bf0994b4eb",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 1996,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2095": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let a0=[q,(if p then (if p then 1 else ar) else (if p then aar else true))];s=r;s=q;}",
+      "source_sha256": "7e7d85710f34b8d6e8d9f9be79bd8fbad0945c356b8a1ab7b9dd95f98bf93323",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2096,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2098": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let b1=(q[0]);let a0=[q,(if p then s[0] else (if p then (if p then [q,r] else [q,r]) else (if p then ar else s)))];let a1=s[0];r=[[ar]];s=q;}",
+      "source_sha256": "a3c04b300a959eaf7261269d3f6ba94cf71a9f977e842714332d4285c3041c27",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2099,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2420": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let a0=[q,(if p then (if p then ar else true) else (if p then aar else [q]))];}",
+      "source_sha256": "ced55341567145600a4351facff10e3b45496f8bc254f41d7fe91dd375cef2e2",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2421,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2475": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else aar) else (if p then s[0] else [q]))];let a1=(if p then (if p then [q,r] else r) else (if p then [r] else r));}",
+      "source_sha256": "48c952a02409c2b50a79c5fd00f7057f7d819da17358112939b138397e96acf0",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2476,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2616": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then r[0] else r) else (if p then aar else r))];let a1=s[0];r=[3];r=q;q=[[1<2]];}",
+      "source_sha256": "ea35924eff1a7314be3b97071c472fa97fa7dc44b6bbb4c34ab6d020f509f012",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2617,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2883": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(r[0]);let a0=[q,(if p then (if p then (if p then aar else aar) else (if p then s[0] else s[0])) else (if p then (if p then [q,r] else ar) else (if p then [r] else s)))];s=q;r=s;}",
+      "source_sha256": "7d0a65f9f5739af394bbb62b281803bc28c5a7e9574b08b9af696106ed880a67",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2884,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2919": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=r[0];let a0=[(if p then (if p then (if p then q else true) else q[0]) else (if p then (if p then true else r[0]) else (if p then 1 else [q,r]))),r];r=[true];}",
+      "source_sha256": "b4a372d033cafa756b32b6ddad484365984c58f0aeb691f054b1b4f097784a00",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2920,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112401:2977": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then (if p then (if p then [q,r] else ar) else (if p then r else r)) else (if p then (if p then [q,r] else s) else (if p then aar else r)));let a1=(if p then [q,r] else (if p then q[0] else s));r=s;q=ar;q=[[1<2]];}",
+      "source_sha256": "1d58414e210f874ff27c7387c45c33228397fe1692dfce71c37eb908b788eedf",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 2978,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:241": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let a0=[q,(if p then (if p then (if p then s[0] else ar) else (if p then s else true)) else aar)];r=s;r=[[ar]];}",
+      "source_sha256": "71186309f7aa7ac12d2a56c43268b351f900cc2c9a8b3efd26a495d8058ebcf0",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 242,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:439": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=r[0];let b1=(s[0]);let a0=[q,(if p then (if 1 then (if q then q[0] else r[0]) else (if p then ar else s)) else (if p then aar else (if ar then 1 else s[0])))];let a1=(if p then (if p then s[0] else q) else [q]);q=[[ar]];s=r;}",
+      "source_sha256": "d9197a81818b40440304fa0e2b426affd0f42066744f160b5b39e5888c2a264c",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 440,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:468": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then r else (if 1 then (if p then 1 else 1) else (if p then ar else r)))];q=[[1<2]];}",
+      "source_sha256": "04f8dbe2108bad6ea73176793eec035fc2e50028f1d25d0f29b24d01cf4eb173",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 469,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:472": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if q then [q,r] else s[0]) else (if p then [r] else s))];q=[1];s=q;r=[[ar]];}",
+      "source_sha256": "736543e49cf9a8b73efd95d529de357cc6f000586349c50e148d59fa22d104b6",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 473,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:477": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let a0=[q,(if p then (if p then (if p then r[0] else aar) else (if 1 then [q,r] else q[0])) else r)];s=r;}",
+      "source_sha256": "4c5488ae431feafd6a22ed58cc8b62991ef2eb165a43e8a015b76246a476e3ca",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 478,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:620": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then r[0] else (if p then (if p then q else q[0]) else (if p then true else s[0]))),r];let a1=(if q then (if p then s[0] else [q,r]) else (if p then aar else s[0]));}",
+      "source_sha256": "39009f8614541599aa9fa82eaaed3295ddec7fd99dd1a131fc16b043c2b05248",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 621,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:677": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then ar else (if q then aar else (if 1 then s[0] else q[0])))];s=[[true]];}",
+      "source_sha256": "ac920883d37d7cd421e61d5958fc7ef964b8a347c962d88803e3102fcd1fb7ca",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 678,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:738": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then q[0] else q[0]);let a0=[q,(if p then (if p then (if p then ar else s) else (if p then s else r)) else (if p then [q] else (if p then 1 else aar)))];}",
+      "source_sha256": "5cd599f180ff2784d1a59df5030f480a4c0d5130c4c8aa455df489a9f493c448",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 739,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:757": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then (if p then r else r[0]) else (if p then (if p then r[0] else s) else (if p then r[0] else q[0]))),r];let a1=(if p then aar else [r]);q=[true];q=r;r=[true];}",
+      "source_sha256": "3f8eeeedc58636d05e66950cf8b7100f3726e6dc6dbf28447897ecb3d9a1dae5",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 758,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:761": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let b1=(s[0]);let a0=[(if p then q[0] else (if p then (if p then s else ar) else (if ar then s[0] else r[0])))];r=[3];q=r;s=[[true]];}",
+      "source_sha256": "6f9c59d0f367d30977de3bdabd6109933552129b241e464e4150a2203c2763b6",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 762,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:820": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let b1=(if p then r[0] else r[0]);let a0=[[q],r];let a1=(if ar then q[0] else (if ar then r[0] else s[0]));q=[1];}",
+      "source_sha256": "9560892e2604b675d18f3fad14bb5acc764f34b2203f2ed0c76d248aab093504",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 821,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:838": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];(if q then r else (if p then 1 else 1));let a1=(if ar then ar else (if p then r[0] else [q]));q=r;q=ar;}",
+      "source_sha256": "7851383d20f5239a6faa886aaaa0adf2611bd06b112ed5f72d1b617582734b9c",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 839,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:953": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then q[0] else q[0]);let a0=[(if p then q[0] else (if p then (if p then [q,r] else s[0]) else (if p then q[0] else r))),r];r=[[ar]];q=r;}",
+      "source_sha256": "f6bb591708fb1fd87f49d7589ba26a545305fa02821cf066420c86d8879b7aa5",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 954,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:1266": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if 1 then ar else (if 1 then aar else [r]))];s=[[true]];s=r;r=[[ar]];}",
+      "source_sha256": "0431c5d8c6bc8302fec3bf80d121ca9d8062a5fa4bb4b5a7c68d8dd89a5c79e4",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 1267,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:1584": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then s[0] else s[0]);let a0=[q,(if p then (if p then (if p then r else ar) else (if p then ar else q)) else (if p then (if p then [q,r] else aar) else (if q then r[0] else [r])))];let a1=r[0];s=[[true]];r=[[ar]];}",
+      "source_sha256": "53e9b783f67585bdd884f0de19c3f92a8943a13387b7e31219e6d83352313fb5",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 1585,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:1622": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if q then (if p then r[0] else (if p then 1 else [q,r])) else (if ar then (if p then s[0] else q[0]) else (if 1 then ar else r)))];let a1=(if p then r else r);r=[3];q=[[ar]];r=[[ar]];}",
+      "source_sha256": "8937dcfb8d5f529cf36f18190e849da3bd477b39e0f3566719b549d02ef3d26d",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 1623,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:1763": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if 1 then ar else (if p then (if p then r[0] else 1) else (if p then q[0] else r)))];let a1=r[0];s=r;}",
+      "source_sha256": "26553c53e0ce780fff77dea433dc61f84363f600f5d7a0457e21f05ecf762536",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 1764,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:1871": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if 1 then (if p then ar else (if 1 then r[0] else [r])) else (if p then aar else r[0]))];let a1=(if 1 then (if 1 then 1 else s) else (if 1 then q[0] else true));s=q;}",
+      "source_sha256": "4f4f4777b04906cbc23759754ecaaa30da45ef8b01d5bf1c2d6b2de8225fcbcb",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 1872,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2072": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then q else (if q then q[0] else true));r=[[ar]];r=q;}",
+      "source_sha256": "e3509441d4e4b6492f509b8575b19176b88cbed3eaca18a73fa3406f0ca696c3",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2073,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2138": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if q then (if 1 then ar else r[0]) else aar)];let a1=(if p then aar else (if q then r else ar));r=[[ar]];s=[[true]];}",
+      "source_sha256": "fbb6ae0d21352be438db2bcbb33105935627e4542cb681e23aafc338ef9830ce",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2139,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2150": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let a0=[q,(if q then (if p then (if p then r[0] else s[0]) else (if ar then q else aar)) else (if p then (if p then 1 else s[0]) else s))];let a1=aar;r=[true];r=[3];r=[[ar]];}",
+      "source_sha256": "dfa61bdff24e5714d5109c41158745230a288b80e69ab7e3717e84cec0d8d495",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2151,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2201": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then (if p then r else s) else (if p then [q,r] else ar)) else (if ar then true else (if 1 then aar else s)))];s=q;q=r;}",
+      "source_sha256": "7fd748eff574811dba02eedda888fc8f7836df4b7570352a0064cbad79db57fb",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2202,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2249": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let b1=(if p then s[0] else s[0]);let a0=[q,(if ar then (if p then (if p then 1 else r[0]) else s[0]) else (if p then (if p then s else q) else (if p then s[0] else q)))];let a1=aar;r=q;s=[[true]];}",
+      "source_sha256": "07c52b76384081d2a55b74b25a2d6591ec39adbe359bb8b4b2b91f8262b0fdcf",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2250,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2257": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let a0=[q,(if p then (if p then (if p then r else aar) else (if p then r else r)) else (if p then (if p then s[0] else true) else (if p then s else q)))];let a1=(if p then (if ar then [r] else [r]) else (if p then [r] else r));r=[3];s=r;}",
+      "source_sha256": "4f68a3c0b6a5c36c92860aae2f565ae7dc63db2877e7184d03853049f9bc17b8",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2258,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2271": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let a0=[q,(if 1 then (if p then (if p then s else r[0]) else aar) else (if p then (if p then aar else q) else (if 1 then [q,r] else r)))];let a1=ar;}",
+      "source_sha256": "c6716460404779e680998e3b040a670d74e6dbf82d5b3f3e136a7c8575460806",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2272,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2329": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then r[0] else r[0]);let a0=[q,(if p then (if 1 then s[0] else aar) else (if q then q[0] else s))];}",
+      "source_sha256": "2c4b33ab83e9e9ab179760613d92cc0d4478c71cae698b3a09e2f48b32eeba87",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2330,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2340": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if q then (if p then (if p then true else ar) else (if p then s[0] else [r])) else (if p then (if p then 1 else [q,r]) else (if p then q else aar)))];let a1=(if ar then (if q then s[0] else [q,r]) else 1);}",
+      "source_sha256": "f831071247764a6c6f4201acca7cbf78b1b7e392877d306ffa00c1674dbde029",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2341,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2343": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then r[0] else (if ar then (if q then ar else true) else q[0])),r];let a1=(if p then (if 1 then q[0] else s[0]) else (if p then q else [r]));r=s;s=[[true]];q=[[1<2]];}",
+      "source_sha256": "f777f3cc6c8fc6858d1b9968c1b607d8d997bd6afd48b89f93bf9c2cb3a0813a",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2344,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2398": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if q then (if p then (if p then r[0] else q[0]) else (if p then ar else q[0])) else (if q then (if p then [q,r] else [q,r]) else (if p then aar else true)))];q=[1];r=[[ar]];s=q;}",
+      "source_sha256": "b0323f4ff3cdc49758ae0459f6be421ced937f5cb1cd7995550a06bbab2a0133",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2399,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2551": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then s else ar) else aar)];r=[3];r=s;s=[[true]];}",
+      "source_sha256": "57877e8fe2e3d27d72b5b1e9c27458122119d9430fa2f00701102996dc9cf96e",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2552,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2644": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then q[0] else q[0]);let a0=[q,(if p then (if p then q else (if p then r[0] else [q,r])) else (if p then (if p then s else aar) else (if p then 1 else r)))];q=[[ar]];}",
+      "source_sha256": "e183b70072ad3cdaf61bcb9ea282e748d9291518038befa979bc54cfc5f50f41",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2645,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2675": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then r[0] else (if p then [r] else (if p then aar else r)))];q=ar;}",
+      "source_sha256": "51bfe82a8592768266ef8280713b14bde7275eedd3d7fc91e750d9140b63ac52",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2676,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-t5-2026112402:2757": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let a0=[q,(if p then true else (if p then (if p then [q] else aar) else (if p then s[0] else s)))];q=r;r=s;}",
+      "source_sha256": "52c68a90cc9448c10e8972ceeb9fe0be11957e10c307657a5050240f614ed6c6",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "eee0155cdaa9549113cc346a480a0ae6b9d8d7f0f9690a55d436a3521e075fc6",
+      "line": 2758,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:72": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let b1=(s[0]);let a0=[q,(if p then true else (if p then (if p then s[0] else ar) else (if p then true else s)))];let a1=(if p then (if p then r[0] else [q,r]) else (if p then [q,r] else r));r=s;s=[[true]];}",
+      "source_sha256": "eb81a8cf2a2d5bb8717f3b049e1fb1576b62cfd83c4955a4cfda0d031e9bbdb1",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 73,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:94": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=r[0];let a0=[q,(if p then (if p then (if p then r else s[0]) else ar) else (if p then aar else true))];let a1=(if p then [r] else q);}",
+      "source_sha256": "58e254597674bee030ab291b05bc1f08685af0c97c816452e6ba6e190d9ed05d",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 95,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:153": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then (if p then [r] else true) else (if p then [q,r] else s[0])) else (if p then (if p then s[0] else s[0]) else (if p then [q] else s)))];let a1=(if p then (if p then q else [q]) else r[0]);r=[[ar]];q=[[1<2]];}",
+      "source_sha256": "f822108b9b170781b84423deaf78436c574157dbd605d92fd1b0769fb8ef78ca",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 154,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:239": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let a0=[q,(if p then (if p then (if p then ar else q[0]) else (if p then [q] else true)) else (if p then (if p then [r] else aar) else [q]))];s=[[true]];s=r;s=q;}",
+      "source_sha256": "c98e5fa700f18e121b0893c77ae8cbaf9d2ea42cc588186ea27459a007ebd85e",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 240,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:273": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else r) else (if p then ar else aar))];let a1=(if p then (if p then [q,r] else q) else s[0]);r=[[ar]];s=[[true]];}",
+      "source_sha256": "965e74c578d4c423c3599a8cd2c24729b8bd162001f0a78f2867f4b038259100",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 274,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:548": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then q[0] else ar) else (if p then aar else [q,r]))];let a1=(if p then (if p then r[0] else [r]) else (if p then 1 else s[0]));s=r;q=[true];r=s;}",
+      "source_sha256": "15c2e23d3062e6ae62a6f41444d5d5e57f3a74b4201ce3613537b7d2974e45a3",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 549,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:678": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then (if p then r[0] else [q,r]) else (if p then r else s)) else (if p then (if p then ar else aar) else (if p then ar else r)))];q=[[1<2]];}",
+      "source_sha256": "550d0e28dd360a7044d188dab35696f5ff43a9ac602eb02fefebb1a574616298",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 679,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:868": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then (if p then ar else r) else (if p then true else aar)) else r[0])];r=[[ar]];}",
+      "source_sha256": "f74ac3d2ad0da4aa22d92ec96f9fd4f75b19ca71abb2432e31a5fe5acfcbad22",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 869,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:988": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then r[0] else r[0]);let b1=s[0];let a0=[(if p then q[0] else (if p then q else r[0]))];q=[[ar]];q=ar;r=[true];}",
+      "source_sha256": "c80e8902474123d6f18ba92dcdc65fb726c9059bbd4211e79ef86d933ddc59ca",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 989,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:1286": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then (if p then s else [q]) else ar) else (if p then (if p then aar else q) else (if p then q[0] else [r])))];q=[[1<2]];q=r;r=s;}",
+      "source_sha256": "982c67d086cec2fab2ef697a731797974b8da1a37e95ad23c00cfa83862254be",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 1287,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:1451": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then true else (if p then q[0] else true))];let a1=(if p then [r] else (if p then r[0] else s[0]));s=r;r=[true];}",
+      "source_sha256": "299299639b5efc5be7dae0dafc4b9f7c763b20927893f187d32b23c4462687cc",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 1452,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:1916": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[(if p then (if p then s[0] else r) else (if p then (if p then r[0] else true) else (if p then q else aar)))];r=[[ar]];q=r;}",
+      "source_sha256": "7260147b07dd45ecb4f66cc4314d7614cb641af47ed372f170306afb51d2fcea",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 1917,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:1952": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then s[0] else s[0]);let a0=[q,(if p then (if p then 1 else (if p then [q,r] else aar)) else (if p then s[0] else (if p then aar else s)))];q=r;}",
+      "source_sha256": "3caa0229a9e978e3d390e18164c62f8062b68f57c59dac73f6c4ea54f0600c08",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 1953,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:1963": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);(if p then q[0] else (if p then (if p then s else aar) else (if p then 1 else r[0])));let a1=(if p then (if p then 1 else r[0]) else (if p then q else s[0]));q=ar;}",
+      "source_sha256": "2cf090e47e815e22a58e33e067d1f432dcd1e330d6d48a97f100554bd7de256e",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 1964,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:2034": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(q[0]);let b1=q[0];let a0=[q,(if p then (if p then (if p then ar else [q]) else (if p then r[0] else 1)) else (if p then (if p then [q,r] else [q,r]) else (if p then r else s)))];s=r;r=[[ar]];}",
+      "source_sha256": "91497900df7da8a5f3870fa8a52b332242de36934c7bfcd773d105816488257d",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 2035,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:2092": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let a0=[q,(if p then (if p then (if p then s[0] else ar) else (if p then q[0] else s)) else (if p then (if p then true else r) else q))];}",
+      "source_sha256": "c6a1876e97da92d3dce45131857aa708cc8984cbfadfb5a7b696b8c9eeb20151",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 2093,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:2532": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(r[0]);let b1=(r[0]);(if p then (if p then (if p then q[0] else r) else r[0]) else (if p then (if p then [q] else true) else (if p then [q,r] else r[0])));s=q;}",
+      "source_sha256": "6ebd73078e6a99f7f313c607fe1e30e58ead4447406491aebfd1d8dbe785659f",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 2533,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:2770": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=q[0];let a0=[q,(if p then (if p then (if p then s[0] else q) else (if p then ar else s)) else (if p then (if p then s[0] else s) else (if p then ar else q[0])))];let a1=[q,r];}",
+      "source_sha256": "dcc6a7937a771c9b034892478d4f76ddfefbe219171f1748a4630ba7329e8e8c",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 2771,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:2811": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let a0=[q,(if p then (if p then (if p then ar else ar) else (if p then s[0] else [q])) else (if p then r else (if p then s else s[0])))];r=[true];r=s;}",
+      "source_sha256": "fd1dc9d5130181f1ec6c13d5e1d19614a16685b79d7b7f2037046b9adec61383",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 2812,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b-projections-2026112403:2918": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(if p then q[0] else q[0]);let b1=(if p then s[0] else s[0]);let a0=[q,(if p then ar else (if p then s[0] else (if p then aar else q)))];r=q;s=q;}",
+      "source_sha256": "a0bf99c91a85b111b1a97d2a2459fc52e3d1441ad60a005c5ac430e5475cc6a7",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "cf3049333b04b0bbce64d540ca283a3fe0398791d50789c1aa8e42f398be6714",
+      "line": 2919,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:921": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=[[ar]];q=ar;let a0=[(if p then (if p then r else (if p then 1 else 2)) else (if p then [q,r] else (if p then [q,r] else q)))];}",
+      "source_sha256": "aecf4f4c5e56c5ac105c56290eb2d32d16904ff4b6361ecaa7117725f8f08d7b",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 922,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:8216": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=[(if p then (if p then r else (if p then 1 else 1)) else (if p then (if p then r[0] else aar) else q))];}",
+      "source_sha256": "25c8d058676effafffcacdc9791082f4318465ba056fe0b77ebeb590f0cd0410",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 8217,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:11189": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then q else (if p then (if p then true else true) else (if p then r else s)));r=[[ar]];s=[true];}",
+      "source_sha256": "625ce898aa55592133e7a617632977a198f549cdf5374de5a79541856c03d53b",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 11190,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:11474": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=q;let a0=(if p then r else (if p then (if p then [q,r] else 1) else r[0]));}",
+      "source_sha256": "ec8513c88a5db39de7bc453ee8a95d8ba494eeeba31a2ae88ac0f9e034d4a9b8",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 11475,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:13247": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=[ar];let a0=(if p then r else (if p then (if p then 1 else 1) else (if p then q else [q,r])))==aar;}",
+      "source_sha256": "9e52677e01d30f60576f2fda42a43c9231d9096b24665c04b30744f3401309c2",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 13248,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:13626": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then [q,r] else (if p then ar else ar)) else (if p then (if p then r[0] else r) else ar));r=[3];r=q;}",
+      "source_sha256": "86ffc587a1a71ebcea3b89a6193707c7e0eb280f70a2494762b703697d2aad5d",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 13627,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:15115": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then [q,r] else (if p then (if p then q else true) else (if p then q else aar)));}",
+      "source_sha256": "7201ce44bddaa4bb3935756013123b3533c0538fc5dc9acc62bc8d7b06e9efec",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 15116,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:15304": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then s else (if p then (if p then r else true) else (if p then r[0] else 1)));q=[3];r=q;}",
+      "source_sha256": "c84b767a24b6be0320f31883561a4699263759e452a516f1540ecc2341f04103",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 15305,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:18686": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then r else (if p then (if p then true else 1) else r[0])));}",
+      "source_sha256": "9392ca9e3178696a22fdac1dc0464a9a81f67e97765c10deeb4f0adad9a5e2fa",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 18687,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1:21363": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=ar;let a0=(if p then r else (if p then (if p then 2 else 2) else [q,r]));}",
+      "source_sha256": "d18c3ce0f2667b70b1ec69b644e7e2103a01a92eccd3adae9aba5668566cae1f",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+      "line": 21364,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2:176": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];if p{let a0=(if p then (if p then r else (if p then r[0] else 1)) else r[0]);}}",
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 177,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2:2858": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=(if p then [q] else (if p then ar else ar));q=[[ar]];}\nfn Main(){Helper();}",
+      "source_sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 2859,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2:8742": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then q else (if p then (if p then 1 else true) else (if p then q else r)));r=[ar];}\nfn Main(){Helper(1);}",
+      "source_sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 8743,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2:9591": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then { value: (if p then { value: true; } else { value: true; }); } else { value: (if p then { value: ar; } else aar); }));}",
+      "source_sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 9592,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2:15473": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=[(if p then (if p then q else 1) else (if p then r[0] else true))];q=[3];}\nfn Main(){Helper(1);}",
+      "source_sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 15474,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2@f0-0003-b-v1:176": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];if p{let a0=(if p then (if p then r else (if p then r[0] else 1)) else r[0]);}}",
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 177,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2@f0-0003-b-v1:2858": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=(if p then [q] else (if p then ar else ar));q=[[ar]];}\nfn Main(){Helper();}",
+      "source_sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 2859,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2@f0-0003-b-v1:7609": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let o:Option<I64>=Some(1);match move o{Some(n)=>{let a0=(if p then [q] else (if p then (if p then 1 else true) else (if p then aar else s)));},None=>{}}}\nfn Main(){Helper();}",
+      "source_sha256": "99d07ccbf76eeefabcc0d2892003cf5f282fb3931a5fdf5159678964d7fd643a",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 7610,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2@f0-0003-b-v1:8742": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then q else (if p then (if p then 1 else true) else (if p then q else r)));r=[ar];}\nfn Main(){Helper(1);}",
+      "source_sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 8743,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2@f0-0003-b-v1:9591": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then { value: (if p then { value: true; } else { value: true; }); } else { value: (if p then { value: ar; } else aar); }));}",
+      "source_sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "D",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 9592,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2@f0-0003-b-v1:15473": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=[(if p then (if p then q else 1) else (if p then r[0] else true))];q=[3];}\nfn Main(){Helper(1);}",
+      "source_sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+      "line": 15474,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b:2709": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then (if p then q else r) else (if p then q[0] else 1)) else (if p then (if p then r[0] else true) else (if p then true else [r])));}",
+      "source_sha256": "707676a78299c9bf0d5c1b8c8d113e4704751d43aba774ddcf289ae314e9e89e",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "83f9e726254d55802e275b2b18ba270f567513703b5fa10a091ff5cbe410af1f",
+      "line": 2710,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b:3042": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=[ar];let a0=(if p then s else (if p then (if p then (if p then [s,q] else 2) else r) else (if p then 1 else [q])));}",
+      "source_sha256": "48e43ff14dc93ae10946ee3c7fddbc1c40db22eda0d4f9c09921be243640b1f6",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "83f9e726254d55802e275b2b18ba270f567513703b5fa10a091ff5cbe410af1f",
+      "line": 3043,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "b:3122": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q,r] else (if p then (if p then true else true) else (if p then [ar] else r)));}",
+      "source_sha256": "078d9ec14e4da91c3ec10f5d4c8212d6d6371360b6d6047a70af729082736ffd",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "83f9e726254d55802e275b2b18ba270f567513703b5fa10a091ff5cbe410af1f",
+      "line": 3123,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s7021993:278": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];if p{s=q;let a0=(if p then (if p then (if p then q else r) else r) else (if p then (if p then r[0] else 2) else (if p then [ar] else q)));r=ar;s=[[ar]];}}",
+      "source_sha256": "5c2578c9947eb05f78db23a614f1004c29826031926e95996f669c8eb17948c6",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "611f34e21b71c06ba255a308a3e01f97cd0f3f0c9de7563ddb2f0961962c0f10",
+      "line": 279,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s7021993:2391": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];Print((if p then r else (if p then (if p then 2 else true) else (if p then [ar] else q))));s=q;}\nfn Main(){Helper(1);}",
+      "source_sha256": "779084982aab40af16fe6c9fc7b62a58c2b2607cd4792e596a74cac93192bd02",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "611f34e21b71c06ba255a308a3e01f97cd0f3f0c9de7563ddb2f0961962c0f10",
+      "line": 2392,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s7021993:3267": {
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else (if p then (if p then true else 1) else (if p then [ar] else r)));},None=>{value: true;}};}",
+      "source_sha256": "2708d538810e5c6bf28bdd69b5c1a0d95bb19f71dd69925c48e1fb8fc9c23aa4",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "611f34e21b71c06ba255a308a3e01f97cd0f3f0c9de7563ddb2f0961962c0f10",
+      "line": 3268,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s7021993:4268": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];if p{let a0=(if p then (if p then [[q]] else (if p then true else true)) else [q,r])==ar;r=[3];s=q;}}",
+      "source_sha256": "4083b3294d0ee7cade3b4ef6d224d9a3e445e38721a0710f11c9c778bc2d7e28",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "611f34e21b71c06ba255a308a3e01f97cd0f3f0c9de7563ddb2f0961962c0f10",
+      "line": 4269,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s4417061:397": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];if p{r=q;Print((if p then (if p then q[0] else (if p then s else s)) else (if p then (if p then r else 1) else r)));r=[[3]];}}",
+      "source_sha256": "9f8a06898f714c881631dd565ee1b2376b4e2c8a8d222f7b457e2de02858c9ca",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "0976fb60d2f494ce5b3beca958da149210c416835c27bcb717e13f26c2cd3c48",
+      "line": 398,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s4417061:2070": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];q=ar;s=[true];let a0=(if p then (if p then r else [s,q]) else (if p then r else (if p then (if p then true else false) else q)))==ar;}\nfn Main(){Helper(1);}",
+      "source_sha256": "fc7ac11ab8d20121ca0146cbd0404ca08208f5dbc48f9d3319c6a9527f9cf196",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "0976fb60d2f494ce5b3beca958da149210c416835c27bcb717e13f26c2cd3c48",
+      "line": 2071,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s4417061:2565": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];while p{q=[3];let a0=(if p then r else (if p then (if p then r[0] else true) else aar));break;}}",
+      "source_sha256": "74f35a203e5c40978ab78a6bbdc986910868b565674828267dee093a505108a3",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "0976fb60d2f494ce5b3beca958da149210c416835c27bcb717e13f26c2cd3c48",
+      "line": 2566,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s9908255:483": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];if p{r=q;let a0=(if p then r else (if p then false else true))==aar;q=[ar];}}",
+      "source_sha256": "ab91c11be0a9709a4b30f1bb90d3d534dba3485f36f87901a60423dde1cf2fe3",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
+      "line": 484,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s9908255:1013": {
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];match move o{Some(n)=>{q=[3];let a0=(if p then (if p then r else (if p then (if p then 1 else 2) else [q,r])) else r3);},None=>{}}}",
+      "source_sha256": "229668ced3a28a74e656b672ff1b8922ae471e2029e54c7a569d4e8a5f15c6b7",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
+      "line": 1014,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "s9908255:1955": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=q;let a0=(if p then (if p then (if p then r else [r]) else q) else (if p then (if p then [r] else true) else (if p then [[q]] else r[0])))==aar;r=[3];}\nfn Main(){Helper();}",
+      "source_sha256": "97d7764692b63f6e2b952f999332c01a88262430377ca478a8ac07fed1faa71d",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
+      "line": 1956,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1-nueva:631": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then (if p then q else 1) else (if p then (if p then true else true) else (if p then [q] else aar))));}",
+      "source_sha256": "4637a654b82ab2164386232768bbc9bb344daa1f44ab5ca2efeda3996a62cd86",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "dba4c8fdd45b9651403463c36cd30626f4a31c8951ad43c80a11802a1090332d",
+      "line": 632,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1-nueva:1530": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=[(if p then (if p then (if p then q else r) else (if p then 1 else 1)) else r[0])];}",
+      "source_sha256": "332fa4cffc1c2ae647ea2c3e7d6218373d4f222664deaacaeaff7a681e440bae",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "dba4c8fdd45b9651403463c36cd30626f4a31c8951ad43c80a11802a1090332d",
+      "line": 1531,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1-nueva:4486": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then (if p then 1 else 1) else r[0]))==aar;q=ar;r=[true];}",
+      "source_sha256": "e4714a312eaa81c4dd8ea90540f709d0326159cdb66737fc4d3359e461a55a4a",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "dba4c8fdd45b9651403463c36cd30626f4a31c8951ad43c80a11802a1090332d",
+      "line": 4487,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1-nueva:7624": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=[(if p then (if p then [q,r] else (if p then ar else ar)) else (if p then (if p then r[0] else r3) else r[0]))];}",
+      "source_sha256": "bc75dc16a13250e49c6e564beec0bce786d504513cf16f8dafe2249ce3054a80",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "dba4c8fdd45b9651403463c36cd30626f4a31c8951ad43c80a11802a1090332d",
+      "line": 7625,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1-nueva2:3259": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then r else (if p then true else true)) else (if p then (if p then [q,r] else q) else q));q=[[ar]];}",
+      "source_sha256": "f35ffe282f46303be9dbcd167af497d2cc5c94c2f6ea7ef8b36d4d25122cb3dd",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "52b6f21f934f1fb5d60160ca7864c50fd966d2e1ea2911f9d33ccf42c56aeefa",
+      "line": 3260,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1-nueva2:4479": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then [q] else (if p then 2 else 2)) else (if p then (if p then [q,r] else aar) else ar));r=[ar];}",
+      "source_sha256": "197c3d636f68d84462780f4c1390a3878e10da77e9dd4f2ae2901ef1631f26c0",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "52b6f21f934f1fb5d60160ca7864c50fd966d2e1ea2911f9d33ccf42c56aeefa",
+      "line": 4480,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c1-nueva2:5438": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then (if p then 1 else true) else (if p then true else [q,r])));q=[ar];}",
+      "source_sha256": "82eb7eb0420b7890e40263516d2630c4bc218f34432dd495fc2c900636cec08b",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "52b6f21f934f1fb5d60160ca7864c50fd966d2e1ea2911f9d33ccf42c56aeefa",
+      "line": 5439,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2-nueva2:1737": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];if p{q=[ar];q=[[ar]];let a0=[(if p then r else (if p then (if p then 1 else true) else q))];}}",
+      "source_sha256": "3890579e7c2c28f74ee8a32a51ed3f2beebd6d4bf10ff1dbc8b05f05c44f378d",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "line": 1738,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2-nueva2:3112": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=q;Print((if p then [q,r] else (if p then 2 else 1)));r=[3];}\nfn Main(){Helper();}",
+      "source_sha256": "866fc70921e23d94f17c3ea0f82c0bb75299c55cf50a40f11be1cbff6834dd40",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "line": 3113,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2-nueva2@f0-0003-b-v1:469": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let o:Option<I64>=Some(1);match move o{Some(n)=>{let a0=[(if p then r else (if p then (if p then r[0] else 1) else (if p then r else ar)))];q=[[ar]];},None=>{}}}\nfn Main(){Helper();}",
+      "source_sha256": "f35f907393f0817456d32b8710bdc6a36fb0d954c241114399fb530a1f4332fa",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "line": 470,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2-nueva2@f0-0003-b-v1:1737": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];if p{q=[ar];q=[[ar]];let a0=[(if p then r else (if p then (if p then 1 else true) else q))];}}",
+      "source_sha256": "3890579e7c2c28f74ee8a32a51ed3f2beebd6d4bf10ff1dbc8b05f05c44f378d",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "line": 1738,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2-nueva2@f0-0003-b-v1:1954": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let o:Option<I64>=Some(1);match move o{Some(n)=>{q=[[ar]];let a0=(if p then r else (if p then (if p then 1 else true) else [q]));},None=>{}}}\nfn Main(){Helper();}",
+      "source_sha256": "45150801cfb79d8e1be2621ee7d71037e40c32ce9dac4e1c0c961ad902d8f368",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "line": 1955,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2-nueva2@f0-0003-b-v1:2536": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];while p{r=[true];r=[3];let a0=(if p then (if p then [q] else 1) else (if p then (if p then r[0] else true) else aar));break;}}",
+      "source_sha256": "6fa35dee2c71ce782b28f7572639d2ef772ee2aebea5c0828d2344edbad6b1d3",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "line": 2537,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "c2-nueva2@f0-0003-b-v1:3112": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=q;Print((if p then [q,r] else (if p then 2 else 1)));r=[3];}\nfn Main(){Helper();}",
+      "source_sha256": "866fc70921e23d94f17c3ea0f82c0bb75299c55cf50a40f11be1cbff6834dd40",
+      "profile": "f0-0003-b-v1",
+      "baseline_class": "A-unmodeled",
+      "corpus_sha256": "b61adba671c632a772b2fd5b73bfaf9d8f49006167bfd95df3cafa492604e3b7",
+      "line": 3113,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    }
+  },
+  "extras": {
+    "literal_233": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else (if p then r[0] else s)) else (if p then r else s))];r=q;}",
+      "source_sha256": "8a6a28742d1acd4d1858936ec0cb11ee378c00ee911c49dcf7d7e367c7a91cb0",
+      "profile": "f0-0002-b-v2",
+      "baseline_class": "D",
+      "corpus_sha256": "7094da96764a6c47bea4178aebb66f7276a3ca1c673df003b5ec07f75312d2d8",
+      "line": 234,
+      "adr_classification": "PENDING_CLAUSE_REVIEW"
+    },
+    "scalar_996": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else ar) else (if p then q else r[0]))];let a1=(if p then ar else (if p then r[0] else ar));s=r;r=s;s=[[true]];}",
+      "profile": "f0-0002-b-v2",
+      "source_sha256": "cfce72f5ab101dc4c63373edfc182ab15d0db126d3d7d96550f69dbce5e3225e"
+    },
+    "match_72": {
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=[true];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then [s,q] else (if p then (if p then q else r) else q)) else (if p then 1 else aar)) else [q,r]);},None=>{value: [r];}};r=[[3]];r=[3];}",
+      "profile": "f0-0003-b-v1",
+      "source_sha256": "aae8304cb4b3bbb28bbc41f81bfbf23a374d454027ecb8a5f6990c6042f09194"
+    },
+    "r_ar_aar": {
+      "source": "fn Main(){let ar=[1];let aar=[[1]];var r=[];let a=[r,ar,aar];r=[3];}",
+      "profile": "f0-0002-b-v2",
+      "source_sha256": "fa5906bc1b97a0482c172b12040d79a4c9323186d2baadf238cafa30d4af7a2b"
+    },
+    "w_array_eq": {
+      "source": "fn Main(){var w=(if true then {return;} else {return;});let a0=[w,[1]==w];}",
+      "profile": "f0-0002-b-v2",
+      "source_sha256": "afd574a3b53a288abe206a3240b3bd5b22dbcf7e555ca3712948a843c55cded0"
+    },
+    "discriminator:f0-0002-b-v2:resource_without_later_shape": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [],
+      "expected_rel": {},
+      "source_sha256": "731eaf6dcbe7eeb5a8eaca12298b46bfa2a3b681ce6cef51bf01772d71e7225e"
+    },
+    "discriminator:f0-0002-b-v2:resource_rejected_array": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=[];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          72,
+          74
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "8a8705d11658267ef7e8812e323ddf04ef5e6f3fc5d252916af1a17c04f52cf4"
+    },
+    "discriminator:f0-0002-b-v2:resource_scalar_completion": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=1;}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "not_indexable",
+          53,
+          54
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "4086a57bdccd343779fa022c7f72270d2893685bcfb0373a3334b26a92f53820"
+    },
+    "discriminator:f0-0002-b-v2:repeated_recursive_array": {
+      "source": "fn Main(){var q=[];q=[q];q=[q];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          16,
+          18
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "7bc5e207fc79221c1d7e778c9ccab2dc4de6edb2ec451688cb79ed7ebd3e0581"
+    },
+    "discriminator:f0-0002-b-v2:ok_cycle": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});var r=(if true then{return;}else{return;});q=[r];r=Ok(q);}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          98,
+          101
+        ],
+        [
+          "NX-E0113",
+          null,
+          104,
+          109
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "58383c6dd9bd514685891a93c5ed2596eafa7ce7c0a2f22df2a2189878a8adc6"
+    },
+    "discriminator:f0-0002-b-v2:repeated_rejected_equality": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0][0]=MockOpen(1);q=[q];q=[q];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          83
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "1d2e2460059e2fc7c49c4c8fbbf0991b5c78baf7176fcc197701fb132303f6e2"
+    },
+    "discriminator:f0-0002-b-v2:deferred_operand_origin_before_assignment": {
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then s else s)];s=[1];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          53
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "7c521f1e11a534733c0003967d367ac08f11b513b57ac19d9895c92c330db10e"
+    },
+    "discriminator:f0-0002-b-v2:failed_nested_if_no_retroactive_index": {
+      "source": "fn Main(){let x=1;var q=[];var r=[];let a0=[r[0],(if true then q[x][0] else (if r then [1] else q))];r=[1];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          81
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "3b8ac71814b39a059b95a25434e0be498e13309b8ce351cb09547155f8c0f236"
+    },
+    "discriminator:f0-0002-b-v2:first_literal_operand_after_completion": {
+      "source": "fn Main(){var s=[];var t=[];let a0=[t[0],(if true then 1 else s[0]),s];t=[1];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          68,
+          69
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          36,
+          40
+        ]
+      },
+      "source_sha256": "c5357732e21bf2041fec62e5ae27ca41a5c5ab23c2765f899528363acbf1dd3f"
+    },
+    "discriminator:f0-0002-b-v2:first_operand_of_second_literal": {
+      "source": "fn Main(){var t=[];let a0=[t[0],[t]];let a1=[t[0],(if true then [1] else t)];t=[true];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          35
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          51,
+          74
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          84
+        ]
+      ],
+      "expected_rel": {
+        "1": [
+          45,
+          49
+        ]
+      },
+      "source_sha256": "f7d3865ac5bbfc851d9edc271d95b3ffcd9430d387fc8a9fb9978760f949816a"
+    },
+    "discriminator:f0-0002-b-v2:first_literal_operand_with_index_variable": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];let a0=[t[0],(if true then 1 else s[x]),s];t=[];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          76,
+          77
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          44,
+          48
+        ]
+      },
+      "source_sha256": "9938cc6d3cba7b17d4f42462a3b1388f3f8d374a40cdf12ef726af31dcb4c9a8"
+    },
+    "discriminator:f0-0002-b-v2:literal_origin_after_prior_if": {
+      "source": "fn Main(){let x=1;var s=[];var u=[];let a1=[(if false then s[0] else u)];let a2=[s[x],(if false then u else u),1];u=[true];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          111,
+          112
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          81,
+          85
+        ]
+      },
+      "source_sha256": "2ac18eb26b3797e43dd732551e9b3387b1a797d1d02e404f5064b526e5c848b2"
+    },
+    "discriminator:f0-0002-b-v2:literal_origin_after_nested_array": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[0],(if false then [s] else t)];u=[true];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          92,
+          93
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          71,
+          75
+        ]
+      },
+      "source_sha256": "52669b7d158835b7a01146a52ebedd7f468330627048d6acbbc1de7f5a5162a6"
+    },
+    "discriminator:f0-0002-b-v2:literal_origin_after_if_projection": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u)];let a1=[s[0],(if true then t[x] else u[1])];u=[1];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          119,
+          123
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "source_sha256": "6392294fa84a22cca1780858d75125ff59ffe45f4e99b1aa576a2916d6c88f99"
+    },
+    "discriminator:f0-0002-b-v2:literal_origin_after_two_literals": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],s[0]];let a2=[s[0],(if true then s else t[0])];u=[true];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          109,
+          110
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "source_sha256": "944164d44d72a7e21900272f055d31ce9671be4b4257090ca3f87391581f08f8"
+    },
+    "discriminator:f0-0002-b-v2:later_union_branch_preserves_deferred_equality": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[u[0],t[1]];let a1=[s[0],(if false then t[1] else (if true then u else s[0])),true];let a2=[t[1],(if false then s[0] else u)];u=[true];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E1303",
+          null,
+          116,
+          117
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          174,
+          175
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          92,
+          96
+        ],
+        "1": [
+          144,
+          148
+        ]
+      },
+      "source_sha256": "3125e293a9ed35fe36c61853d2f28db2899a1078368c6e49af59daebe2341a35"
+    },
+    "discriminator:f0-0002-b-v2:later_union_deferred_conflicts_report_first_only": {
+      "source": "fn Main(){let x=1;var v1=[];var v2=[];var v3=[];let a0=[v2,(if false then v2[1] else (if true then v3 else v1[0]))];let a1=[v2[1],v2[x],(if false then v2[1] else (if true then v3 else v1[0]))];v3=[];v2=[true];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          74,
+          79
+        ],
+        [
+          "NX-E1303",
+          null,
+          176,
+          178
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          56,
+          58
+        ],
+        "1": [
+          151,
+          156
+        ]
+      },
+      "source_sha256": "d117d13ef6917f4b87dec57cebff725c9ddabad03e18fcd78c51e71d563dbb5e"
+    },
+    "discriminator:f0-0002-b-v2:synthesized_union_does_not_lend_projection_anchor": {
+      "source": "fn Main(){var q=[];var r=[];var s=[];let a0=[(if true then (if true then [r] else s) else (if true then r else q[0]))];q=[1];}",
+      "profile": "f0-0002-b-v2",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          25,
+          27
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "750376def4f2cf368bf826eea435e150f53b87385988acf55afba778a7f5c50d"
+    },
+    "discriminator:f0-0003-b-v1:resource_without_later_shape": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [],
+      "expected_rel": {},
+      "source_sha256": "731eaf6dcbe7eeb5a8eaca12298b46bfa2a3b681ce6cef51bf01772d71e7225e"
+    },
+    "discriminator:f0-0003-b-v1:resource_rejected_array": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=[];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          72,
+          74
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "8a8705d11658267ef7e8812e323ddf04ef5e6f3fc5d252916af1a17c04f52cf4"
+    },
+    "discriminator:f0-0003-b-v1:resource_scalar_completion": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=1;}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "not_indexable",
+          53,
+          54
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "4086a57bdccd343779fa022c7f72270d2893685bcfb0373a3334b26a92f53820"
+    },
+    "discriminator:f0-0003-b-v1:repeated_recursive_array": {
+      "source": "fn Main(){var q=[];q=[q];q=[q];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          16,
+          18
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "7bc5e207fc79221c1d7e778c9ccab2dc4de6edb2ec451688cb79ed7ebd3e0581"
+    },
+    "discriminator:f0-0003-b-v1:some_cycle": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});var r=(if true then{return;}else{return;});q=[r];r=Some(q);}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          98,
+          101
+        ],
+        [
+          "NX-E0113",
+          null,
+          104,
+          111
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "f795baaa5c1d831e6dbc878ea685f078952420be383925b2fa456a2e3a715b0e"
+    },
+    "discriminator:f0-0003-b-v1:ok_cycle": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});var r=(if true then{return;}else{return;});q=[r];r=Ok(q);}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          98,
+          101
+        ],
+        [
+          "NX-E0113",
+          null,
+          104,
+          109
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "58383c6dd9bd514685891a93c5ed2596eafa7ce7c0a2f22df2a2189878a8adc6"
+    },
+    "discriminator:f0-0003-b-v1:repeated_rejected_equality": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0][0]=MockOpen(1);q=[q];q=[q];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          76,
+          77
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          83
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "1d2e2460059e2fc7c49c4c8fbbf0991b5c78baf7176fcc197701fb132303f6e2"
+    },
+    "discriminator:f0-0003-b-v1:rejected_shape_keeps_union_kind": {
+      "source": "fn Main(){var q=(if true then{return;}else{return;});q[0]=MockOpen(1);q=Some(q);q=[];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          72,
+          79
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          82,
+          84
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "649effdaa148e0a2617a5cac43c878af8b4500b73e62869cde929c95aa58f829"
+    },
+    "discriminator:f0-0003-b-v1:deferred_operand_origin_before_assignment": {
+      "source": "fn Main(){var s=[];let a=[s[0],(if true then s else s)];s=[1];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          53
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "7c521f1e11a534733c0003967d367ac08f11b513b57ac19d9895c92c330db10e"
+    },
+    "discriminator:f0-0003-b-v1:failed_nested_if_no_retroactive_index": {
+      "source": "fn Main(){let x=1;var q=[];var r=[];let a0=[r[0],(if true then q[x][0] else (if r then [1] else q))];r=[1];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          81
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "3b8ac71814b39a059b95a25434e0be498e13309b8ce351cb09547155f8c0f236"
+    },
+    "discriminator:f0-0003-b-v1:first_literal_operand_after_completion": {
+      "source": "fn Main(){var s=[];var t=[];let a0=[t[0],(if true then 1 else s[0]),s];t=[1];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          68,
+          69
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          36,
+          40
+        ]
+      },
+      "source_sha256": "c5357732e21bf2041fec62e5ae27ca41a5c5ab23c2765f899528363acbf1dd3f"
+    },
+    "discriminator:f0-0003-b-v1:first_operand_of_second_literal": {
+      "source": "fn Main(){var t=[];let a0=[t[0],[t]];let a1=[t[0],(if true then [1] else t)];t=[true];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          32,
+          35
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          51,
+          74
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          80,
+          84
+        ]
+      ],
+      "expected_rel": {
+        "1": [
+          45,
+          49
+        ]
+      },
+      "source_sha256": "f7d3865ac5bbfc851d9edc271d95b3ffcd9430d387fc8a9fb9978760f949816a"
+    },
+    "discriminator:f0-0003-b-v1:first_literal_operand_with_index_variable": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];let a0=[t[0],(if true then 1 else s[x]),s];t=[];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          76,
+          77
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          44,
+          48
+        ]
+      },
+      "source_sha256": "9938cc6d3cba7b17d4f42462a3b1388f3f8d374a40cdf12ef726af31dcb4c9a8"
+    },
+    "discriminator:f0-0003-b-v1:literal_origin_after_prior_if": {
+      "source": "fn Main(){let x=1;var s=[];var u=[];let a1=[(if false then s[0] else u)];let a2=[s[x],(if false then u else u),1];u=[true];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          111,
+          112
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          81,
+          85
+        ]
+      },
+      "source_sha256": "2ac18eb26b3797e43dd732551e9b3387b1a797d1d02e404f5064b526e5c848b2"
+    },
+    "discriminator:f0-0003-b-v1:literal_origin_after_nested_array": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[s[x],[u]];let a1=[s[0],(if false then [s] else t)];u=[true];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          92,
+          93
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          71,
+          75
+        ]
+      },
+      "source_sha256": "52669b7d158835b7a01146a52ebedd7f468330627048d6acbbc1de7f5a5162a6"
+    },
+    "discriminator:f0-0003-b-v1:literal_origin_after_if_projection": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[(if false then s[x] else u)];let a1=[s[0],(if true then t[x] else u[1])];u=[1];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          119,
+          123
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "source_sha256": "6392294fa84a22cca1780858d75125ff59ffe45f4e99b1aa576a2916d6c88f99"
+    },
+    "discriminator:f0-0003-b-v1:literal_origin_after_two_literals": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[t[x],[u]];let a1=[t[1],s[0]];let a2=[s[0],(if true then s else t[0])];u=[true];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          109,
+          110
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          90,
+          94
+        ]
+      },
+      "source_sha256": "944164d44d72a7e21900272f055d31ce9671be4b4257090ca3f87391581f08f8"
+    },
+    "discriminator:f0-0003-b-v1:later_union_branch_preserves_deferred_equality": {
+      "source": "fn Main(){let x=1;var s=[];var t=[];var u=[];let a0=[u[0],t[1]];let a1=[s[0],(if false then t[1] else (if true then u else s[0])),true];let a2=[t[1],(if false then s[0] else u)];u=[true];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E1303",
+          null,
+          116,
+          117
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          174,
+          175
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          92,
+          96
+        ],
+        "1": [
+          144,
+          148
+        ]
+      },
+      "source_sha256": "3125e293a9ed35fe36c61853d2f28db2899a1078368c6e49af59daebe2341a35"
+    },
+    "discriminator:f0-0003-b-v1:later_union_deferred_conflicts_report_first_only": {
+      "source": "fn Main(){let x=1;var v1=[];var v2=[];var v3=[];let a0=[v2,(if false then v2[1] else (if true then v3 else v1[0]))];let a1=[v2[1],v2[x],(if false then v2[1] else (if true then v3 else v1[0]))];v3=[];v2=[true];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          74,
+          79
+        ],
+        [
+          "NX-E1303",
+          null,
+          176,
+          178
+        ]
+      ],
+      "expected_rel": {
+        "0": [
+          56,
+          58
+        ],
+        "1": [
+          151,
+          156
+        ]
+      },
+      "source_sha256": "d117d13ef6917f4b87dec57cebff725c9ddabad03e18fcd78c51e71d563dbb5e"
+    },
+    "discriminator:f0-0003-b-v1:synthesized_union_does_not_lend_projection_anchor": {
+      "source": "fn Main(){var q=[];var r=[];var s=[];let a0=[(if true then (if true then [r] else s) else (if true then r else q[0]))];q=[1];}",
+      "profile": "f0-0003-b-v1",
+      "expected_primary": [
+        [
+          "NX-E0103",
+          null,
+          25,
+          27
+        ]
+      ],
+      "expected_rel": {},
+      "source_sha256": "750376def4f2cf368bf826eea435e150f53b87385988acf55afba778a7f5c50d"
+    }
+  },
+  "complete": false
+}
