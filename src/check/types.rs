@@ -2761,7 +2761,7 @@ struct InferenceGraph {
     pre_assignment_snapshot: HashMap<u64, Option<ConcreteEvidence>>,
     projected_bases: HashSet<u64>,
     projection_items: HashSet<u64>,
-    projection_sites: HashSet<(u64, u64)>,
+    projection_sites: Box<HashSet<(u64, u64)>>,
     assigned_bases: HashSet<u64>,
     assignment_starts: HashMap<u64, u64>,
     first_assignment_rhs_starts: HashMap<u64, u64>,
@@ -9222,15 +9222,15 @@ impl Checker<'_> {
             {
                 continue;
             }
-            // Every continuation keeps its compatible equality, but an if
-            // without external context reports only its first incompatible
-            // continuation (§4.1.2.4). Deferred joins are drained later;
-            // their source-ordered owner restores that same cardinality.
+            // Every continuation keeps its compatible equality. A deferred
+            // union reports one conflict per constructor and owning if;
+            // different constructors in the same if retain independent
+            // source errors (§4.1.2.4). Joins drain in source order.
             if error.code == "NX-E1303"
                 && entry_record
                     .as_ref()
                     .and_then(|record| record.owner_if)
-                    .is_some_and(|owner| !failed_union_owners.insert(owner))
+                    .is_some_and(|owner| !failed_union_owners.insert((owner, constructor)))
             {
                 continue;
             }
@@ -17047,7 +17047,7 @@ pub(crate) fn check_with_partial_limit(
             pre_assignment_snapshot: HashMap::new(),
             projected_bases: HashSet::new(),
             projection_items: HashSet::new(),
-            projection_sites: HashSet::new(),
+            projection_sites: Box::default(),
             assigned_bases: HashSet::new(),
             assignment_starts: HashMap::new(),
             first_assignment_rhs_starts: HashMap::new(),
@@ -18664,7 +18664,7 @@ mod quota_tests {
                 pre_assignment_snapshot: HashMap::new(),
                 projected_bases: HashSet::new(),
                 projection_items: HashSet::new(),
-                projection_sites: HashSet::new(),
+                projection_sites: Box::default(),
                 assigned_bases: HashSet::new(),
                 assignment_starts: HashMap::new(),
                 first_assignment_rhs_starts: HashMap::new(),
