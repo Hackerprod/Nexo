@@ -14833,6 +14833,12 @@ impl Checker<'_> {
         }
         if item_type.is_none() {
             let concrete_origin = Self::primary_span(item);
+            let first_grounded = pending
+                .first()
+                .is_some_and(|(id, _)| self.concrete(*id).is_some());
+            let first_operand_origin = pending
+                .first()
+                .map(|(_, index)| Self::primary_span(&items[*index]));
             let mut first_conflict = false;
             for (id, source_index) in pending.iter() {
                 let source_origin = Self::primary_span(&items[*source_index]);
@@ -14908,14 +14914,15 @@ impl Checker<'_> {
                 *invalid = true;
                 return Ok(());
             }
-            let first_operand_origin = pending
-                .first()
-                .map(|(_, index)| Self::primary_span(&items[*index]));
             pending.clear();
             *item_type = Some(got);
-            // ADR §4.1.2.4,6: the first valid array element is
-            // the source witness for later element checks.
-            *item_origin = Some(first_operand_origin.unwrap_or(concrete_origin));
+            // The pending first operand remains a witness only when its
+            // component was concrete before this equality completed it.
+            *item_origin = Some(if first_grounded {
+                first_operand_origin.unwrap_or(concrete_origin)
+            } else {
+                concrete_origin
+            });
         } else if let Some(prior) = item_type.clone() {
             let prior_origin = origin.cloned().unwrap_or_else(|| span.clone());
             let concrete_origin = Self::primary_span(item);
@@ -23725,6 +23732,32 @@ mod quota_tests {
             Some((46, 73)),
         );
         let positive = "fn Main(){let s=[true];let t=[[true]];let u=[[true],[true]];let a0=[(if true then t[0] else u[1]),(if false then s else t[0])];}";
+        let ast = parse::parse_new_profile("origin.n", positive).unwrap();
+        let resolved = names::resolve_with_option("origin.n", positive, &ast, true).unwrap();
+        let report = check_with_partial_limit("origin.n", positive, &ast, &resolved, 1_000_000);
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
+    }
+
+    #[test]
+    fn c2_pending_literal_uses_concrete_sibling_when_first_unresolved() {
+        let source = "fn Main(){let x=1;var beta=[];var gamma=[];let a1=[beta[x],gamma,gamma[0]];gamma=[1];}";
+        let ast = parse::parse_new_profile("origin.n", source).unwrap();
+        let resolved = names::resolve_with_option("origin.n", source, &ast, true).unwrap();
+        let report = check_with_partial_limit("origin.n", source, &ast, &resolved, 1_000_000);
+        assert_eq!(report.errors.len(), 1, "{:?}", report.errors);
+        let error = &report.errors[0];
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+        assert_eq!(error.primary_span.as_ref().map(span_key), Some((65, 73)));
+        assert_eq!(
+            error
+                .related_spans
+                .iter()
+                .find(|span| span.role == RelatedRole::ExpectedType)
+                .map(|span| span_key(&span.span)),
+            Some((59, 64)),
+        );
+        let positive = "fn Main(){let x=1;var beta=[];var gamma=[];let a1=[beta[x],gamma[0]];beta=[1];gamma=[1];}";
         let ast = parse::parse_new_profile("origin.n", positive).unwrap();
         let resolved = names::resolve_with_option("origin.n", positive, &ast, true).unwrap();
         let report = check_with_partial_limit("origin.n", positive, &ast, &resolved, 1_000_000);
