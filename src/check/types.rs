@@ -6843,7 +6843,8 @@ impl Checker<'_> {
                         "facts":entry.origin_facts.iter().map(|fact| serde_json::json!({
                             "equality_id":fact.equality.0, "ordinal":fact.ordinal,
                             "path":fact.path, "source":fact.source.as_ref().map(span_key),
-                            "operand":fact.operand.as_ref().map(span_key)
+                            "operand":fact.operand.as_ref().map(span_key),
+                            "owner_if":fact.owner_if.map(|id| [id.function_ordinal,id.preorder])
                         })).collect::<Vec<_>>()
                     })).collect::<Vec<_>>()
                 }));
