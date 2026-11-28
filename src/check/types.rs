@@ -1072,6 +1072,16 @@ struct OriginFact {
     concrete: Option<Span>,
     array: Option<Span>,
     variant: Option<Span>,
+    source: Option<Span>,
+    path: Vec<u8>,
+    literal: Option<(OccurrenceId, u32)>,
+}
+
+#[derive(Clone)]
+struct EqualitySource {
+    left: Span,
+    right: Span,
+    literal: Option<(OccurrenceId, u32)>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -1087,6 +1097,7 @@ struct EqualityRecord {
     state: EqualityState,
     completion: Completion,
     owner_if: Option<OccurrenceId>,
+    source: Option<EqualitySource>,
 }
 
 // Later compatible equalities may fill an unknown entry component. Published
@@ -2661,6 +2672,7 @@ struct VisitFact {
     tainted: bool,
     numeric_domain_owner: Option<(u64, u64)>,
     literal_first_operand: Option<Span>,
+    literal_operand: Option<(OccurrenceId, u32)>,
 }
 
 #[cfg(test)]
@@ -2848,6 +2860,7 @@ impl InferenceGraph {
             state: EqualityState::Attempting,
             completion: Completion::default(),
             owner_if: None,
+            source: None,
         });
         self.active_equality = Some(id);
         self.begin_node_journal();
@@ -2869,7 +2882,100 @@ impl InferenceGraph {
                 concrete: None,
                 array: None,
                 variant: None,
+                source: None,
+                path: Vec::new(),
+                literal: None,
             });
+    }
+
+    // The path is relative to the operand type, not to the representative
+    // chosen by union. 0 = array element, 1/2 = first/second union payload.
+    fn source_paths(&self, ty: &Type) -> Vec<(u64, Vec<u8>)> {
+        let mut work = vec![(ty.clone(), Vec::new(), HashSet::new())];
+        let mut paths = Vec::new();
+        while let Some((ty, path, mut ancestors)) = work.pop() {
+            match ty {
+                Type::Deferred(id) => {
+                    if !ancestors.insert(id) {
+                        continue;
+                    }
+                    paths.push((id, path.clone()));
+                    let mut root = id;
+                    while let Some(node) = self.type_nodes.get(&root) {
+                        if node.parent == root {
+                            if let Some(child) = node.array_child {
+                                let mut child_path = path.clone();
+                                child_path.push(0);
+                                work.push((Type::Deferred(child), child_path, ancestors.clone()));
+                            }
+                            if let Some(children) = &node.variant_children {
+                                for (index, variant) in children.variants.iter().enumerate() {
+                                    if let Some(child) = variant.payload {
+                                        let mut child_path = path.clone();
+                                        child_path.push(index as u8 + 1);
+                                        work.push((
+                                            Type::Deferred(child),
+                                            child_path,
+                                            ancestors.clone(),
+                                        ));
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                        root = node.parent;
+                    }
+                }
+                Type::Array(item) | Type::Generator { item, .. } => {
+                    let mut child_path = path;
+                    child_path.push(0);
+                    work.push((item.as_ref().clone(), child_path, ancestors));
+                }
+                Type::Union(_, first, second) => {
+                    let mut first_path = path.clone();
+                    first_path.push(1);
+                    work.push((first.as_ref().clone(), first_path, ancestors.clone()));
+                    if let Some(second) = second {
+                        let mut second_path = path;
+                        second_path.push(2);
+                        work.push((second.as_ref().clone(), second_path, ancestors));
+                    }
+                }
+                _ => {}
+            }
+        }
+        paths
+    }
+
+    fn publish_source_paths(&mut self, equality: EqualityId) {
+        let record = self.equality_records.borrow().last().cloned();
+        let Some(record) = record else { return };
+        let Some(source) = record.source else { return };
+        let mut published = Vec::new();
+        for (ty, origin) in [
+            (&record.operands.0, source.left),
+            (&record.operands.1, source.right),
+        ] {
+            for (component, path) in self.source_paths(ty) {
+                published.push(OriginFact {
+                    component,
+                    equality,
+                    ordinal: equality.0,
+                    operand: None,
+                    owner_if: record.owner_if,
+                    concrete: None,
+                    array: None,
+                    variant: None,
+                    source: Some(origin.clone()),
+                    path,
+                    literal: source.literal,
+                });
+            }
+        }
+        let mut facts = self.origin_facts.borrow_mut();
+        for fact in published {
+            facts.entry(fact.component).or_default().push(fact);
+        }
     }
 
     fn source_component_origin(
@@ -3049,6 +3155,9 @@ impl InferenceGraph {
                                 concrete,
                                 array,
                                 variant,
+                                source: None,
+                                path: Vec::new(),
+                                literal: None,
                             });
                     }
                 }
@@ -3122,6 +3231,7 @@ impl InferenceGraph {
         drop(records);
         let changed = self.finish_node_journal(publish);
         if publish {
+            self.publish_source_paths(id);
             // The outer journal alone publishes edges. Rejected/nested writes
             // must never become a dependency or wake an earlier reader.
             let mut components: HashSet<u64> = self
@@ -3295,6 +3405,7 @@ impl InferenceGraph {
                 tainted: false,
                 numeric_domain_owner: None,
                 literal_first_operand: None,
+                literal_operand: None,
             },
         );
         #[cfg(test)]
@@ -3346,6 +3457,18 @@ impl InferenceGraph {
         false
     }
 
+    fn literal_operand(&self, fact: FactId) -> Option<(OccurrenceId, u32)> {
+        let mut current = Some(fact);
+        while let Some(id) = current {
+            let owner = self.fact(id);
+            if let Some(literal) = owner.literal_operand {
+                return Some(literal);
+            }
+            current = owner.parent;
+        }
+        None
+    }
+
     fn child_fact(
         &mut self,
         parent: FactId,
@@ -3382,6 +3505,7 @@ impl InferenceGraph {
                 tainted,
                 numeric_domain_owner,
                 literal_first_operand: None,
+                literal_operand: None,
             },
         );
         #[cfg(test)]
@@ -6591,15 +6715,20 @@ impl Checker<'_> {
         found: Span,
         policy: UnifyPolicy,
     ) -> Result<Type, Box<Diagnostic>> {
+        let literal = self.graph.literal_operand(fact);
         let equality = self
             .graph
             .begin_equality(left.clone(), right.clone(), found.clone());
-        self.graph
-            .equality_records
-            .borrow_mut()
-            .last_mut()
-            .unwrap()
-            .owner_if = self.active_if_owner;
+        {
+            let mut records = self.graph.equality_records.borrow_mut();
+            let record = records.last_mut().unwrap();
+            record.owner_if = self.active_if_owner;
+            record.source = Some(EqualitySource {
+                left: left_origin.clone(),
+                right: right_origin.clone(),
+                literal,
+            });
+        }
         let request = SolverUnify {
             fact,
             left,
@@ -14199,6 +14328,7 @@ impl Checker<'_> {
         if index == 0 {
             self.graph.fact_mut(visit).literal_first_operand = Some(Self::primary_span(item));
         }
+        self.graph.fact_mut(visit).literal_operand = Some((state.consumer.owner, index as u32));
         let origin = if index == 0 {
             state.context.expected_span.clone()
         } else {
@@ -22469,6 +22599,66 @@ mod quota_tests {
         assert!(accepted.0 > rejected.0);
         assert_eq!(fact.concrete, Some(site(4)));
         assert!(checker.graph.origin_facts.borrow().get(&left).is_none());
+    }
+
+    #[test]
+    fn c2_published_equality_records_source_path_without_a_type_write() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            constants: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        checker.graph.type_nodes.get_mut(&child).unwrap().concrete = Some((Type::I64, site(3)));
+        let rejected = checker.graph.begin_equality(
+            Type::Deferred(root),
+            Type::Array(Arc::new(Type::I64)),
+            site(4),
+        );
+        checker
+            .graph
+            .equality_records
+            .borrow_mut()
+            .last_mut()
+            .unwrap()
+            .source = Some(EqualitySource {
+            left: site(5),
+            right: site(6),
+            literal: None,
+        });
+        checker.graph.finish_equality(rejected, false);
+        assert!(checker.graph.origin_facts.borrow().get(&child).is_none());
+        let accepted = checker.graph.begin_equality(
+            Type::Deferred(root),
+            Type::Array(Arc::new(Type::I64)),
+            site(7),
+        );
+        checker
+            .graph
+            .equality_records
+            .borrow_mut()
+            .last_mut()
+            .unwrap()
+            .source = Some(EqualitySource {
+            left: site(8),
+            right: site(9),
+            literal: None,
+        });
+        checker.graph.finish_equality(accepted, true);
+        let facts = checker.graph.origin_facts.borrow();
+        assert!(facts[&root].iter().any(|fact| fact.equality == accepted
+            && fact.path.is_empty()
+            && fact.source == Some(site(8))));
+        assert!(facts[&child].iter().any(|fact| fact.equality == accepted
+            && fact.path == [0]
+            && fact.source == Some(site(8))));
+        assert_eq!(
+            checker.graph.type_nodes[&child].concrete,
+            Some((Type::I64, site(3)))
+        );
     }
 
     #[test]
