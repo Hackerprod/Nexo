@@ -27,16 +27,24 @@ FROZEN_IDS = {
     "r25_origin_1995": "b-projections-2026112401:1995",
     "r25_prefix_761": "b-projections-t5-2026112402:761",
     "r25_literal_1390": "b-projections-2026112401:1390",
+    "r25_constructor_820": "b-projections-t5-2026112402:820",
+    "r25_match_7609": "c2@f0-0003-b-v1:7609",
+    "r25_match_3267": "s7021993:3267",
+    "r25_helper_2858": "c2:2858",
+    "r25_helper_8742": "c2:8742",
+    "r25_helper_15473": "c2:15473",
+    "r25_block_9591": "c2:9591",
+    "r25_block_f3_9591": "c2@f0-0003-b-v1:9591",
 }
 FROZEN = Path(__file__).with_name("c2-d8-iteration-pb.json")
 
 
-def run(binary: Path, source: str):
+def run(binary: Path, source: str, profile: str):
     with tempfile.TemporaryDirectory(prefix="c2-r25-") as folder:
         path = Path(folder) / "case.n"
         path.write_text(source, encoding="utf-8")
         proc = subprocess.run(
-            [str(binary.resolve()), "check", str(path), "--profile", "f0-0002-b-v2", "--format", "json"],
+            [str(binary.resolve()), "check", str(path), "--profile", profile, "--format", "json"],
             capture_output=True, timeout=30, check=False,
         )
     if proc.returncode not in (0, 1):
@@ -70,15 +78,24 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
-    cases = dict(CASES)
-    cases.update({name: frozen["rows"][row_id]["source"] for name, row_id in FROZEN_IDS.items()})
+    cases = {name: (source, "f0-0002-b-v2") for name, source in CASES.items()}
+    cases.update({name: (frozen["rows"][row_id]["source"], frozen["rows"][row_id]["profile"])
+                  for name, row_id in FROZEN_IDS.items()})
+    row_761 = frozen["rows"][FROZEN_IDS["r25_prefix_761"]]
+    assert row_761["source"].count("var r=[];") == 1
+    cases["r25_761_forward_type"] = (
+        row_761["source"].replace("var r=[];", "var r=[ar];"), row_761["profile"])
+    assert row_761["source"].count("r=[3];") == 1
+    cases["r25_761_without_rejected_assignment"] = (
+        row_761["source"].replace("r=[3];", ""), row_761["profile"])
     rows = {}
-    for name, source in cases.items():
+    for name, (source, profile) in cases.items():
         rows[name] = {
             "source": source,
             "sha256": hashlib.sha256(source.encode()).hexdigest(),
-            "main": run(args.main, source),
-            "candidate": run(args.candidate, source),
+            "profile": profile,
+            "main": run(args.main, source, profile),
+            "candidate": run(args.candidate, source, profile),
         }
     args.output.write_text(json.dumps({"schema": "c2-r25-probes-v1", "rows": rows}, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"{len(rows)} probes written to {args.output}")

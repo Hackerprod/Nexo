@@ -4,6 +4,7 @@
     "assignment_concrete": {
       "source": "fn Main(){let ar=[1];var r=[];let a=[r,[1]];r=[true];}",
       "sha256": "1eae355354b391cc71ee607f2c6f6caa9ee31f0b34db1ebfff7bfdf93df070fc",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -66,6 +67,7 @@
     "literal_first": {
       "source": "fn Main(){var q=[];let a=[q,[1]];q=[true];}",
       "sha256": "afa95d57940db6d8d5b4e0b63e7b9b27f2b40e8a3a88c7df685eb26d75122baf",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -128,6 +130,7 @@
     "scalar_shape": {
       "source": "fn Main(){var q=[];let a=[q,1];}",
       "sha256": "2ee21f6ad09677a701b274ff262dbb07b0b11c02326567d7d5266fb36ce1b155",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -168,6 +171,7 @@
     "two_ctors_shape": {
       "source": "fn Main(){var q=[];var r=[];let a=[q,r,1];}",
       "sha256": "f594d6c9e8100b0c5c993ecd8d8378321fe65e2d88c072fa60611dd896bea118",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -232,6 +236,7 @@
     "block_if_join": {
       "source": "fn Main(){let a=(if true then {value: [1];} else {value: [true];});}",
       "sha256": "36c49b9ca3a9102c2bca7451bf72926926f4b2945e0cad4a9979da63230ea30c",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -294,6 +299,7 @@
     "block_if_first": {
       "source": "fn Main(){var q=[];let a=[(if true then {value: q;} else {value: [1];})];q=[true];}",
       "sha256": "523236d41cf26a8a55d493ec8a10e2a9383834b6aeedbd4873126255e4b88124",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -356,6 +362,7 @@
     "forward_type": {
       "source": "fn Main(){var r=[true];r=[1];}",
       "sha256": "9470ecd822c386572b94d9dfcf1a74e30c23d63cba6bdc2c836439b2fb5a489f",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -418,6 +425,7 @@
     "late_type": {
       "source": "fn Main(){var r=[];r=[(r==r)==true];r=[1];}",
       "sha256": "848539d0e4e73791a8f81281bb4f94623dc4992590e94d12590ac1cbc3de3bac",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -480,6 +488,7 @@
     "r25_assignment_233": {
       "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then ar else (if p then r[0] else s)) else (if p then r else s))];r=q;}",
       "sha256": "8a6a28742d1acd4d1858936ec0cb11ee378c00ee911c49dcf7d7e367c7a91cb0",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -588,6 +597,7 @@
     "r25_origin_1995": {
       "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=(if p then s[0] else (if p then (if p then q else s) else r[0]));let a1=aar;r=[3];q=ar;}",
       "sha256": "8bdef64242d09807074f04862393679d0f165cb975f9fda8cb55d1bf0994b4eb",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -696,6 +706,7 @@
     "r25_prefix_761": {
       "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let b1=(s[0]);let a0=[(if p then q[0] else (if p then (if p then s else ar) else (if ar then s[0] else r[0])))];r=[3];q=r;s=[[true]];}",
       "sha256": "6f9c59d0f367d30977de3bdabd6109933552129b241e464e4150a2203c2763b6",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -886,6 +897,7 @@
     "r25_literal_1390": {
       "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let a0=[q,(if p then (if p then r else (if p then ar else aar)) else (if p then (if p then q else ar) else (if p then [q] else true)))];}",
       "sha256": "07380647804975516f1b2d9eccd8bf481cd259ae994addfc1af1610262c86f82",
+      "profile": "f0-0002-b-v2",
       "main": {
         "exit": 1,
         "outcome": "rejected",
@@ -1055,6 +1067,1301 @@
                 "found_type",
                 200,
                 204
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_constructor_820": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=(s[0]);let b1=(if p then r[0] else r[0]);let a0=[[q],r];let a1=(if ar then q[0] else (if ar then r[0] else s[0]));q=[1];}",
+      "sha256": "9560892e2604b675d18f3fad14bb5acc764f34b2203f2ed0c76d248aab093504",
+      "profile": "f0-0002-b-v2",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              70,
+              72
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              147,
+              149
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                147,
+                149
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              169,
+              171
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                169,
+                171
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              177,
+              181
+            ],
+            "token": "r[0]",
+            "expected": "I64",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                155,
+                159
+              ],
+              [
+                "found_type",
+                177,
+                181
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              147,
+              149
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                147,
+                149
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              169,
+              171
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                169,
+                171
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              177,
+              181
+            ],
+            "token": "r[0]",
+            "expected": "I64",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                155,
+                159
+              ],
+              [
+                "found_type",
+                177,
+                181
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_match_7609": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let o:Option<I64>=Some(1);match move o{Some(n)=>{let a0=(if p then [q] else (if p then (if p then 1 else true) else (if p then aar else s)));},None=>{}}}\nfn Main(){Helper();}",
+      "sha256": "99d07ccbf76eeefabcc0d2892003cf5f282fb3931a5fdf5159678964d7fd643a",
+      "profile": "f0-0003-b-v1",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              78,
+              80
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              188,
+              189
+            ],
+            "token": "1",
+            "expected": "Array<Array<I64>>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                160
+              ],
+              [
+                "found_type",
+                188,
+                189
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              195,
+              199
+            ],
+            "token": "true",
+            "expected": "Array<Array<I64>>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                160
+              ],
+              [
+                "found_type",
+                195,
+                199
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              78,
+              80
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              188,
+              189
+            ],
+            "token": "1",
+            "expected": "Array<Array<I64>>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                160
+              ],
+              [
+                "found_type",
+                188,
+                189
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_match_3267": {
+      "source": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then q else (if p then (if p then true else 1) else (if p then [ar] else r)));},None=>{value: true;}};}",
+      "sha256": "2708d538810e5c6bf28bdd69b5c1a0d95bb19f71dd69925c48e1fb8fc9c23aa4",
+      "profile": "f0-0003-b-v1",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              182,
+              186
+            ],
+            "token": "true",
+            "expected": "Array<Array<I64>>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                153,
+                154
+              ],
+              [
+                "found_type",
+                182,
+                186
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              192,
+              193
+            ],
+            "token": "1",
+            "expected": "Array<Array<I64>>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                153,
+                154
+              ],
+              [
+                "found_type",
+                192,
+                193
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              182,
+              186
+            ],
+            "token": "true",
+            "expected": "Array<Array<I64>>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                153,
+                154
+              ],
+              [
+                "found_type",
+                182,
+                186
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_helper_2858": {
+      "source": "fn Helper(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=(if p then [q] else (if p then ar else ar));q=[[ar]];}\nfn Main(){Helper();}",
+      "sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091",
+      "profile": "f0-0002-b-v2",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              123,
+              125
+            ],
+            "token": "ar",
+            "expected": "Array<Array<Array<Array<I64>>>>",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                103,
+                106
+              ],
+              [
+                "found_type",
+                123,
+                125
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              131,
+              133
+            ],
+            "token": "ar",
+            "expected": "Array<Array<Array<Array<I64>>>>",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                103,
+                106
+              ],
+              [
+                "found_type",
+                131,
+                133
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              123,
+              125
+            ],
+            "token": "ar",
+            "expected": "Array<Array<Array<Array<I64>>>>",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "expected_type",
+                103,
+                106
+              ],
+              [
+                "found_type",
+                123,
+                125
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_helper_8742": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then q else (if p then (if p then 1 else true) else (if p then q else r)));r=[ar];}\nfn Main(){Helper(1);}",
+      "sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0",
+      "profile": "f0-0002-b-v2",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              138,
+              139
+            ],
+            "token": "1",
+            "expected": "Array<Array<I64>>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                109,
+                110
+              ],
+              [
+                "found_type",
+                138,
+                139
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              145,
+              149
+            ],
+            "token": "true",
+            "expected": "Array<Array<I64>>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                109,
+                110
+              ],
+              [
+                "found_type",
+                145,
+                149
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              138,
+              139
+            ],
+            "token": "1",
+            "expected": "Array<Array<I64>>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                109,
+                110
+              ],
+              [
+                "found_type",
+                138,
+                139
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_helper_15473": {
+      "source": "fn Helper(z:view I64){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=[(if p then (if p then q else 1) else (if p then r[0] else true))];q=[3];}\nfn Main(){Helper(1);}",
+      "sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6",
+      "profile": "f0-0002-b-v2",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              133
+            ],
+            "token": "1",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                125,
+                126
+              ],
+              [
+                "found_type",
+                132,
+                133
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              151,
+              155
+            ],
+            "token": "r[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                115,
+                133
+              ],
+              [
+                "found_type",
+                151,
+                155
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              161,
+              165
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                115,
+                133
+              ],
+              [
+                "found_type",
+                161,
+                165
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              132,
+              133
+            ],
+            "token": "1",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                125,
+                126
+              ],
+              [
+                "found_type",
+                132,
+                133
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              151,
+              155
+            ],
+            "token": "r[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                115,
+                133
+              ],
+              [
+                "found_type",
+                151,
+                155
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_block_9591": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then { value: (if p then { value: true; } else { value: true; }); } else { value: (if p then { value: ar; } else aar); }));}",
+      "sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0002-b-v2",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              67,
+              69
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              144,
+              148
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                144,
+                148
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              166,
+              170
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                166,
+                170
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              223,
+              226
+            ],
+            "token": "aar",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                223,
+                226
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              67,
+              69
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              144,
+              148
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                144,
+                148
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              223,
+              226
+            ],
+            "token": "aar",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                223,
+                226
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_block_f3_9591": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then { value: (if p then { value: true; } else { value: true; }); } else { value: (if p then { value: ar; } else aar); }));}",
+      "sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0003-b-v1",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              67,
+              69
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              144,
+              148
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                144,
+                148
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              166,
+              170
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                166,
+                170
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              223,
+              226
+            ],
+            "token": "aar",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                223,
+                226
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0103",
+            "subcause": null,
+            "primary": [
+              67,
+              69
+            ],
+            "token": "[]",
+            "expected": null,
+            "found": null,
+            "relations": []
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              144,
+              148
+            ],
+            "token": "true",
+            "expected": "Array<I64>",
+            "found": "Bool",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                144,
+                148
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              223,
+              226
+            ],
+            "token": "aar",
+            "expected": "Array<I64>",
+            "found": "Array<Array<I64>>",
+            "relations": [
+              [
+                "expected_type",
+                97,
+                98
+              ],
+              [
+                "found_type",
+                223,
+                226
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_761_forward_type": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[ar];var s=[];let b0=s[0];let b1=(s[0]);let a0=[(if p then q[0] else (if p then (if p then s else ar) else (if ar then s[0] else r[0])))];r=[3];q=r;s=[[true]];}",
+      "sha256": "72303973a1b02342f18060b8e8cb4e91a2db54d4e2ea8ff1e067d9d4aa0c64ed",
+      "profile": "f0-0002-b-v2",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              172,
+              174
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                172,
+                174
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              180,
+              184
+            ],
+            "token": "s[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                120,
+                124
+              ],
+              [
+                "found_type",
+                180,
+                184
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              202,
+              203
+            ],
+            "token": "3",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                61,
+                65
+              ],
+              [
+                "found_type",
+                202,
+                203
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              212,
+              218
+            ],
+            "token": "[true]",
+            "expected": "I64",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                159,
+                161
+              ],
+              [
+                "found_type",
+                212,
+                218
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              172,
+              174
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                172,
+                174
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              180,
+              184
+            ],
+            "token": "s[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                120,
+                124
+              ],
+              [
+                "found_type",
+                180,
+                184
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              202,
+              203
+            ],
+            "token": "3",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                61,
+                65
+              ],
+              [
+                "found_type",
+                202,
+                203
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              212,
+              218
+            ],
+            "token": "[true]",
+            "expected": "I64",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                159,
+                161
+              ],
+              [
+                "found_type",
+                212,
+                218
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "r25_761_without_rejected_assignment": {
+      "source": "fn Main(){let p=true;let ar=[1];let aar=[[1]];var q=[];var r=[];var s=[];let b0=s[0];let b1=(s[0]);let a0=[(if p then q[0] else (if p then (if p then s else ar) else (if ar then s[0] else r[0])))];q=r;s=[[true]];}",
+      "sha256": "99001335c02cc3d2805c6af46cc8dde458a7ed8839c36570ce2ec9182a26c0cb",
+      "profile": "f0-0002-b-v2",
+      "main": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              170,
+              172
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                170,
+                172
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              178,
+              182
+            ],
+            "token": "s[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                118,
+                122
+              ],
+              [
+                "found_type",
+                178,
+                182
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              204,
+              210
+            ],
+            "token": "[true]",
+            "expected": "I64",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                159
+              ],
+              [
+                "found_type",
+                204,
+                210
+              ]
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "exit": 1,
+        "outcome": "rejected",
+        "diagnostics": [
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              170,
+              172
+            ],
+            "token": "ar",
+            "expected": "Bool",
+            "found": "Array<I64>",
+            "relations": [
+              [
+                "found_type",
+                170,
+                172
+              ]
+            ]
+          },
+          {
+            "code": "NX-E1303",
+            "subcause": null,
+            "primary": [
+              178,
+              182
+            ],
+            "token": "s[0]",
+            "expected": "Array<I64>",
+            "found": "I64",
+            "relations": [
+              [
+                "expected_type",
+                118,
+                122
+              ],
+              [
+                "found_type",
+                178,
+                182
+              ]
+            ]
+          },
+          {
+            "code": "NX-E0102",
+            "subcause": "type_mismatch",
+            "primary": [
+              204,
+              210
+            ],
+            "token": "[true]",
+            "expected": "I64",
+            "found": "Array<Bool>",
+            "relations": [
+              [
+                "expected_type",
+                157,
+                159
+              ],
+              [
+                "found_type",
+                204,
+                210
               ]
             ]
           }

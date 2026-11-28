@@ -1,0 +1,3189 @@
+{
+  "schema": "c2-r25-adjudication-v1",
+  "iteration_sha256": "1aebd0a0f47bf202cc0c0f548935539a92d403d1bc6a7947a10cc3b123a60dcf",
+  "trace_sha256": "9461b16a060e85a0af15cb358056bdb78412ca19afdb82250d5d663fe184c570",
+  "partial_c_audit": {
+    "b-projections-2026112401:2919": {
+      "source_sha256": "b4a372d033cafa756b32b6ddad484365984c58f0aeb691f054b1b4f097784a00",
+      "status": "SHARED_WITH_MAIN",
+      "basis": "B r25 and F0-0002 §4.1.2.2: rejected scalar cannot fix Array element",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            52,
+            54
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            133,
+            137
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            177,
+            181
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            187,
+            191
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            209,
+            210
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            133,
+            137
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            177,
+            181
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            209,
+            210
+          ]
+        ]
+      ]
+    },
+    "b-projections-t5-2026112402:468": {
+      "source_sha256": "04f8dbe2108bad6ea73176793eec035fc2e50028f1d25d0f29b24d01cf4eb173",
+      "status": "SHARED_WITH_MAIN",
+      "basis": "B r25 and F0-0002 §4.1.2.2: rejected scalar cannot fix Array element",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            61,
+            63
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            147,
+            149
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            103,
+            104
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            121,
+            122
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            128,
+            129
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            103,
+            104
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            121,
+            122
+          ]
+        ]
+      ]
+    },
+    "b-projections-t5-2026112402:757": {
+      "source_sha256": "3f8eeeedc58636d05e66950cf8b7100f3726e6dc6dbf28447897ecb3d9a1dae5",
+      "status": "INCONCLUSIVE_MANUAL_DERIVATION_PENDING",
+      "basis": "partial oracle alone cannot establish independent C",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            228,
+            232
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            110,
+            114
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            143,
+            147
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            172,
+            176
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            182,
+            186
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            236,
+            237
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            241,
+            245
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            110,
+            114
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            143,
+            147
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            172,
+            176
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            236,
+            237
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            241,
+            245
+          ]
+        ]
+      ]
+    },
+    "b-projections-t5-2026112402:761": {
+      "source_sha256": "6f9c59d0f367d30977de3bdabd6109933552129b241e464e4150a2203c2763b6",
+      "status": "PARTIAL_ORACLE_FALSE_POSITIVE",
+      "basis": "§4.1.2.1-2,7: earlier r[0] fixes prefix",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            205,
+            206
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            170,
+            172
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            178,
+            182
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            205,
+            206
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            210,
+            216
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            170,
+            172
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            178,
+            182
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            200,
+            201
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            210,
+            216
+          ]
+        ]
+      ]
+    },
+    "b-projections-t5-2026112402:2072": {
+      "source_sha256": "e3509441d4e4b6492f509b8575b19176b88cbed3eaca18a73fa3406f0ca696c3",
+      "status": "PARTIAL_ORACLE_FALSE_POSITIVE",
+      "basis": "§4.1.2.5: q condition failure taints dependent r=q",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            137,
+            138
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            102,
+            103
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            109,
+            113
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            119,
+            123
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            102,
+            103
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            109,
+            113
+          ]
+        ]
+      ]
+    },
+    "b-projections-t5-2026112402:2343": {
+      "source_sha256": "f777f3cc6c8fc6858d1b9968c1b607d8d997bd6afd48b89f93bf9c2cb3a0813a",
+      "status": "INCONCLUSIVE_MANUAL_DERIVATION_PENDING",
+      "basis": "partial oracle alone cannot establish independent C",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            230,
+            231
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            106,
+            108
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            118,
+            119
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            133,
+            137
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            176,
+            177
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            215,
+            216
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            236,
+            240
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            247,
+            250
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            106,
+            108
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            118,
+            119
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            133,
+            137
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            176,
+            177
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            215,
+            216
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            236,
+            240
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            247,
+            250
+          ]
+        ]
+      ]
+    },
+    "b-projections-2026112403:1451": {
+      "source_sha256": "299299639b5efc5be7dae0dafc4b9f7c763b20927893f187d32b23c4462687cc",
+      "status": "INCONCLUSIVE_MANUAL_DERIVATION_PENDING",
+      "basis": "partial oracle alone cannot establish independent C",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            188,
+            189
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            169,
+            173
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            179,
+            183
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            169,
+            173
+          ]
+        ]
+      ]
+    },
+    "b-projections-2026112403:2532": {
+      "source_sha256": "6ebd73078e6a99f7f313c607fe1e30e58ead4447406491aebfd1d8dbe785659f",
+      "status": "SHARED_WITH_MAIN",
+      "basis": "B r25 and F0-0002 §4.1.2.2: rejected scalar cannot fix Array element",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            61,
+            63
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            152,
+            156
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            185,
+            188
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            194,
+            198
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            219,
+            220
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            152,
+            156
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            185,
+            188
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            219,
+            220
+          ]
+        ]
+      ]
+    },
+    "c1:8216": {
+      "source_sha256": "25c8d058676effafffcacdc9791082f4318465ba056fe0b77ebeb590f0cd0410",
+      "status": "INCONCLUSIVE_MANUAL_DERIVATION_PENDING",
+      "basis": "partial oracle alone cannot establish independent C",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            165,
+            169
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            127,
+            128
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            134,
+            135
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            175,
+            178
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            127,
+            128
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            175,
+            178
+          ]
+        ]
+      ]
+    },
+    "c1:11474": {
+      "source_sha256": "ec8513c88a5db39de7bc453ee8a95d8ba494eeeba31a2ae88ac0f9e034d4a9b8",
+      "status": "SHARED_WITH_MAIN",
+      "basis": "B r25 and F0-0002 §4.1.2.2: rejected scalar cannot fix Array element",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            130,
+            135
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            141,
+            142
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            130,
+            135
+          ]
+        ]
+      ]
+    },
+    "c1:13626": {
+      "source_sha256": "86ffc587a1a71ebcea3b89a6193707c7e0eb280f70a2494762b703697d2aad5d",
+      "status": "INCONCLUSIVE_MANUAL_DERIVATION_PENDING",
+      "basis": "partial oracle alone cannot establish independent C",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            170,
+            174
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            130,
+            132
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            138,
+            140
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            180,
+            181
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            196,
+            197
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            130,
+            132
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            180,
+            181
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            196,
+            197
+          ]
+        ]
+      ]
+    },
+    "c1:18686": {
+      "source_sha256": "9392ca9e3178696a22fdac1dc0464a9a81f67e97765c10deeb4f0adad9a5e2fa",
+      "status": "SHARED_WITH_MAIN",
+      "basis": "B r25 and F0-0002 §4.1.2.2: rejected scalar cannot fix Array element",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            125,
+            129
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            135,
+            136
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            125,
+            129
+          ]
+        ]
+      ]
+    },
+    "b:2709": {
+      "source_sha256": "707676a78299c9bf0d5c1b8c8d113e4704751d43aba774ddcf289ae314e9e89e",
+      "status": "SHARED_WITH_MAIN",
+      "basis": "B r25 and F0-0002 §4.1.2.2: rejected scalar cannot fix Array element",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            145,
+            149
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            155,
+            156
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            196,
+            200
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            218,
+            222
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            145,
+            149
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            196,
+            200
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            218,
+            222
+          ]
+        ]
+      ]
+    },
+    "c1-nueva:1530": {
+      "source_sha256": "332fa4cffc1c2ae647ea2c3e7d6218373d4f222664deaacaeaff7a681e440bae",
+      "status": "SHARED_WITH_MAIN",
+      "basis": "B r25 and F0-0002 §4.1.2.2: rejected scalar cannot fix Array element",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            146,
+            147
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            153,
+            154
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            146,
+            147
+          ]
+        ]
+      ]
+    },
+    "c1-nueva:7624": {
+      "source_sha256": "bc75dc16a13250e49c6e564beec0bce786d504513cf16f8dafe2249ce3054a80",
+      "status": "INCONCLUSIVE_MANUAL_DERIVATION_PENDING",
+      "basis": "partial oracle alone cannot establish independent C",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            175,
+            179
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            135,
+            137
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            143,
+            145
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            185,
+            187
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            135,
+            137
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            185,
+            187
+          ]
+        ]
+      ]
+    },
+    "c1-nueva2:4479": {
+      "source_sha256": "197c3d636f68d84462780f4c1390a3878e10da77e9dd4f2ae2901ef1631f26c0",
+      "status": "INCONCLUSIVE_MANUAL_DERIVATION_PENDING",
+      "basis": "partial oracle alone cannot establish independent C",
+      "partial_oracle_claims": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            195,
+            197
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            128,
+            129
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            135,
+            136
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            166,
+            171
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            187,
+            189
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            128,
+            129
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            166,
+            171
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            187,
+            189
+          ]
+        ]
+      ]
+    }
+  },
+  "sample_30_of_original_102": {
+    "b-projections-2026112401:280": {
+      "source_sha256": "0a288a3eed29a94ab2a48199d3093a10f894fa58696e33de07936da367e1e079",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            159,
+            160
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            185,
+            189
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            231,
+            232
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            245,
+            249
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            159,
+            160
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            185,
+            189
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            231,
+            232
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            245,
+            249
+          ]
+        ]
+      ],
+      "trace_decisions": 75,
+      "trace_rejected": 3
+    },
+    "b-projections-2026112401:550": {
+      "source_sha256": "489a2eb4baa8fa5bf1cc8e83d247ffd92c983d88bbdc59bef083080e77d47898",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            224,
+            225
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            232,
+            233
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            244,
+            248
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            224,
+            225
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            232,
+            233
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            244,
+            248
+          ]
+        ]
+      ],
+      "trace_decisions": 114,
+      "trace_rejected": 12
+    },
+    "b-projections-2026112401:1183": {
+      "source_sha256": "6044eee5a1e92e41767fe481578f56d2e6fcec9cd97836e666e9d7a2a98a38da",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            151,
+            155
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            183,
+            186
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            192,
+            193
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            151,
+            155
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            183,
+            186
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            192,
+            193
+          ]
+        ]
+      ],
+      "trace_decisions": 69,
+      "trace_rejected": 0
+    },
+    "b-projections-t5-2026112402:1266": {
+      "source_sha256": "0431c5d8c6bc8302fec3bf80d121ca9d8062a5fa4bb4b5a7c68d8dd89a5c79e4",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            87,
+            88
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            106,
+            107
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            113,
+            116
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            123,
+            124
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            148,
+            150
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            87,
+            88
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            106,
+            107
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            113,
+            116
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            123,
+            124
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            148,
+            150
+          ]
+        ]
+      ],
+      "trace_decisions": 38,
+      "trace_rejected": 13
+    },
+    "c2:2858": {
+      "source_sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            123,
+            125
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            131,
+            133
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            123,
+            125
+          ]
+        ]
+      ],
+      "trace_decisions": 26,
+      "trace_rejected": 0
+    },
+    "c2:8742": {
+      "source_sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            138,
+            139
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            145,
+            149
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            138,
+            139
+          ]
+        ]
+      ],
+      "trace_decisions": 41,
+      "trace_rejected": 1
+    },
+    "c2:15473": {
+      "source_sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            132,
+            133
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            151,
+            155
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            161,
+            165
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            132,
+            133
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            151,
+            155
+          ]
+        ]
+      ],
+      "trace_decisions": 38,
+      "trace_rejected": 0
+    },
+    "c2@f0-0003-b-v1:7609": {
+      "source_sha256": "99d07ccbf76eeefabcc0d2892003cf5f282fb3931a5fdf5159678964d7fd643a",
+      "profile": "f0-0003-b-v1",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            78,
+            80
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            188,
+            189
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            195,
+            199
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            78,
+            80
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            188,
+            189
+          ]
+        ]
+      ],
+      "trace_decisions": 42,
+      "trace_rejected": 3
+    },
+    "s7021993:3267": {
+      "source_sha256": "2708d538810e5c6bf28bdd69b5c1a0d95bb19f71dd69925c48e1fb8fc9c23aa4",
+      "profile": "f0-0003-b-v1",
+      "status": "CANDIDATE_ADR_CONFORMING_IN_B_R25_SAMPLE",
+      "basis": "B r25: specific relation or one diagnosis per union",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            182,
+            186
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            192,
+            193
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            182,
+            186
+          ]
+        ]
+      ],
+      "trace_decisions": 39,
+      "trace_rejected": 3
+    },
+    "b-projections-2026112401:1390": {
+      "source_sha256": "07380647804975516f1b2d9eccd8bf481cd259ae994addfc1af1610262c86f82",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ROUTE_DEFECT",
+      "basis": "§4.1.2.4 and §13.15: aar witness is ar [123,125), not q [81,82)",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            131,
+            134
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            192,
+            193
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            200,
+            204
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            131,
+            134
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            192,
+            193
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            200,
+            204
+          ]
+        ]
+      ],
+      "trace_decisions": 51,
+      "trace_rejected": 6
+    },
+    "c2:9591": {
+      "source_sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0002-b-v2",
+      "status": "ADR_AMBIGUOUS_KEEP_MAIN_D9",
+      "basis": "nested if through value block; keep main's C at [166,170)",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            166,
+            170
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            223,
+            226
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            223,
+            226
+          ]
+        ]
+      ],
+      "trace_decisions": 33,
+      "trace_rejected": 6
+    },
+    "c2@f0-0003-b-v1:9591": {
+      "source_sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0003-b-v1",
+      "status": "ADR_AMBIGUOUS_KEEP_MAIN_D9",
+      "basis": "nested if through value block; keep main's C at [166,170)",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            166,
+            170
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            223,
+            226
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            223,
+            226
+          ]
+        ]
+      ],
+      "trace_decisions": 33,
+      "trace_rejected": 6
+    },
+    "b-projections-2026112401:1196": {
+      "source_sha256": "a18ddd06a42488a344897218c4177e594a46edf983432a33af4d0b3552029bd1",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [187, 191]; owner AST [0, 55]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            165,
+            169
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            187,
+            191
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            197,
+            201
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            257,
+            262
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            165,
+            169
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            187,
+            191
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            257,
+            262
+          ]
+        ]
+      ],
+      "trace_decisions": 108,
+      "trace_rejected": 4
+    },
+    "b-projections-2026112401:2977": {
+      "source_sha256": "1d58414e210f874ff27c7387c45c33228397fe1692dfce71c37eb908b788eedf",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [144, 145]; owner AST [0, 38]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            124,
+            126
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            145
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            151,
+            152
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            221,
+            222
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            266,
+            270
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            282,
+            283
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            292,
+            297
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            124,
+            126
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            145
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            221,
+            222
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            266,
+            270
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            282,
+            283
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            292,
+            297
+          ]
+        ]
+      ],
+      "trace_decisions": 91,
+      "trace_rejected": 12
+    },
+    "b-projections-t5-2026112402:820": {
+      "source_sha256": "9560892e2604b675d18f3fad14bb5acc764f34b2203f2ed0c76d248aab093504",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_MISSING_CONSTRUCTOR_C",
+      "basis": "§4.1.2.2: s=[] [70,72) remains unresolved; both uses of s[0] lack a compatible concrete element witness",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            147,
+            149
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            169,
+            171
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            177,
+            181
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            147,
+            149
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            169,
+            171
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            177,
+            181
+          ]
+        ]
+      ],
+      "trace_decisions": 63,
+      "trace_rejected": 7
+    },
+    "b-projections-t5-2026112402:838": {
+      "source_sha256": "7851383d20f5239a6faa886aaaa0adf2611bd06b112ed5f72d1b617582734b9c",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [102, 103]; owner AST [0, 23]",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            77,
+            78
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            102,
+            103
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            109,
+            110
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            124,
+            126
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            161,
+            164
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            173,
+            175
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            70,
+            72
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            77,
+            78
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            102,
+            103
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            124,
+            126
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            161,
+            164
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            173,
+            175
+          ]
+        ]
+      ],
+      "trace_decisions": 42,
+      "trace_rejected": 7
+    },
+    "c1-nueva:631": {
+      "source_sha256": "4637a654b82ab2164386232768bbc9bb344daa1f44ab5ca2efeda3996a62cd86",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [144, 148]; owner AST [0, 41]",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            76,
+            78
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            114,
+            115
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            154,
+            158
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            176,
+            179
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            76,
+            78
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            114,
+            115
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            144,
+            148
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            176,
+            179
+          ]
+        ]
+      ],
+      "trace_decisions": 42,
+      "trace_rejected": 3
+    },
+    "b-projections-2026112403:1916": {
+      "source_sha256": "7260147b07dd45ecb4f66cc4314d7614cb641af47ed372f170306afb51d2fcea",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [143, 147]; owner AST [0, 39]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            143,
+            147
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            153,
+            157
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            194,
+            196
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            143,
+            147
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            194,
+            196
+          ]
+        ]
+      ],
+      "trace_decisions": 59,
+      "trace_rejected": 6
+    },
+    "c1:921": {
+      "source_sha256": "aecf4f4c5e56c5ac105c56290eb2d32d16904ff4b6361ecaa7117725f8f08d7b",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [141, 142]; owner AST [0, 40]",
+      "main": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            90,
+            92
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            141,
+            142
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            148,
+            149
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            168,
+            173
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            190,
+            195
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            90,
+            92
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            141,
+            142
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            168,
+            173
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            190,
+            195
+          ]
+        ]
+      ],
+      "trace_decisions": 47,
+      "trace_rejected": 9
+    },
+    "c1:11189": {
+      "source_sha256": "625ce898aa55592133e7a617632977a198f549cdf5374de5a79541856c03d53b",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [135, 139]; owner AST [0, 33]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            135,
+            139
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            145,
+            149
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            191,
+            195
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            135,
+            139
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            191,
+            195
+          ]
+        ]
+      ],
+      "trace_decisions": 44,
+      "trace_rejected": 4
+    },
+    "c1:13247": {
+      "source_sha256": "9e52677e01d30f60576f2fda42a43c9231d9096b24665c04b30744f3401309c2",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [133, 134]; owner AST [0, 36]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            133,
+            134
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            140,
+            141
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            166,
+            171
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            133,
+            134
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            166,
+            171
+          ]
+        ]
+      ],
+      "trace_decisions": 41,
+      "trace_rejected": 6
+    },
+    "c1:15115": {
+      "source_sha256": "7201ce44bddaa4bb3935756013123b3533c0538fc5dc9acc62bc8d7b06e9efec",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [130, 131]; owner AST [0, 33]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            130,
+            131
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            137,
+            141
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            159,
+            160
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            130,
+            131
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            159,
+            160
+          ]
+        ]
+      ],
+      "trace_decisions": 36,
+      "trace_rejected": 3
+    },
+    "c1:15304": {
+      "source_sha256": "c84b767a24b6be0320f31883561a4699263759e452a516f1540ecc2341f04103",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [164, 168]; owner AST [0, 41]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            142,
+            146
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            164,
+            168
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            174,
+            175
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            142,
+            146
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            164,
+            168
+          ]
+        ]
+      ],
+      "trace_decisions": 48,
+      "trace_rejected": 0
+    },
+    "c1:21363": {
+      "source_sha256": "d18c3ce0f2667b70b1ec69b644e7e2103a01a92eccd3adae9aba5668566cae1f",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [131, 132]; owner AST [0, 34]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            131,
+            132
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            138,
+            139
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            146,
+            151
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            131,
+            132
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            146,
+            151
+          ]
+        ]
+      ],
+      "trace_decisions": 31,
+      "trace_rejected": 3
+    },
+    "c2:176": {
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [140, 144]; owner AST [0, 36]",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E0103",
+          null,
+          [
+            85,
+            87
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            140,
+            144
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            150,
+            151
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E0103",
+          null,
+          [
+            85,
+            87
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            140,
+            144
+          ]
+        ]
+      ],
+      "trace_decisions": 36,
+      "trace_rejected": 0
+    },
+    "c2@f0-0003-b-v1:176": {
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48",
+      "profile": "f0-0003-b-v1",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [140, 144]; owner AST [0, 36]",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E0103",
+          null,
+          [
+            85,
+            87
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            140,
+            144
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            150,
+            151
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            67,
+            69
+          ]
+        ],
+        [
+          "NX-E0103",
+          null,
+          [
+            85,
+            87
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            140,
+            144
+          ]
+        ]
+      ],
+      "trace_decisions": 36,
+      "trace_rejected": 0
+    },
+    "b:3042": {
+      "source_sha256": "48e43ff14dc93ae10946ee3c7fddbc1c40db22eda0d4f9c09921be243640b1f6",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [153, 158]; owner AST [0, 42]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            153,
+            158
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            164,
+            165
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            191,
+            192
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            153,
+            158
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            191,
+            192
+          ]
+        ]
+      ],
+      "trace_decisions": 50,
+      "trace_rejected": 6
+    },
+    "b:3122": {
+      "source_sha256": "078d9ec14e4da91c3ec10f5d4c8212d6d6371360b6d6047a70af729082736ffd",
+      "profile": "f0-0002-b-v2",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [139, 143]; owner AST [0, 35]",
+      "main": [
+        [
+          "NX-E0103",
+          null,
+          [
+            85,
+            87
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            139,
+            143
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            149,
+            153
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            181,
+            182
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E0103",
+          null,
+          [
+            85,
+            87
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            139,
+            143
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            181,
+            182
+          ]
+        ]
+      ],
+      "trace_decisions": 39,
+      "trace_rejected": 6
+    },
+    "s7021993:278": {
+      "source_sha256": "5c2578c9947eb05f78db23a614f1004c29826031926e95996f669c8eb17948c6",
+      "profile": "f0-0003-b-v1",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [182, 186]; owner AST [0, 55]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            182,
+            186
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            192,
+            193
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            228,
+            230
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            235,
+            237
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            182,
+            186
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            228,
+            230
+          ]
+        ],
+        [
+          "NX-E0102",
+          "type_mismatch",
+          [
+            235,
+            237
+          ]
+        ]
+      ],
+      "trace_decisions": 66,
+      "trace_rejected": 9
+    },
+    "s7021993:2391": {
+      "source_sha256": "779084982aab40af16fe6c9fc7b62a58c2b2607cd4792e596a74cac93192bd02",
+      "profile": "f0-0003-b-v1",
+      "status": "CANDIDATE_ADR_CONFORMING_ONE_PER_UNION",
+      "basis": "§4.1.2 N(d): second alternative of same if without external concrete context; first C at [146, 147]; owner AST [0, 35]",
+      "main": [
+        [
+          "NX-E1303",
+          null,
+          [
+            146,
+            147
+          ]
+        ],
+        [
+          "NX-E1303",
+          null,
+          [
+            153,
+            157
+          ]
+        ]
+      ],
+      "candidate": [
+        [
+          "NX-E1303",
+          null,
+          [
+            146,
+            147
+          ]
+        ]
+      ],
+      "trace_decisions": 42,
+      "trace_rejected": 3
+    }
+  },
+  "sample_counts": {
+    "executed_and_traced": 30,
+    "adjudicated_candidate_conforming": 26,
+    "adjudicated_candidate_defect": 2,
+    "adr_ambiguous_keep_main": 2,
+    "inconclusive": 0
+  },
+  "estimate": "Directed sample: 2/30 intrinsic candidate defects, plus 2/30 D9 main-preservation changes = 4/30 (13.3%) requiring correction. The sample is selected by known families, so this is a within-sample rate, not an unbiased estimate for all 102. B r25's 10-25% remains a working range."
+}
