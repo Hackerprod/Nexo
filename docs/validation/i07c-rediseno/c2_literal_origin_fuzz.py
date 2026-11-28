@@ -81,8 +81,9 @@ def main():
     parser.add_argument("--mode", choices=("narrow", "varied"), default="varied")
     parser.add_argument("--count", type=int, default=60_000)
     parser.add_argument("--workers", type=int, default=3)
+    parser.add_argument("--smoke", action="store_true", help="report-only small run, never gate evidence")
     args = parser.parse_args()
-    if args.mode == "varied" and args.count < 60_000:
+    if args.mode == "varied" and args.count < 60_000 and not args.smoke:
         raise SystemExit("varied evidence requires at least 60000 programs")
     if not 1 <= args.workers <= 3:
         raise SystemExit("workers must be between 1 and 3")
@@ -163,7 +164,7 @@ def main():
                   f"A={counts['A']}, hard={len(hard)}", flush=True)
     report = {
         "schema": "i07c-c2-literal-origin-fuzz-v3", "mode": args.mode,
-        "complete": True, "programs": args.count, "unique_sources": len(unique),
+        "complete": not args.smoke, "programs": args.count, "unique_sources": len(unique),
         "profile": profile, "main_sha256": sha(args.main_exe),
         "candidate_release_sha256": sha(args.candidate_exe),
         "candidate_debug_sha256": sha(args.candidate_debug_exe),
@@ -174,6 +175,8 @@ def main():
     args.output.write_text(json.dumps(report, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
     print(f"{args.mode}: {args.count} programs, {len(unique)} unique, "
           f"A={counts['A']}, hard={len(hard)}")
+    if args.smoke:
+        print("REPORT-ONLY SMOKE: never evidence of gate success")
     if hard:
         raise SystemExit(1)
 
