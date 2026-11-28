@@ -2761,6 +2761,9 @@ struct InferenceGraph {
     pre_assignment_snapshot: HashMap<u64, Option<ConcreteEvidence>>,
     projected_bases: HashSet<u64>,
     projection_items: HashSet<u64>,
+    // InferenceGraph lives in the fixed 65 KiB TYPES thread. Keeping this
+    // index inline makes result_match126 overflow on the real test path.
+    #[expect(clippy::box_collection, reason = "65 KiB TYPES stack boundary")]
     projection_sites: Box<HashSet<(u64, u64)>>,
     assigned_bases: HashSet<u64>,
     assignment_starts: HashMap<u64, u64>,
