@@ -7,6 +7,7 @@ diagnostics must still match the frozen P-B observation for the selected rows.
 """
 
 import argparse
+import gzip
 import hashlib
 import json
 import os
@@ -27,14 +28,18 @@ def digest(data):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--row", action="append", required=True,
+    parser.add_argument("--row", action="append",
                         help="Corpus row ID; repeat to trace several rows")
+    parser.add_argument("--all", action="store_true", help="Trace all 120 frozen rows")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
     frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
+    if args.all == bool(args.row):
+        parser.error("select --all or one or more --row arguments")
+    row_ids = list(frozen["rows"]) if args.all else args.row
     observations = {}
-    for row_id in args.row:
+    for row_id in row_ids:
         if row_id not in frozen["rows"]:
             parser.error(f"row absent from frozen iteration: {row_id}")
         row = frozen["rows"][row_id]
@@ -78,8 +83,11 @@ def main():
         "binary_sha256": gate.sha(args.binary),
         "rows": observations,
     }
-    args.output.write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n",
-                           encoding="utf-8")
+    payload = (json.dumps(report, ensure_ascii=True, indent=2) + "\n").encode("utf-8")
+    if args.output.suffix == ".gz":
+        args.output.write_bytes(gzip.compress(payload, mtime=0))
+    else:
+        args.output.write_bytes(payload)
     print(f"{len(observations)} rows, "
           f"{sum(len(row['trace']) for row in observations.values())} trace events")
 

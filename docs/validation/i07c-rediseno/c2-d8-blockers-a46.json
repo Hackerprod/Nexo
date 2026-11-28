@@ -1,0 +1,1449 @@
+{
+  "schema": "i07c-c2-d8-blockers-v1",
+  "iteration_sha256": "1aebd0a0f47bf202cc0c0f548935539a92d403d1bc6a7947a10cc3b123a60dcf",
+  "audit_sha256": "baa47a53235f3c26450cec615d3a10d6054849e97c311c6cf87d3779bf07167a",
+  "counts": {
+    "rows": 120,
+    "candidate_defect_rows": 18,
+    "missing_required_c_rows": 16,
+    "missing_required_c_sites": 20,
+    "manual_relation_defect_rows": 2,
+    "requires_causal_derivation": 102
+  },
+  "rows": {
+    "b-projections-2026112401:233": {
+      "source_sha256": "8a6a28742d1acd4d1858936ec0cb11ee378c00ee911c49dcf7d7e367c7a91cb0",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": {
+        "primary": [
+          168,
+          169
+        ],
+        "expected_relation": [
+          81,
+          82
+        ],
+        "clause": "F0-0002 \u00a7\u00a74.1.2.4, 4.1.2.6",
+        "candidate_relation": [
+          105,
+          107
+        ]
+      },
+      "triage": "candidate_defect"
+    },
+    "b-projections-2026112401:280": {
+      "source_sha256": "0a288a3eed29a94ab2a48199d3093a10f894fa58696e33de07936da367e1e079",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:550": {
+      "source_sha256": "489a2eb4baa8fa5bf1cc8e83d247ffd92c983d88bbdc59bef083080e77d47898",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation",
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:560": {
+      "source_sha256": "cb89f1e2b915969a04b930ca874696c066f42a527a4141109fcc938eb5618de7",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:1036": {
+      "source_sha256": "391ceb0835073bc77f2960be93212ad58ff6068331eae2c9ac1a99b64ad3139c",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:1124": {
+      "source_sha256": "1b1d93974d71f075d4fb3dd371ff3c7bb8c08d5ec094e3fc5aa8cbf9d7b74d11",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:1183": {
+      "source_sha256": "6044eee5a1e92e41767fe481578f56d2e6fcec9cd97836e666e9d7a2a98a38da",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:1196": {
+      "source_sha256": "a18ddd06a42488a344897218c4177e594a46edf983432a33af4d0b3552029bd1",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:1390": {
+      "source_sha256": "07380647804975516f1b2d9eccd8bf481cd259ae994addfc1af1610262c86f82",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:1657": {
+      "source_sha256": "bc488dc574fa71998079d3699c23d0c6a146b1042604882db104aa4583854724",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:1995": {
+      "source_sha256": "8bdef64242d09807074f04862393679d0f165cb975f9fda8cb55d1bf0994b4eb",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": {
+        "primary": [
+          159,
+          160
+        ],
+        "expected_relation": [
+          91,
+          95
+        ],
+        "clause": "F0-0002 \u00a7\u00a74.1.2.4\u20136",
+        "candidate_relation": [
+          123,
+          124
+        ]
+      },
+      "triage": "candidate_defect"
+    },
+    "b-projections-2026112401:2095": {
+      "source_sha256": "7e7d85710f34b8d6e8d9f9be79bd8fbad0945c356b8a1ab7b9dd95f98bf93323",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:2098": {
+      "source_sha256": "a3c04b300a959eaf7261269d3f6ba94cf71a9f977e842714332d4285c3041c27",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:2420": {
+      "source_sha256": "ced55341567145600a4351facff10e3b45496f8bc254f41d7fe91dd375cef2e2",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:2475": {
+      "source_sha256": "48c952a02409c2b50a79c5fd00f7057f7d819da17358112939b138397e96acf0",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:2616": {
+      "source_sha256": "ea35924eff1a7314be3b97071c472fa97fa7dc44b6bbb4c34ab6d020f509f012",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:2883": {
+      "source_sha256": "7d0a65f9f5739af394bbb62b281803bc28c5a7e9574b08b9af696106ed880a67",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112401:2919": {
+      "source_sha256": "b4a372d033cafa756b32b6ddad484365984c58f0aeb691f054b1b4f097784a00",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            52,
+            54
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-2026112401:2977": {
+      "source_sha256": "1d58414e210f874ff27c7387c45c33228397fe1692dfce71c37eb908b788eedf",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:241": {
+      "source_sha256": "71186309f7aa7ac12d2a56c43268b351f900cc2c9a8b3efd26a495d8058ebcf0",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation",
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:439": {
+      "source_sha256": "d9197a81818b40440304fa0e2b426affd0f42066744f160b5b39e5888c2a264c",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:468": {
+      "source_sha256": "04f8dbe2108bad6ea73176793eec035fc2e50028f1d25d0f29b24d01cf4eb173",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            61,
+            63
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            147,
+            149
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-t5-2026112402:472": {
+      "source_sha256": "736543e49cf9a8b73efd95d529de357cc6f000586349c50e148d59fa22d104b6",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:477": {
+      "source_sha256": "4c5488ae431feafd6a22ed58cc8b62991ef2eb165a43e8a015b76246a476e3ca",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:620": {
+      "source_sha256": "39009f8614541599aa9fa82eaaed3295ddec7fd99dd1a131fc16b043c2b05248",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic",
+        "removed_diagnostic",
+        "added_diagnostic",
+        "added_diagnostic",
+        "added_diagnostic",
+        "added_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:677": {
+      "source_sha256": "ac920883d37d7cd421e61d5958fc7ef964b8a347c962d88803e3102fcd1fb7ca",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:738": {
+      "source_sha256": "5cd599f180ff2784d1a59df5030f480a4c0d5130c4c8aa455df489a9f493c448",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:757": {
+      "source_sha256": "3f8eeeedc58636d05e66950cf8b7100f3726e6dc6dbf28447897ecb3d9a1dae5",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            228,
+            232
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-t5-2026112402:761": {
+      "source_sha256": "6f9c59d0f367d30977de3bdabd6109933552129b241e464e4150a2203c2763b6",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic",
+        "added_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            205,
+            206
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-t5-2026112402:820": {
+      "source_sha256": "9560892e2604b675d18f3fad14bb5acc764f34b2203f2ed0c76d248aab093504",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:838": {
+      "source_sha256": "7851383d20f5239a6faa886aaaa0adf2611bd06b112ed5f72d1b617582734b9c",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:953": {
+      "source_sha256": "f6bb591708fb1fd87f49d7589ba26a545305fa02821cf066420c86d8879b7aa5",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:1266": {
+      "source_sha256": "0431c5d8c6bc8302fec3bf80d121ca9d8062a5fa4bb4b5a7c68d8dd89a5c79e4",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:1584": {
+      "source_sha256": "53e9b783f67585bdd884f0de19c3f92a8943a13387b7e31219e6d83352313fb5",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:1622": {
+      "source_sha256": "8937dcfb8d5f529cf36f18190e849da3bd477b39e0f3566719b549d02ef3d26d",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:1763": {
+      "source_sha256": "26553c53e0ce780fff77dea433dc61f84363f600f5d7a0457e21f05ecf762536",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:1871": {
+      "source_sha256": "4f4f4777b04906cbc23759754ecaaa30da45ef8b01d5bf1c2d6b2de8225fcbcb",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2072": {
+      "source_sha256": "e3509441d4e4b6492f509b8575b19176b88cbed3eaca18a73fa3406f0ca696c3",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            137,
+            138
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-t5-2026112402:2138": {
+      "source_sha256": "fbb6ae0d21352be438db2bcbb33105935627e4542cb681e23aafc338ef9830ce",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2150": {
+      "source_sha256": "dfa61bdff24e5714d5109c41158745230a288b80e69ab7e3717e84cec0d8d495",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2201": {
+      "source_sha256": "7fd748eff574811dba02eedda888fc8f7836df4b7570352a0064cbad79db57fb",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2249": {
+      "source_sha256": "07c52b76384081d2a55b74b25a2d6591ec39adbe359bb8b4b2b91f8262b0fdcf",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2257": {
+      "source_sha256": "4f68a3c0b6a5c36c92860aae2f565ae7dc63db2877e7184d03853049f9bc17b8",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2271": {
+      "source_sha256": "c6716460404779e680998e3b040a670d74e6dbf82d5b3f3e136a7c8575460806",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2329": {
+      "source_sha256": "2c4b33ab83e9e9ab179760613d92cc0d4478c71cae698b3a09e2f48b32eeba87",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2340": {
+      "source_sha256": "f831071247764a6c6f4201acca7cbf78b1b7e392877d306ffa00c1674dbde029",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2343": {
+      "source_sha256": "f777f3cc6c8fc6858d1b9968c1b607d8d997bd6afd48b89f93bf9c2cb3a0813a",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            230,
+            231
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-t5-2026112402:2398": {
+      "source_sha256": "b0323f4ff3cdc49758ae0459f6be421ced937f5cb1cd7995550a06bbab2a0133",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2551": {
+      "source_sha256": "57877e8fe2e3d27d72b5b1e9c27458122119d9430fa2f00701102996dc9cf96e",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2644": {
+      "source_sha256": "e183b70072ad3cdaf61bcb9ea282e748d9291518038befa979bc54cfc5f50f41",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2675": {
+      "source_sha256": "51bfe82a8592768266ef8280713b14bde7275eedd3d7fc91e750d9140b63ac52",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-t5-2026112402:2757": {
+      "source_sha256": "52c68a90cc9448c10e8972ceeb9fe0be11957e10c307657a5050240f614ed6c6",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:72": {
+      "source_sha256": "eb81a8cf2a2d5bb8717f3b049e1fb1576b62cfd83c4955a4cfda0d031e9bbdb1",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:94": {
+      "source_sha256": "58e254597674bee030ab291b05bc1f08685af0c97c816452e6ba6e190d9ed05d",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:153": {
+      "source_sha256": "f822108b9b170781b84423deaf78436c574157dbd605d92fd1b0769fb8ef78ca",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:239": {
+      "source_sha256": "c98e5fa700f18e121b0893c77ae8cbaf9d2ea42cc588186ea27459a007ebd85e",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:273": {
+      "source_sha256": "965e74c578d4c423c3599a8cd2c24729b8bd162001f0a78f2867f4b038259100",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:548": {
+      "source_sha256": "15c2e23d3062e6ae62a6f41444d5d5e57f3a74b4201ce3613537b7d2974e45a3",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:678": {
+      "source_sha256": "550d0e28dd360a7044d188dab35696f5ff43a9ac602eb02fefebb1a574616298",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation",
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:868": {
+      "source_sha256": "f74ac3d2ad0da4aa22d92ec96f9fd4f75b19ca71abb2432e31a5fe5acfcbad22",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:988": {
+      "source_sha256": "c80e8902474123d6f18ba92dcdc65fb726c9059bbd4211e79ef86d933ddc59ca",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "added_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:1286": {
+      "source_sha256": "982c67d086cec2fab2ef697a731797974b8da1a37e95ad23c00cfa83862254be",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:1451": {
+      "source_sha256": "299299639b5efc5be7dae0dafc4b9f7c763b20927893f187d32b23c4462687cc",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            188,
+            189
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-2026112403:1916": {
+      "source_sha256": "7260147b07dd45ecb4f66cc4314d7614cb641af47ed372f170306afb51d2fcea",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:1952": {
+      "source_sha256": "3caa0229a9e978e3d390e18164c62f8062b68f57c59dac73f6c4ea54f0600c08",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:1963": {
+      "source_sha256": "2cf090e47e815e22a58e33e067d1f432dcd1e330d6d48a97f100554bd7de256e",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "added_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:2034": {
+      "source_sha256": "91497900df7da8a5f3870fa8a52b332242de36934c7bfcd773d105816488257d",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:2092": {
+      "source_sha256": "c6a1876e97da92d3dce45131857aa708cc8984cbfadfb5a7b696b8c9eeb20151",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:2532": {
+      "source_sha256": "6ebd73078e6a99f7f313c607fe1e30e58ead4447406491aebfd1d8dbe785659f",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            61,
+            63
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b-projections-2026112403:2770": {
+      "source_sha256": "dcc6a7937a771c9b034892478d4f76ddfefbe219171f1748a4630ba7329e8e8c",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation",
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:2811": {
+      "source_sha256": "fd1dc9d5130181f1ec6c13d5e1d19614a16685b79d7b7f2037046b9adec61383",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b-projections-2026112403:2918": {
+      "source_sha256": "a0bf99c91a85b111b1a97d2a2459fc52e3d1441ad60a005c5ac430e5475cc6a7",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "relation"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1:921": {
+      "source_sha256": "aecf4f4c5e56c5ac105c56290eb2d32d16904ff4b6361ecaa7117725f8f08d7b",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1:8216": {
+      "source_sha256": "25c8d058676effafffcacdc9791082f4318465ba056fe0b77ebeb590f0cd0410",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            165,
+            169
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "c1:11189": {
+      "source_sha256": "625ce898aa55592133e7a617632977a198f549cdf5374de5a79541856c03d53b",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1:11474": {
+      "source_sha256": "ec8513c88a5db39de7bc453ee8a95d8ba494eeeba31a2ae88ac0f9e034d4a9b8",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "c1:13247": {
+      "source_sha256": "9e52677e01d30f60576f2fda42a43c9231d9096b24665c04b30744f3401309c2",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1:13626": {
+      "source_sha256": "86ffc587a1a71ebcea3b89a6193707c7e0eb280f70a2494762b703697d2aad5d",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            170,
+            174
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "c1:15115": {
+      "source_sha256": "7201ce44bddaa4bb3935756013123b3533c0538fc5dc9acc62bc8d7b06e9efec",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1:15304": {
+      "source_sha256": "c84b767a24b6be0320f31883561a4699263759e452a516f1540ecc2341f04103",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1:18686": {
+      "source_sha256": "9392ca9e3178696a22fdac1dc0464a9a81f67e97765c10deeb4f0adad9a5e2fa",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "c1:21363": {
+      "source_sha256": "d18c3ce0f2667b70b1ec69b644e7e2103a01a92eccd3adae9aba5668566cae1f",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2:176": {
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2:2858": {
+      "source_sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2:8742": {
+      "source_sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2:9591": {
+      "source_sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2:15473": {
+      "source_sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2@f0-0003-b-v1:176": {
+      "source_sha256": "d0607908c663f8cd6b208a00a28dad2efc09b9d7310572a1d0d257b477858d48",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2@f0-0003-b-v1:2858": {
+      "source_sha256": "c3a848ff061918ade0174eaf4e3022e141a16a1f0e107144683937822d260091",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2@f0-0003-b-v1:7609": {
+      "source_sha256": "99d07ccbf76eeefabcc0d2892003cf5f282fb3931a5fdf5159678964d7fd643a",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2@f0-0003-b-v1:8742": {
+      "source_sha256": "dd7f2ad8b2c3a09333e7d70ef4cde71c8c992ef981b64f6ddb761e3486198db0",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2@f0-0003-b-v1:9591": {
+      "source_sha256": "b8b7e7ad5311dd62e17ad733b767ca71e2e56f74fa21afa74efbac7aac1fd8e4",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2@f0-0003-b-v1:15473": {
+      "source_sha256": "8a780fcf2a353c39991cbff1254cf57e3ff362f9c3fbc3dfcb8ec8d690281da6",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b:2709": {
+      "source_sha256": "707676a78299c9bf0d5c1b8c8d113e4704751d43aba774ddcf289ae314e9e89e",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "b:3042": {
+      "source_sha256": "48e43ff14dc93ae10946ee3c7fddbc1c40db22eda0d4f9c09921be243640b1f6",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "b:3122": {
+      "source_sha256": "078d9ec14e4da91c3ec10f5d4c8212d6d6371360b6d6047a70af729082736ffd",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s7021993:278": {
+      "source_sha256": "5c2578c9947eb05f78db23a614f1004c29826031926e95996f669c8eb17948c6",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s7021993:2391": {
+      "source_sha256": "779084982aab40af16fe6c9fc7b62a58c2b2607cd4792e596a74cac93192bd02",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s7021993:3267": {
+      "source_sha256": "2708d538810e5c6bf28bdd69b5c1a0d95bb19f71dd69925c48e1fb8fc9c23aa4",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s7021993:4268": {
+      "source_sha256": "4083b3294d0ee7cade3b4ef6d224d9a3e445e38721a0710f11c9c778bc2d7e28",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s4417061:397": {
+      "source_sha256": "9f8a06898f714c881631dd565ee1b2376b4e2c8a8d222f7b457e2de02858c9ca",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s4417061:2070": {
+      "source_sha256": "fc7ac11ab8d20121ca0146cbd0404ca08208f5dbc48f9d3319c6a9527f9cf196",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s4417061:2565": {
+      "source_sha256": "74f35a203e5c40978ab78a6bbdc986910868b565674828267dee093a505108a3",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s9908255:483": {
+      "source_sha256": "ab91c11be0a9709a4b30f1bb90d3d534dba3485f36f87901a60423dde1cf2fe3",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s9908255:1013": {
+      "source_sha256": "229668ced3a28a74e656b672ff1b8922ae471e2029e54c7a569d4e8a5f15c6b7",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "s9908255:1955": {
+      "source_sha256": "97d7764692b63f6e2b952f999332c01a88262430377ca478a8ac07fed1faa71d",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1-nueva:631": {
+      "source_sha256": "4637a654b82ab2164386232768bbc9bb344daa1f44ab5ca2efeda3996a62cd86",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1-nueva:1530": {
+      "source_sha256": "332fa4cffc1c2ae647ea2c3e7d6218373d4f222664deaacaeaff7a681e440bae",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            67,
+            69
+          ],
+          "clause": "cl.2 / 4.1"
+        },
+        {
+          "code": "NX-E0103",
+          "subcause": null,
+          "primary": [
+            76,
+            78
+          ],
+          "clause": "cl.2 / 4.1"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "c1-nueva:4486": {
+      "source_sha256": "e4714a312eaa81c4dd8ea90540f709d0326159cdb66737fc4d3359e461a55a4a",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1-nueva:7624": {
+      "source_sha256": "bc75dc16a13250e49c6e564beec0bce786d504513cf16f8dafe2249ce3054a80",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E1303",
+          "subcause": null,
+          "primary": [
+            175,
+            179
+          ],
+          "clause": "cl.4 / 4.7"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "c1-nueva2:3259": {
+      "source_sha256": "f35ffe282f46303be9dbcd167af497d2cc5c94c2f6ea7ef8b36d4d25122cb3dd",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c1-nueva2:4479": {
+      "source_sha256": "197c3d636f68d84462780f4c1390a3878e10da77e9dd4f2ae2901ef1631f26c0",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [
+        {
+          "code": "NX-E0102",
+          "subcause": "type_mismatch",
+          "primary": [
+            195,
+            197
+          ],
+          "clause": "cl.2-4 / cl.6"
+        }
+      ],
+      "manual_relation_defect": null,
+      "triage": "candidate_defect"
+    },
+    "c1-nueva2:5438": {
+      "source_sha256": "82eb7eb0420b7890e40263516d2630c4bc218f34432dd495fc2c900636cec08b",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2-nueva2:1737": {
+      "source_sha256": "3890579e7c2c28f74ee8a32a51ed3f2beebd6d4bf10ff1dbc8b05f05c44f378d",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2-nueva2:3112": {
+      "source_sha256": "866fc70921e23d94f17c3ea0f82c0bb75299c55cf50a40f11be1cbff6834dd40",
+      "profile": "f0-0002-b-v2",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2-nueva2@f0-0003-b-v1:469": {
+      "source_sha256": "f35f907393f0817456d32b8710bdc6a36fb0d954c241114399fb530a1f4332fa",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2-nueva2@f0-0003-b-v1:1737": {
+      "source_sha256": "3890579e7c2c28f74ee8a32a51ed3f2beebd6d4bf10ff1dbc8b05f05c44f378d",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2-nueva2@f0-0003-b-v1:1954": {
+      "source_sha256": "45150801cfb79d8e1be2621ee7d71037e40c32ce9dac4e1c0c961ad902d8f368",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2-nueva2@f0-0003-b-v1:2536": {
+      "source_sha256": "6fa35dee2c71ce782b28f7572639d2ef772ee2aebea5c0828d2344edbad6b1d3",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    },
+    "c2-nueva2@f0-0003-b-v1:3112": {
+      "source_sha256": "866fc70921e23d94f17c3ea0f82c0bb75299c55cf50a40f11be1cbff6834dd40",
+      "profile": "f0-0003-b-v1",
+      "delta_kinds": [
+        "removed_diagnostic"
+      ],
+      "missing_required_c": [],
+      "manual_relation_defect": null,
+      "triage": "requires_causal_derivation"
+    }
+  }
+}
